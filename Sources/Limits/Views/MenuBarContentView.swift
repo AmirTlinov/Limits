@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct MenuBarContentView: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     @ObservedObject var model: AppModel
     let openAccountsWindow: () -> Void
 
@@ -14,7 +16,7 @@ struct MenuBarContentView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             CurrentCLIOverviewCard(
                 overview: overview,
                 source: model.currentCLIState.source,
@@ -24,12 +26,16 @@ struct MenuBarContentView: View {
                 compact: true
             )
 
-            if !quickSwitchAccounts.isEmpty {
-                Divider()
-                    .padding(.horizontal, 2)
-            }
-
-            if !quickSwitchAccounts.isEmpty {
+            if !quickSwitchAccounts.isEmpty, #available(macOS 26.0, *), !reduceTransparency {
+                GlassEffectContainer(spacing: 6) {
+                    ForEach(quickSwitchAccounts) { account in
+                        AccountSwitchRow(account: account) {
+                            Task { await model.activateAccount(account) }
+                        }
+                        .disabled(model.isBusy)
+                    }
+                }
+            } else if !quickSwitchAccounts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
                         AccountSwitchRow(account: account) {
@@ -43,7 +49,7 @@ struct MenuBarContentView: View {
             footer
         }
         .padding(12)
-        .frame(width: 320)
+        .frame(width: 326)
         .onAppear {
             Task { await model.refreshCurrentCLIPanel(forceProbe: false) }
         }
@@ -53,25 +59,22 @@ struct MenuBarContentView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             if model.hasCurrentCLIAuthToImport() {
-                Button("Импортировать") {
+                panelActionButton("Импортировать", primary: true) {
                     Task { await model.importCurrentCLIAuth() }
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy)
             } else if model.shouldOfferAddAccountAsPrimaryAction() {
-                Button("Добавить") {
+                panelActionButton("Добавить", primary: true) {
                     Task { await model.addAccount() }
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy)
             }
 
             Spacer(minLength: 0)
 
-            Button("Окно…") {
+            panelActionButton("Окно…") {
                 openAccountsWindow()
             }
-            .buttonStyle(.bordered)
             .disabled(model.isBusy)
 
             Menu {
@@ -99,9 +102,37 @@ struct MenuBarContentView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .imageScale(.large)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 32, height: 32)
+                    .glassPanelSurface(
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                        interactive: true,
+                        fallbackMaterial: .thinMaterial
+                    )
             }
             .menuStyle(.borderlessButton)
+        }
+    }
+
+    @ViewBuilder
+    private func panelActionButton(_ title: String, primary: Bool = false, action: @escaping () -> Void) -> some View {
+        if #available(macOS 26.0, *) {
+            if primary {
+                Button(title, action: action)
+                    .buttonStyle(.glassProminent)
+                    .buttonBorderShape(.roundedRectangle(radius: 14))
+            } else {
+                Button(title, action: action)
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.roundedRectangle(radius: 14))
+            }
+        } else {
+            if primary {
+                Button(title, action: action)
+                    .buttonStyle(.borderedProminent)
+            } else {
+                Button(title, action: action)
+                    .buttonStyle(.bordered)
+            }
         }
     }
 }
@@ -132,11 +163,12 @@ private struct AccountSwitchRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.quaternary.opacity(0.14))
+            .glassPanelSurface(
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                interactive: true,
+                fallbackMaterial: .thinMaterial
             )
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }

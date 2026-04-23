@@ -1,10 +1,6 @@
-import AppKit
 import SwiftUI
 
 struct CurrentCLIOverviewCard: View {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-
     let overview: AppModel.CurrentCLIOverview
     let source: AppModel.CurrentCLIState.Source
     let updatedAt: Date?
@@ -109,15 +105,14 @@ struct CurrentCLIOverviewCard: View {
     @ViewBuilder
     private var backgroundShape: some View {
         let shape = RoundedRectangle(cornerRadius: compact ? 18 : 14, style: .continuous)
+        let tone: GlassPanelTone = compact ? .regular : .clear
 
-        if compact, reduceTransparency {
-            shape.fill(Color(nsColor: .windowBackgroundColor))
-        } else if compact, #available(macOS 26.0, *) {
-            Color.clear
-                .glassEffect(contrast == .increased ? .regular : .clear, in: shape)
-        } else {
-            shape.fill(.regularMaterial)
-        }
+        Color.clear
+            .glassPanelSurface(
+                in: shape,
+                tone: tone,
+                fallbackMaterial: .regularMaterial
+            )
     }
 
     private static func updatedAtText(for date: Date) -> String {
