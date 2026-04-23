@@ -7,6 +7,12 @@ enum AccountsDetailDestination: Equatable {
     case claudeAccount(UUID)
 }
 
+enum AccountsSidebarFilter: String, CaseIterable {
+    case all
+    case codex
+    case claude
+}
+
 enum AccountsPresentationLogic {
     static let storedRowsScrollThreshold = 4
 
@@ -56,5 +62,38 @@ enum AccountsPresentationLogic {
         }
 
         return .currentCodexCLI
+    }
+
+    static func isVisible(
+        destination: AccountsDetailDestination,
+        filter: AccountsSidebarFilter
+    ) -> Bool {
+        switch filter {
+        case .all:
+            return true
+        case .codex:
+            switch destination {
+            case .currentCodexCLI, .codexAccount:
+                return true
+            case .currentClaudeCode, .claudeAccount:
+                return false
+            }
+        case .claude:
+            switch destination {
+            case .currentClaudeCode, .claudeAccount:
+                return true
+            case .currentCodexCLI, .codexAccount:
+                return false
+            }
+        }
+    }
+
+    static func defaultDestination(for filter: AccountsSidebarFilter) -> AccountsDetailDestination {
+        switch filter {
+        case .all, .codex:
+            return .currentCodexCLI
+        case .claude:
+            return .currentClaudeCode
+        }
     }
 }

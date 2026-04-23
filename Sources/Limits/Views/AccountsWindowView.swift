@@ -55,15 +55,30 @@ private enum AccountsSidebarSelection: Hashable {
 struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
     @SceneStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+    @SceneStorage("limits.accounts.sidebar.filter") private var sidebarFilterRaw = AccountsSidebarFilter.all.rawValue
 
     private var overview: AppModel.CurrentCLIOverview {
         model.currentCLIOverview()
+    }
+
+    private var sidebarFilter: AccountsSidebarFilter {
+        AccountsSidebarFilter(rawValue: sidebarFilterRaw) ?? .all
     }
 
     private var selectionBinding: Binding<AccountsSidebarSelection?> {
         Binding(
             get: { AccountsSidebarSelection(rawValue: sidebarSelectionRaw) ?? .currentCodexCLI },
             set: { sidebarSelectionRaw = ($0 ?? .currentCodexCLI).rawValue }
+        )
+    }
+
+    private var sidebarFilterBinding: Binding<AccountsSidebarFilter> {
+        Binding(
+            get: { sidebarFilter },
+            set: { filter in
+                sidebarFilterRaw = filter.rawValue
+                ensureValidSelection(for: filter)
+            }
         )
     }
 
@@ -140,98 +155,113 @@ struct AccountsWindowView: View {
         .onChange(of: model.claudeAccounts) { _, _ in
             ensureValidSelection()
         }
+        .onChange(of: sidebarFilterRaw) { _, _ in
+            ensureValidSelection()
+        }
     }
 
     private var sidebar: some View {
-        List(selection: selectionBinding) {
-            Section {
-                SidebarRowView(
-                    icon: "terminal",
-                    title: "Codex CLI",
-                    subtitle: overview.title,
-                    trailing: currentCLITrailingText,
-                    accent: .blue
-                )
-                .tag(AccountsSidebarSelection.currentCodexCLI)
+        VStack(spacing: 0) {
+            SidebarFilterPicker(selection: sidebarFilterBinding)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
-                SidebarRowView(
-                    icon: "text.bubble",
-                    title: "Claude Code",
-                    subtitle: model.currentClaudeOverview().title,
-                    trailing: nil,
-                    accent: .purple
-                )
-                .tag(AccountsSidebarSelection.currentClaudeCode)
-            }
-
-            Section("Аккаунты Codex") {
-                ForEach(model.accounts) { account in
-                    SidebarRowView(
-                        icon: "person.crop.circle",
-                        title: account.label,
-                        subtitle: nil,
-                        trailing: sidebarTrailing(for: account),
-                        accent: sidebarAccent(for: account)
-                    )
-                    .tag(AccountsSidebarSelection.codexAccount(account.id))
-                    .contextMenu {
-                        if !model.isCurrentCLIAccount(account) {
-                            Button("Сделать текущим") {
-                                Task { await model.activateAccount(account) }
-                            }
-                        }
-
-                        Button("Обновить значения") {
-                            Task { await model.validateAccount(account) }
-                        }
-
-                        Button("Повторный вход") {
-                            Task { await model.reauthenticateAccount(account) }
-                        }
-
-                        Divider()
-
-                        Button("Удалить аккаунт", role: .destructive) {
-                            Task { await model.deleteAccount(account) }
-                        }
+            List(selection: selectionBinding) {
+                Section {
+                    if sidebarFilter.includesCodex {
+                        SidebarRowView(
+                            icon: "terminal",
+                            title: "Codex CLI",
+                            subtitle: overview.title,
+                            trailing: currentCLITrailingText,
+                            accent: .blue
+                        )
+                        .tag(AccountsSidebarSelection.currentCodexCLI)
                     }
-                }
-            }
 
-            if !model.claudeAccounts.isEmpty {
-                Section("Аккаунты Claude") {
-                    ForEach(model.claudeAccounts) { account in
+                    if sidebarFilter.includesClaude {
                         SidebarRowView(
                             icon: "text.bubble",
-                            title: account.label,
-                            subtitle: claudeSidebarSubtitle(for: account),
+                            title: "Claude Code",
+                            subtitle: model.currentClaudeOverview().title,
                             trailing: nil,
-                            accent: claudeSidebarAccent(for: account)
+                            accent: .purple
                         )
-                        .tag(AccountsSidebarSelection.claudeAccount(account.id))
-                        .contextMenu {
-                            if !model.isCurrentClaudeAccount(account) {
-                                Button("Сделать текущим") {
-                                    Task { await model.activateClaudeAccount(account) }
+                        .tag(AccountsSidebarSelection.currentClaudeCode)
+                    }
+                }
+
+                if sidebarFilter.includesCodex, !model.accounts.isEmpty {
+                    Section("Аккаунты Codex") {
+                        ForEach(model.accounts) { account in
+                            SidebarRowView(
+                                icon: "person.crop.circle",
+                                title: account.label,
+                                subtitle: nil,
+                                trailing: sidebarTrailing(for: account),
+                                accent: sidebarAccent(for: account)
+                            )
+                            .tag(AccountsSidebarSelection.codexAccount(account.id))
+                            .contextMenu {
+                                if !model.isCurrentCLIAccount(account) {
+                                    Button("Сделать текущим") {
+                                        Task { await model.activateAccount(account) }
+                                    }
                                 }
-                            } else {
-                                Button("Обновить") {
-                                    Task { await model.refreshCurrentClaudeAccount() }
+
+                                Button("Обновить значения") {
+                                    Task { await model.validateAccount(account) }
+                                }
+
+                                Button("Повторный вход") {
+                                    Task { await model.reauthenticateAccount(account) }
+                                }
+
+                                Divider()
+
+                                Button("Удалить аккаунт", role: .destructive) {
+                                    Task { await model.deleteAccount(account) }
                                 }
                             }
+                        }
+                    }
+                }
 
-                            Divider()
+                if sidebarFilter.includesClaude, !model.claudeAccounts.isEmpty {
+                    Section("Аккаунты Claude") {
+                        ForEach(model.claudeAccounts) { account in
+                            SidebarRowView(
+                                icon: "text.bubble",
+                                title: account.label,
+                                subtitle: claudeSidebarSubtitle(for: account),
+                                trailing: nil,
+                                accent: claudeSidebarAccent(for: account)
+                            )
+                            .tag(AccountsSidebarSelection.claudeAccount(account.id))
+                            .contextMenu {
+                                if !model.isCurrentClaudeAccount(account) {
+                                    Button("Сделать текущим") {
+                                        Task { await model.activateClaudeAccount(account) }
+                                    }
+                                } else {
+                                    Button("Обновить") {
+                                        Task { await model.refreshCurrentClaudeAccount() }
+                                    }
+                                }
 
-                            Button("Удалить аккаунт", role: .destructive) {
-                                Task { await model.deleteClaudeAccount(account) }
+                                Divider()
+
+                                Button("Удалить аккаунт", role: .destructive) {
+                                    Task { await model.deleteClaudeAccount(account) }
+                                }
                             }
                         }
                     }
                 }
             }
-
+            .listStyle(.sidebar)
         }
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
     }
 
@@ -315,19 +345,74 @@ struct AccountsWindowView: View {
         }
     }
 
-    private func ensureValidSelection() {
-        guard let selection = AccountsSidebarSelection(rawValue: sidebarSelectionRaw) else {
-            sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+    private func ensureValidSelection(for filter: AccountsSidebarFilter? = nil) {
+        let activeFilter = filter ?? sidebarFilter
+        let destination = AccountsPresentationLogic.detailDestination(
+            selectionRaw: sidebarSelectionRaw,
+            codexAccountIDs: Set(model.accounts.map(\.id)),
+            claudeAccountIDs: Set(model.claudeAccounts.map(\.id))
+        )
+
+        guard AccountsPresentationLogic.isVisible(destination: destination, filter: activeFilter) else {
+            sidebarSelectionRaw = sidebarSelection(
+                for: AccountsPresentationLogic.defaultDestination(for: activeFilter)
+            ).rawValue
             return
         }
 
-        if case .codexAccount(let id) = selection, !model.accounts.contains(where: { $0.id == id }) {
-            sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+        let normalizedSelection = sidebarSelection(for: destination)
+        if sidebarSelectionRaw != normalizedSelection.rawValue {
+            sidebarSelectionRaw = normalizedSelection.rawValue
         }
+    }
 
-        if case .claudeAccount(let id) = selection, !model.claudeAccounts.contains(where: { $0.id == id }) {
-            sidebarSelectionRaw = AccountsSidebarSelection.currentClaudeCode.rawValue
+    private func sidebarSelection(for destination: AccountsDetailDestination) -> AccountsSidebarSelection {
+        switch destination {
+        case .currentCodexCLI:
+            return .currentCodexCLI
+        case .currentClaudeCode:
+            return .currentClaudeCode
+        case .codexAccount(let id):
+            return .codexAccount(id)
+        case .claudeAccount(let id):
+            return .claudeAccount(id)
         }
+    }
+}
+
+private extension AccountsSidebarFilter {
+    var includesCodex: Bool {
+        switch self {
+        case .all, .codex:
+            return true
+        case .claude:
+            return false
+        }
+    }
+
+    var includesClaude: Bool {
+        switch self {
+        case .all, .claude:
+            return true
+        case .codex:
+            return false
+        }
+    }
+}
+
+private struct SidebarFilterPicker: View {
+    @Binding var selection: AccountsSidebarFilter
+
+    var body: some View {
+        Picker("Показать аккаунты", selection: $selection) {
+            Text("Все").tag(AccountsSidebarFilter.all)
+            Text("Codex").tag(AccountsSidebarFilter.codex)
+            Text("Claude").tag(AccountsSidebarFilter.claude)
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .labelsHidden()
+        .accessibilityLabel("Показать аккаунты")
     }
 }
 

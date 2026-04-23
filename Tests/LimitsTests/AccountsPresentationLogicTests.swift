@@ -71,3 +71,51 @@ import Testing
         )
     )
 }
+
+@Test func sidebarFilterVisibilityMatchesProvider() {
+    let codexID = UUID()
+    let claudeID = UUID()
+
+    #expect(
+        AccountsPresentationLogic.isVisible(
+            destination: .currentCodexCLI,
+            filter: .codex
+        )
+    )
+    #expect(
+        AccountsPresentationLogic.isVisible(
+            destination: .codexAccount(codexID),
+            filter: .codex
+        )
+    )
+    #expect(
+        !AccountsPresentationLogic.isVisible(
+            destination: .claudeAccount(claudeID),
+            filter: .codex
+        )
+    )
+    #expect(
+        AccountsPresentationLogic.isVisible(
+            destination: .currentClaudeCode,
+            filter: .claude
+        )
+    )
+    #expect(
+        !AccountsPresentationLogic.isVisible(
+            destination: .codexAccount(codexID),
+            filter: .claude
+        )
+    )
+    #expect(
+        AccountsPresentationLogic.isVisible(
+            destination: .claudeAccount(claudeID),
+            filter: .all
+        )
+    )
+}
+
+@Test func sidebarFilterDefaultDestinationMatchesProvider() {
+    #expect(AccountsPresentationLogic.defaultDestination(for: .all) == .currentCodexCLI)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .codex) == .currentCodexCLI)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .claude) == .currentClaudeCode)
+}
