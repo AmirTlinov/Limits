@@ -9,10 +9,10 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 </p>
 
 <p align="center">
-  <img src="docs/images/limits-tray.png" alt="Limits menu bar panel with sanitized demo accounts" width="430">
+  <img src="docs/images/limits-tray.png" alt="Limits menu bar panel with sanitized demo accounts" width="760">
 </p>
 
-> Screenshots use fake `example.com` accounts. They are generated demo images, not Amir's local data.
+> Screenshots use fake `example.com` accounts. They are staged demo scenes, not a real local desktop or private data.
 
 ## What it does
 
