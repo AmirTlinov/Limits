@@ -104,7 +104,7 @@ struct MenuBarContentView: View {
                 }
 
                 if !model.accounts.isEmpty {
-                    Button("Обновить") {
+                    Button("Обновить лимиты") {
                         Task { await model.validateAll() }
                     }
                 }
