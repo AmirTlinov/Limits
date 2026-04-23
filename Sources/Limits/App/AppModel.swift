@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
             case missing
             case stored(UUID)
             case external(String?)
+            case unreadable
         }
 
         var source: Source = .missing
@@ -56,7 +57,7 @@ final class AppModel: ObservableObject {
             let identity = try CodexAuthBlob.identity(from: data)
             let fingerprint = CodexAuthBlob.fingerprint(for: data)
 
-            if let matched = accounts.first(where: { matches(identity: identity, fingerprint: fingerprint, account: $0) }) {
+            if let matched = Self.resolveStoredAccountMatch(identity: identity, fingerprint: fingerprint, accounts: accounts) {
                 currentCLIState = CurrentCLIState(
                     source: .stored(matched.id),
                     authFingerprint: fingerprint,
@@ -72,7 +73,7 @@ final class AppModel: ObservableObject {
                 )
             }
         } catch {
-            currentCLIState = CurrentCLIState(source: .external(nil), authFingerprint: nil, accountId: nil, authMode: nil)
+            currentCLIState = CurrentCLIState(source: .unreadable, authFingerprint: nil, accountId: nil, authMode: nil)
             errorMessage = error.localizedDescription
         }
     }
@@ -171,18 +172,66 @@ final class AppModel: ObservableObject {
         switch currentCLIState.source {
         case .missing:
             return "CLI auth missing"
-        case .stored(let id):
-            return accounts.first(where: { $0.id == id })?.label ?? "Stored account"
+        case .stored:
+            return "Stored account active"
         case .external(let accountId):
             if let accountId {
-                return "External auth (\(accountId))"
+                return "CLI auth drifted (\(accountId))"
             }
-            return "External auth"
+            return "CLI auth drifted"
+        case .unreadable:
+            return "CLI auth unreadable"
         }
     }
 
+    func currentCLIDetail() -> String {
+        switch currentCLIState.source {
+        case .missing:
+            return "Global ~/.codex/auth.json is missing."
+        case .stored(let id):
+            if let label = accounts.first(where: { $0.id == id })?.label {
+                return "\(label) is active for future CLI commands."
+            }
+            return "A saved account is active for future CLI commands."
+        case .external(let accountId):
+            if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
+                return "Global ~/.codex/auth.json points to \(matched.label), but the saved auth snapshot differs."
+            }
+            if let accountId {
+                return "Global ~/.codex/auth.json points to \(accountId). Import it here or switch to a saved account."
+            }
+            return "Global ~/.codex/auth.json does not match any saved account."
+        case .unreadable:
+            return "Global ~/.codex/auth.json exists, but this app could not read it as a valid auth blob."
+        }
+    }
+
+    func hasExternalCLIAuthDrift() -> Bool {
+        if case .external = currentCLIState.source {
+            return true
+        }
+        return false
+    }
+
+    func isCurrentCLIAuthMissing() -> Bool {
+        if case .missing = currentCLIState.source {
+            return true
+        }
+        return false
+    }
+
+    func isCurrentCLIAuthUnreadable() -> Bool {
+        if case .unreadable = currentCLIState.source {
+            return true
+        }
+        return false
+    }
+
     func hasCurrentCLIAuthToImport() -> Bool {
-        globalAuthService.hasGlobalAuth()
+        if case .external = currentCLIState.source {
+            return true
+        }
+        return false
     }
 
     private func importCurrentCLIAuthNow() async throws {
@@ -259,6 +308,10 @@ final class AppModel: ObservableObject {
         try persistence.save(PersistedState(accounts: accounts))
     }
 
+    static func resolveStoredAccountMatch(identity: AuthIdentity, fingerprint: String, accounts: [StoredAccount]) -> StoredAccount? {
+        accounts.first(where: { matches(identity: identity, fingerprint: fingerprint, account: $0) })
+    }
+
     private func runBusy(_ message: String, operation: @escaping () async throws -> Void) async {
         guard !isBusy else { return }
         isBusy = true
@@ -306,9 +359,12 @@ final class AppModel: ObservableObject {
         return .validationFailed
     }
 
-    private func matches(identity: AuthIdentity, fingerprint: String, account: StoredAccount) -> Bool {
+    private static func matches(identity: AuthIdentity, fingerprint: String, account: StoredAccount) -> Bool {
         if let accountId = identity.accountId, let storedAccountId = account.accountId {
-            return accountId == storedAccountId
+            guard accountId == storedAccountId else {
+                return false
+            }
+            return fingerprint == account.authFingerprint
         }
         return fingerprint == account.authFingerprint
     }

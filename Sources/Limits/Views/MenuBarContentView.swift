@@ -7,13 +7,29 @@ struct MenuBarContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(shortened(model.currentCLISummary()))
-                .font(.headline)
+            HStack(spacing: 8) {
+                CLIStateBadge(source: model.currentCLIState.source)
+                Text(shortened(model.currentCLISummary()))
+                    .font(.headline)
+            }
+
+            Text(model.currentCLIDetail())
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if let active = model.accounts.first(where: { model.isCurrentCLIAccount($0) }) {
                 StatusLine(account: active)
-            } else {
-                Text("No stored CLI match")
+            } else if model.hasExternalCLIAuthDrift() {
+                Text("Import it or switch back to a saved snapshot.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else if model.isCurrentCLIAuthUnreadable() {
+                Text("Fix or replace auth.json before importing.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            } else if model.isCurrentCLIAuthMissing() {
+                Text("Add an account or import one later.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -71,6 +87,9 @@ struct MenuBarContentView: View {
         }
         .padding(12)
         .frame(width: 280)
+        .onAppear {
+            Task { await model.refreshCurrentCLIState() }
+        }
     }
 
     private func shortened(_ text: String) -> String {
@@ -116,4 +135,3 @@ private struct StatusLine: View {
         }
     }
 }
-

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Limits
 
@@ -31,3 +32,58 @@ import Testing
     #expect(snapshot.isReached)
 }
 
+@MainActor
+@Test func storedAccountMatchRequiresSameFingerprintWhenAccountIdMatches() {
+    let id = UUID()
+    let stored = StoredAccount(
+        id: id,
+        label: "Primary",
+        email: "user@example.com",
+        accountId: "acct_123",
+        planType: "pro",
+        createdAt: .distantPast,
+        updatedAt: .distantPast,
+        lastValidatedAt: nil,
+        status: .ok,
+        statusMessage: nil,
+        lastRateLimit: nil,
+        authFingerprint: "stored-fingerprint",
+        keychainAccount: "account.\(id.uuidString)"
+    )
+
+    let match = AppModel.resolveStoredAccountMatch(
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123"),
+        fingerprint: "different-fingerprint",
+        accounts: [stored]
+    )
+
+    #expect(match == nil)
+}
+
+@MainActor
+@Test func storedAccountMatchAcceptsSameAccountIdAndFingerprint() {
+    let id = UUID()
+    let stored = StoredAccount(
+        id: id,
+        label: "Primary",
+        email: "user@example.com",
+        accountId: "acct_123",
+        planType: "pro",
+        createdAt: .distantPast,
+        updatedAt: .distantPast,
+        lastValidatedAt: nil,
+        status: .ok,
+        statusMessage: nil,
+        lastRateLimit: nil,
+        authFingerprint: "same-fingerprint",
+        keychainAccount: "account.\(id.uuidString)"
+    )
+
+    let match = AppModel.resolveStoredAccountMatch(
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123"),
+        fingerprint: "same-fingerprint",
+        accounts: [stored]
+    )
+
+    #expect(match?.id == id)
+}
