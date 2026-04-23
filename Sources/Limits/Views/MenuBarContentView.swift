@@ -39,7 +39,7 @@ struct MenuBarContentView: View {
         .padding(12)
         .frame(width: 320)
         .onAppear {
-            Task { await model.refreshCurrentCLIState() }
+            Task { await model.refreshCurrentCLIPanel(forceProbe: false) }
         }
     }
 

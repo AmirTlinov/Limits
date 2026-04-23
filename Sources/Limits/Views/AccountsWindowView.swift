@@ -39,7 +39,7 @@ struct AccountsWindowView: View {
             .navigationTitle("Codex auth switcher")
         }
         .onAppear {
-            Task { await model.refreshCurrentCLIState() }
+            Task { await model.refreshCurrentCLIPanel(forceProbe: false) }
         }
     }
 
@@ -78,7 +78,7 @@ struct AccountsWindowView: View {
                 }
             }
 
-            Text("This card shows the global ~/.codex/auth.json file state for future CLI commands.")
+            Text("This card reads the global ~/.codex/auth.json and refreshes live limits when possible.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -24,16 +24,28 @@ final class AppModel: ObservableObject {
         let note: String?
     }
 
+    struct CurrentCLIProbe {
+        let fingerprint: String
+        let email: String
+        let planType: String
+        let rateLimit: RateLimitSnapshotModel?
+        let validatedAt: Date
+    }
+
     @Published private(set) var accounts: [StoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
+    @Published private(set) var currentCLIProbe: CurrentCLIProbe?
+    @Published private(set) var isRefreshingCurrentCLIProbe = false
     @Published var isBusy = false
     @Published var busyMessage: String?
     @Published var errorMessage: String?
+    @Published var currentCLIProbeError: String?
 
     private let persistence = AccountsPersistence()
     private let vault = KeychainAuthVault()
     private let globalAuthService = GlobalCodexAuthService()
     private let codexAccountService = CodexAccountService()
+    private let currentCLIProbeTTL: TimeInterval = 90
 
     init() {
         Task { await bootstrap() }
@@ -57,6 +69,8 @@ final class AppModel: ObservableObject {
         do {
             guard globalAuthService.hasGlobalAuth() else {
                 currentCLIState = CurrentCLIState(source: .missing, authFingerprint: nil, accountId: nil, authMode: nil)
+                currentCLIProbe = nil
+                currentCLIProbeError = nil
                 return
             }
 
@@ -81,8 +95,61 @@ final class AppModel: ObservableObject {
             }
         } catch {
             currentCLIState = CurrentCLIState(source: .unreadable, authFingerprint: nil, accountId: nil, authMode: nil)
+            currentCLIProbe = nil
+            currentCLIProbeError = nil
             errorMessage = error.localizedDescription
         }
+    }
+
+    func refreshCurrentCLIProbe(force: Bool = false) async {
+        guard globalAuthService.hasGlobalAuth() else {
+            currentCLIProbe = nil
+            currentCLIProbeError = nil
+            return
+        }
+
+        guard !isCurrentCLIAuthUnreadable() else {
+            currentCLIProbe = nil
+            currentCLIProbeError = nil
+            return
+        }
+
+        guard let fingerprint = currentCLIState.authFingerprint else {
+            currentCLIProbe = nil
+            currentCLIProbeError = nil
+            return
+        }
+
+        if !force, let probe = currentCLIProbe, probe.fingerprint == fingerprint, Date().timeIntervalSince(probe.validatedAt) < currentCLIProbeTTL {
+            return
+        }
+
+        guard !isRefreshingCurrentCLIProbe else {
+            return
+        }
+
+        isRefreshingCurrentCLIProbe = true
+        defer { isRefreshingCurrentCLIProbe = false }
+
+        do {
+            let authData = try globalAuthService.readGlobalAuth()
+            let result = try await codexAccountService.validate(authData: authData)
+            currentCLIProbe = CurrentCLIProbe(
+                fingerprint: fingerprint,
+                email: result.email,
+                planType: result.planType,
+                rateLimit: result.rateLimit,
+                validatedAt: Date()
+            )
+            currentCLIProbeError = nil
+        } catch {
+            currentCLIProbeError = error.localizedDescription
+        }
+    }
+
+    func refreshCurrentCLIPanel(forceProbe: Bool = false) async {
+        await refreshCurrentCLIState()
+        await refreshCurrentCLIProbe(force: forceProbe)
     }
 
     func addAccount() async {
@@ -109,6 +176,7 @@ final class AppModel: ObservableObject {
             let authData = try self.vault.read(account: account.keychainAccount)
             try self.globalAuthService.writeGlobalAuth(authData)
             await self.refreshCurrentCLIState()
+            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
@@ -128,6 +196,7 @@ final class AppModel: ObservableObject {
             await validateAccount(account)
         }
         await refreshCurrentCLIState()
+        await refreshCurrentCLIProbe(force: true)
     }
 
     func validateAccount(_ account: StoredAccount) async {
@@ -165,6 +234,7 @@ final class AppModel: ObservableObject {
             self.accounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
             await self.refreshCurrentCLIState()
+            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
@@ -196,20 +266,23 @@ final class AppModel: ObservableObject {
 
     func currentCLIOverview() -> CurrentCLIOverview {
         let account = currentCLIReferenceAccount()
+        let liveLimits = currentCLIProbe?.rateLimit?.panelSummary()
+        let fallbackLimits = account?.lastRateLimit?.panelSummary()
+        let probeBackedSubtitle = subtitle(for: account, probe: currentCLIProbe)
 
         switch currentCLIState.source {
         case .stored:
             return CurrentCLIOverview(
-                title: account?.label ?? "Stored account",
-                subtitle: subtitle(for: account),
-                limits: account?.lastRateLimit?.panelSummary(),
+                title: titleForStoredAccount(account, probe: currentCLIProbe),
+                subtitle: probeBackedSubtitle,
+                limits: liveLimits ?? fallbackLimits,
                 note: noteForStoredAccount(account)
             )
         case .external:
             return CurrentCLIOverview(
-                title: account?.label ?? (currentCLIState.accountId ?? "External auth"),
-                subtitle: subtitle(for: account),
-                limits: account?.lastRateLimit?.panelSummary(),
+                title: titleForExternalAuth(account, probe: currentCLIProbe),
+                subtitle: probeBackedSubtitle,
+                limits: liveLimits ?? fallbackLimits,
                 note: noteForExternalAuth(account)
             )
         case .missing:
@@ -449,23 +522,52 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func subtitle(for account: StoredAccount?) -> String? {
-        guard let account else { return nil }
-        if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
-            return account.email
+    private func subtitle(for account: StoredAccount?, probe: CurrentCLIProbe?) -> String? {
+        if let account {
+            if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
+                return account.email
+            }
+            if let probe, probe.planType.caseInsensitiveCompare("unknown") != .orderedSame {
+                return probe.planType.capitalized
+            }
+            if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
+                return account.planType.capitalized
+            }
+            return nil
         }
-        if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-            return account.planType.capitalized
+
+        if let probe, probe.planType.caseInsensitiveCompare("unknown") != .orderedSame {
+            return probe.planType.capitalized
         }
         return nil
     }
 
+    private func titleForStoredAccount(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
+        if let account {
+            return account.label
+        }
+        return probe?.email ?? "Stored account"
+    }
+
+    private func titleForExternalAuth(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
+        if let probe {
+            return probe.email
+        }
+        if let account {
+            return account.label
+        }
+        return currentCLIState.accountId ?? "External auth"
+    }
+
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
+        if let probeError = currentCLIProbeError {
+            return currentCLIProbeNote(for: probeError)
+        }
         guard let account else {
-            return nil
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Refreshing live limits…" : nil
         }
         if account.lastRateLimit == nil {
-            return "Validate to load limits."
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Refreshing live limits…" : "Validate to load limits."
         }
         if account.status == .limitReached {
             return account.statusMessage ?? "Limit reached."
@@ -480,9 +582,23 @@ final class AppModel: ObservableObject {
     }
 
     private func noteForExternalAuth(_ account: StoredAccount?) -> String {
+        if let probeError = currentCLIProbeError {
+            return currentCLIProbeNote(for: probeError)
+        }
+        if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
+            return "Refreshing live limits…"
+        }
         if account != nil {
             return "Saved snapshot differs."
         }
         return "Import current auth or switch to a saved snapshot."
+    }
+
+    private func currentCLIProbeNote(for message: String) -> String {
+        let lowered = message.lowercased()
+        if lowered.contains("unauthorized") || lowered.contains("401") || lowered.contains("auth") || lowered.contains("login") {
+            return "Current auth needs re-authentication."
+        }
+        return "Could not refresh live limits."
     }
 }
