@@ -102,28 +102,34 @@ struct AccountsWindowView: View {
     }
 
     private var sidebar: some View {
-        List(selection: selectionBinding) {
+        List {
             Section {
-                SidebarRowView(
-                    icon: "terminal",
-                    title: "Текущий CLI",
-                    subtitle: overview.title,
-                    trailing: currentCLITrailingText,
-                    accent: .blue
-                )
-                .tag(AccountsSidebarSelection.currentCLI)
+                SidebarSelectionRow(isSelected: selectionBinding.wrappedValue == .currentCLI) {
+                    selectionBinding.wrappedValue = .currentCLI
+                } content: {
+                    SidebarRowView(
+                        icon: "terminal",
+                        title: "Текущий CLI",
+                        subtitle: overview.title,
+                        trailing: currentCLITrailingText,
+                        accent: .blue
+                    )
+                }
             }
 
             Section("Аккаунты") {
                 ForEach(model.accounts) { account in
-                    SidebarRowView(
-                        icon: "person.crop.circle",
-                        title: account.label,
-                        subtitle: nil,
-                        trailing: sidebarTrailing(for: account),
-                        accent: sidebarAccent(for: account)
-                    )
-                    .tag(AccountsSidebarSelection.account(account.id))
+                    SidebarSelectionRow(isSelected: selectionBinding.wrappedValue == .account(account.id)) {
+                        selectionBinding.wrappedValue = .account(account.id)
+                    } content: {
+                        SidebarRowView(
+                            icon: "person.crop.circle",
+                            title: account.label,
+                            subtitle: nil,
+                            trailing: sidebarTrailing(for: account),
+                            accent: sidebarAccent(for: account)
+                        )
+                    }
                     .contextMenu {
                         if !model.isCurrentCLIAccount(account) {
                             Button("Сделать текущим") {
@@ -210,6 +216,42 @@ struct AccountsWindowView: View {
 
         if case .account(let id) = selection, !model.accounts.contains(where: { $0.id == id }) {
             sidebarSelectionRaw = AccountsSidebarSelection.currentCLI.rawValue
+        }
+    }
+}
+
+private struct SidebarSelectionRow<Content: View>: View {
+    let isSelected: Bool
+    let action: () -> Void
+    let content: Content
+
+    init(isSelected: Bool, action: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.isSelected = isSelected
+        self.action = action
+        self.content = content()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            content
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(selectionBackground)
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+        .listRowBackground(Color.clear)
+    }
+
+    @ViewBuilder
+    private var selectionBackground: some View {
+        if isSelected {
+            SidebarSelectionBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        } else {
+            Color.clear
         }
     }
 }
