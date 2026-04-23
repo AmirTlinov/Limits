@@ -440,8 +440,10 @@ final class AppModel: ObservableObject {
         case .stored(let id):
             return accounts.first(where: { $0.id == id })
         case .external(let accountId):
-            guard let accountId else { return nil }
-            return accounts.first(where: { $0.accountId == accountId })
+            if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
+                return matched
+            }
+            return currentCLIImportedAccount()
         case .missing, .unreadable:
             return nil
         }
@@ -562,7 +564,7 @@ final class AppModel: ObservableObject {
             return "Сохранённый аккаунт активен для следующих CLI-команд."
         case .external(let accountId):
             if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
-                return "Сейчас активна текущая CLI-авторизация для \(matched.label). При необходимости импортируйте её обновлённое состояние."
+                return "Сейчас активна CLI-авторизация для \(matched.label). Аккаунт уже сохранён в приложении."
             }
             if let accountId {
                 return "Сейчас активна CLI-авторизация \(accountId). Импортируйте её, чтобы использовать в приложении."
@@ -595,10 +597,10 @@ final class AppModel: ObservableObject {
     }
 
     func hasCurrentCLIAuthToImport() -> Bool {
-        if case .external = currentCLIState.source {
-            return true
+        guard case .external = currentCLIState.source else {
+            return false
         }
-        return false
+        return currentCLIImportedAccount() == nil
     }
 
     func hasCurrentClaudeAuthToImport() -> Bool {
@@ -612,6 +614,15 @@ final class AppModel: ObservableObject {
         let currentAuth = try globalAuthService.readGlobalAuth()
         let result = try await codexAccountService.validate(authData: currentAuth)
         try upsertAccount(from: result, preferredLabel: result.email)
+    }
+
+    private func currentCLIImportedAccount() -> StoredAccount? {
+        Self.resolveImportedAccount(
+            fingerprint: currentCLIState.authFingerprint,
+            accountId: currentCLIState.accountId,
+            email: currentCLIProbe?.email,
+            accounts: accounts
+        )
     }
 
     private func importCurrentClaudeAuthNow() throws {
@@ -770,6 +781,30 @@ final class AppModel: ObservableObject {
 
     static func resolveStoredAccountMatch(identity: AuthIdentity, fingerprint: String, accounts: [StoredAccount]) -> StoredAccount? {
         accounts.first(where: { matches(identity: identity, fingerprint: fingerprint, account: $0) })
+    }
+
+    static func resolveImportedAccount(
+        fingerprint: String?,
+        accountId: String?,
+        email: String?,
+        accounts: [StoredAccount]
+    ) -> StoredAccount? {
+        if let fingerprint,
+           let matched = accounts.first(where: { $0.authFingerprint == fingerprint }) {
+            return matched
+        }
+
+        if let accountId,
+           let matched = accounts.first(where: { $0.accountId == accountId }) {
+            return matched
+        }
+
+        if let email,
+           let matched = accounts.first(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
+            return matched
+        }
+
+        return nil
     }
 
     private func runBusy(_ message: String, operation: @escaping () async throws -> Void) async {

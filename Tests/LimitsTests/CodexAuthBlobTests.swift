@@ -139,6 +139,66 @@ import Testing
     #expect(match?.id == id)
 }
 
+@MainActor
+@Test func importedAccountResolutionAcceptsKnownAccountIdEvenWhenFingerprintChanged() {
+    let id = UUID()
+    let stored = StoredAccount(
+        id: id,
+        label: "Primary",
+        email: "user@example.com",
+        accountId: "acct_123",
+        planType: "pro",
+        createdAt: .distantPast,
+        updatedAt: .distantPast,
+        lastValidatedAt: nil,
+        status: .ok,
+        statusMessage: nil,
+        lastRateLimit: nil,
+        lastRateLimitsByLimitId: nil,
+        authFingerprint: "old-fingerprint",
+        keychainAccount: "account.\(id.uuidString)"
+    )
+
+    let match = AppModel.resolveImportedAccount(
+        fingerprint: "new-fingerprint",
+        accountId: "acct_123",
+        email: nil,
+        accounts: [stored]
+    )
+
+    #expect(match?.id == id)
+}
+
+@MainActor
+@Test func importedAccountResolutionAcceptsKnownEmailWhenAccountIdIsMissing() {
+    let id = UUID()
+    let stored = StoredAccount(
+        id: id,
+        label: "Primary",
+        email: "user@example.com",
+        accountId: nil,
+        planType: "pro",
+        createdAt: .distantPast,
+        updatedAt: .distantPast,
+        lastValidatedAt: nil,
+        status: .ok,
+        statusMessage: nil,
+        lastRateLimit: nil,
+        lastRateLimitsByLimitId: nil,
+        authFingerprint: "old-fingerprint",
+        keychainAccount: "account.\(id.uuidString)"
+    )
+
+    let match = AppModel.resolveImportedAccount(
+        fingerprint: "new-fingerprint",
+        accountId: nil,
+        email: "USER@example.com",
+        accounts: [stored]
+    )
+
+    #expect(match?.id == id)
+}
+
 @Test func persistedStateDecodesWithoutClaudeAccountsField() throws {
     let data = """
     {

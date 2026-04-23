@@ -121,7 +121,7 @@ struct AccountsWindowView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("Обновить лимиты")
+                .help("Обновить значения")
                 .disabled(model.isBusy)
             }
         }
@@ -181,7 +181,7 @@ struct AccountsWindowView: View {
                             }
                         }
 
-                        Button("Обновить лимиты") {
+                        Button("Обновить значения") {
                             Task { await model.validateAccount(account) }
                         }
 
@@ -404,7 +404,7 @@ private struct CurrentCLIDetailPane: View {
                         .disabled(model.isBusy)
                     }
 
-                    Button("Обновить лимиты") {
+                    Button("Обновить значения") {
                         Task { await model.refreshCurrentCLIPanel(forceProbe: true) }
                     }
                     .buttonStyle(.bordered)
