@@ -5,124 +5,137 @@ struct MenuBarContentView: View {
     @ObservedObject var model: AppModel
     let openAccountsWindow: () -> Void
 
+    private var overview: AppModel.CurrentCLIOverview {
+        model.currentCLIOverview()
+    }
+
+    private var quickSwitchAccounts: [StoredAccount] {
+        model.menuPanelAccounts()
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                CLIStateBadge(source: model.currentCLIState.source)
-                Text(shortened(model.currentCLISummary()))
-                    .font(.headline)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            CurrentCLIOverviewCard(
+                overview: overview,
+                source: model.currentCLIState.source,
+                isBusy: model.isBusy,
+                busyMessage: model.busyMessage,
+                compact: true
+            )
 
-            Text(model.currentCLIDetail())
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if let active = model.accounts.first(where: { model.isCurrentCLIAccount($0) }) {
-                StatusLine(account: active)
-            } else if model.hasExternalCLIAuthDrift() {
-                Text("Import it or switch back to a saved snapshot.")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            } else if model.isCurrentCLIAuthUnreadable() {
-                Text("Fix or replace auth.json before importing.")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            } else if model.isCurrentCLIAuthMissing() {
-                Text("Add an account or import one later.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if model.isBusy, let busyMessage = model.busyMessage {
-                Text(shortened(busyMessage))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            if model.accounts.isEmpty {
-                Text("No accounts saved")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(model.accounts) { account in
-                    Button(shortened(account.label)) {
-                        Task { await model.activateAccount(account) }
+            if !quickSwitchAccounts.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(quickSwitchAccounts) { account in
+                        AccountSwitchRow(account: account) {
+                            Task { await model.activateAccount(account) }
+                        }
+                        .disabled(model.isBusy)
                     }
-                    .disabled(model.isBusy)
                 }
             }
 
-            Divider()
-
-            Button("Add account") {
-                Task { await model.addAccount() }
-            }
-            .disabled(model.isBusy)
-
-            if model.hasCurrentCLIAuthToImport() {
-                Button("Import current CLI auth") {
-                    Task { await model.importCurrentCLIAuth() }
-                }
-                .disabled(model.isBusy)
-            }
-
-            Button("Validate now") {
-                Task { await model.validateAll() }
-            }
-            .disabled(model.isBusy)
-
-            Button("Manage accounts…") {
-                openAccountsWindow()
-            }
-            .disabled(model.isBusy)
-
-            Divider()
-
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
+            footer
         }
         .padding(12)
-        .frame(width: 280)
+        .frame(width: 320)
         .onAppear {
             Task { await model.refreshCurrentCLIState() }
         }
     }
 
-    private func shortened(_ text: String) -> String {
-        if text.count <= 30 {
-            return text
+    @ViewBuilder
+    private var footer: some View {
+        HStack(spacing: 8) {
+            if model.hasCurrentCLIAuthToImport() {
+                Button("Import current") {
+                    Task { await model.importCurrentCLIAuth() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy)
+            } else if model.shouldOfferAddAccountAsPrimaryAction() {
+                Button("Add account") {
+                    Task { await model.addAccount() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isBusy)
+            }
+
+            Spacer(minLength: 0)
+
+            Button("Manage…") {
+                openAccountsWindow()
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.isBusy)
+
+            Menu {
+                Button("Add account") {
+                    Task { await model.addAccount() }
+                }
+
+                if model.hasCurrentCLIAuthToImport() {
+                    Button("Import current CLI auth") {
+                        Task { await model.importCurrentCLIAuth() }
+                    }
+                }
+
+                if !model.accounts.isEmpty {
+                    Button("Validate now") {
+                        Task { await model.validateAll() }
+                    }
+                }
+
+                Divider()
+
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .imageScale(.large)
+                    .frame(width: 28, height: 28)
+            }
+            .menuStyle(.borderlessButton)
         }
-        return String(text.prefix(27)) + "..."
     }
 }
 
-private struct StatusLine: View {
+private struct AccountSwitchRow: View {
     let account: StoredAccount
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 7, height: 7)
 
-            Text(shortText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.label)
+                        .lineLimit(1)
+
+                    Text(account.lastRateLimit?.compactUsageSummary() ?? account.shortStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.quaternary.opacity(0.14))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .buttonStyle(.plain)
     }
 
-    private var shortText: String {
-        if let message = account.statusMessage, !message.isEmpty {
-            return message
-        }
-        return account.shortStatusText
-    }
-
-    private var color: Color {
+    private var statusColor: Color {
         switch account.status {
         case .ok:
             return .green

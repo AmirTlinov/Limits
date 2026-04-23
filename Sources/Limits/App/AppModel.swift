@@ -17,6 +17,13 @@ final class AppModel: ObservableObject {
         var authMode: String?
     }
 
+    struct CurrentCLIOverview {
+        let title: String
+        let subtitle: String?
+        let limits: String?
+        let note: String?
+    }
+
     @Published private(set) var accounts: [StoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
     @Published var isBusy = false
@@ -166,6 +173,64 @@ final class AppModel: ObservableObject {
             return id == account.id
         }
         return false
+    }
+
+    func menuPanelAccounts() -> [StoredAccount] {
+        if case .stored(let id) = currentCLIState.source {
+            return accounts.filter { $0.id != id }
+        }
+        return accounts
+    }
+
+    func currentCLIReferenceAccount() -> StoredAccount? {
+        switch currentCLIState.source {
+        case .stored(let id):
+            return accounts.first(where: { $0.id == id })
+        case .external(let accountId):
+            guard let accountId else { return nil }
+            return accounts.first(where: { $0.accountId == accountId })
+        case .missing, .unreadable:
+            return nil
+        }
+    }
+
+    func currentCLIOverview() -> CurrentCLIOverview {
+        let account = currentCLIReferenceAccount()
+
+        switch currentCLIState.source {
+        case .stored:
+            return CurrentCLIOverview(
+                title: account?.label ?? "Stored account",
+                subtitle: subtitle(for: account),
+                limits: account?.lastRateLimit?.panelSummary(),
+                note: noteForStoredAccount(account)
+            )
+        case .external:
+            return CurrentCLIOverview(
+                title: account?.label ?? (currentCLIState.accountId ?? "External auth"),
+                subtitle: subtitle(for: account),
+                limits: account?.lastRateLimit?.panelSummary(),
+                note: noteForExternalAuth(account)
+            )
+        case .missing:
+            return CurrentCLIOverview(
+                title: "No CLI auth",
+                subtitle: nil,
+                limits: nil,
+                note: accounts.isEmpty ? "Add your first account." : "Pick a saved snapshot or add a new one."
+            )
+        case .unreadable:
+            return CurrentCLIOverview(
+                title: "Unreadable auth file",
+                subtitle: nil,
+                limits: nil,
+                note: accounts.isEmpty ? "Fix ~/.codex/auth.json or add a new account." : "Fix auth.json or switch to a saved snapshot."
+            )
+        }
+    }
+
+    func shouldOfferAddAccountAsPrimaryAction() -> Bool {
+        accounts.isEmpty && (isCurrentCLIAuthMissing() || isCurrentCLIAuthUnreadable())
     }
 
     func currentCLISummary() -> String {
@@ -382,5 +447,42 @@ final class AppModel: ObservableObject {
             }
             counter += 1
         }
+    }
+
+    private func subtitle(for account: StoredAccount?) -> String? {
+        guard let account else { return nil }
+        if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
+            return account.email
+        }
+        if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
+            return account.planType.capitalized
+        }
+        return nil
+    }
+
+    private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
+        guard let account else {
+            return nil
+        }
+        if account.lastRateLimit == nil {
+            return "Validate to load limits."
+        }
+        if account.status == .limitReached {
+            return account.statusMessage ?? "Limit reached."
+        }
+        if account.status == .needsReauth {
+            return "Re-authentication needed."
+        }
+        if account.status == .validationFailed {
+            return "Last validation failed."
+        }
+        return nil
+    }
+
+    private func noteForExternalAuth(_ account: StoredAccount?) -> String {
+        if account != nil {
+            return "Saved snapshot differs."
+        }
+        return "Import current auth or switch to a saved snapshot."
     }
 }

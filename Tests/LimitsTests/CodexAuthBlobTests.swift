@@ -32,6 +32,24 @@ import Testing
     #expect(snapshot.isReached)
 }
 
+@Test func panelSummaryFormatsPrimarySecondaryAndResetCompactly() {
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: 1_777_000_000, usedPercent: 9, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(resetsAt: 1_777_579_600, usedPercent: 60, windowDurationMins: 10_080)
+    )
+
+    let now = Date(timeIntervalSince1970: 1_777_000_000 - 600)
+
+    #expect(snapshot.compactUsageSummary() == "5h 9% · Weekly 60%")
+    #expect(snapshot.compactResetSummary(now: now) == "6d 17h")
+    #expect(snapshot.panelSummary(now: now) == "5h 9% · Weekly 60% | 6d 17h")
+}
+
 @MainActor
 @Test func storedAccountMatchRequiresSameFingerprintWhenAccountIdMatches() {
     let id = UUID()

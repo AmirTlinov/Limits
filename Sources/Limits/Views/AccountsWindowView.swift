@@ -4,6 +4,10 @@ import SwiftUI
 struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
 
+    private var overview: AppModel.CurrentCLIOverview {
+        model.currentCLIOverview()
+    }
+
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
@@ -41,23 +45,13 @@ struct AccountsWindowView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                CLIStateBadge(source: model.currentCLIState.source)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.currentCLISummary())
-                        .font(.headline)
-
-                    Text(model.currentCLIDetail())
-                        .foregroundStyle(.secondary)
-
-                    Text("This is the global ~/.codex/auth.json file state for future CLI commands. Running Codex processes may keep older auth until restarted.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(12)
-            .background(headerTint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            CurrentCLIOverviewCard(
+                overview: overview,
+                source: model.currentCLIState.source,
+                isBusy: model.isBusy,
+                busyMessage: model.busyMessage,
+                compact: false
+            )
 
             HStack(spacing: 10) {
                 Button("Add account") {
@@ -83,19 +77,10 @@ struct AccountsWindowView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        }
-    }
 
-    private var headerTint: Color {
-        switch model.currentCLIState.source {
-        case .missing:
-            return .secondary
-        case .stored:
-            return .blue
-        case .external:
-            return .orange
-        case .unreadable:
-            return .red
+            Text("This card shows the global ~/.codex/auth.json file state for future CLI commands.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -167,10 +152,7 @@ private struct AccountRowView: View {
         guard let limit = account.lastRateLimit else {
             return "—"
         }
-        if let primary = limit.primary {
-            return "\(primary.usedPercent)%"
-        }
-        return limit.rateLimitReachedType ?? "Known"
+        return limit.panelSummary() ?? "Known"
     }
 
     private var statusBadge: some View {
