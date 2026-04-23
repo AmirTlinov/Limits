@@ -540,9 +540,15 @@ private struct LimitSectionCard: View {
             Text(section.title)
                 .font(.title3.weight(.semibold))
 
+            let rows = Array(section.rows)
+
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(section.rows) { row in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     LimitProgressRowView(row: row)
+
+                    if index < rows.count - 1 {
+                        MinimalSeparator()
+                    }
                 }
             }
         }
@@ -603,16 +609,15 @@ private struct LimitProgressBar: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let availableWidth = max(0, geometry.size.width - 2)
+            let availableWidth = max(0, geometry.size.width - 4)
             let fillWidth = progress == 0 ? 0 : max(10, availableWidth * progress)
 
             ZStack(alignment: .leading) {
-                Capsule()
-                    .stroke(.primary.opacity(0.08), lineWidth: 1)
+                MinimalProgressTrack()
 
                 Capsule()
                     .fill(tint.gradient)
-                    .padding(1)
+                    .padding(2)
                     .frame(width: fillWidth)
             }
         }

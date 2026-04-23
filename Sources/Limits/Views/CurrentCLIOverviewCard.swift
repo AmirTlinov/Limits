@@ -150,9 +150,15 @@ struct CompactLimitBarsView: View {
     var dense = false
 
     var body: some View {
+        let visibleRows = Array(rows.prefix(2))
+
         VStack(alignment: .leading, spacing: dense ? 6 : 8) {
-            ForEach(Array(rows.prefix(2))) { row in
+            ForEach(Array(visibleRows.enumerated()), id: \.element.id) { index, row in
                 CompactLimitBarRow(row: row, dense: dense)
+
+                if index < visibleRows.count - 1 {
+                    MinimalSeparator()
+                }
             }
         }
     }
@@ -213,16 +219,15 @@ private struct CompactLimitBar: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let availableWidth = max(0, geometry.size.width - 2)
+            let availableWidth = max(0, geometry.size.width - 4)
             let fillWidth = progress == 0 ? 0 : max(8, availableWidth * progress)
 
             ZStack(alignment: .leading) {
-                Capsule()
-                    .stroke(.primary.opacity(0.08), lineWidth: 1)
+                MinimalProgressTrack()
 
                 Capsule()
                     .fill(tint.gradient)
-                    .padding(1)
+                    .padding(2)
                     .frame(width: fillWidth)
             }
         }

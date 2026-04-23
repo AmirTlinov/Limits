@@ -92,3 +92,22 @@ private struct TrayPanelSectionModifier<PanelShape: Shape>: ViewModifier {
         return colorScheme == .dark ? .white.opacity(0.14) : .white.opacity(0.28)
     }
 }
+
+struct MinimalSeparator: View {
+    var body: some View {
+        Rectangle()
+            .fill(.primary.opacity(0.08))
+            .frame(height: 1)
+    }
+}
+
+struct MinimalProgressTrack: View {
+    var body: some View {
+        Capsule()
+            .fill(.primary.opacity(0.035))
+            .overlay {
+                Capsule()
+                    .stroke(.primary.opacity(0.14), lineWidth: 1)
+            }
+    }
+}
