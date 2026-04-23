@@ -60,11 +60,14 @@ final class AppModel: ObservableObject {
     @Published private(set) var currentClaudeState = CurrentClaudeState()
     @Published private(set) var currentClaudeStatus: ClaudeAuthStatus?
     @Published private(set) var currentClaudeValidatedAt: Date?
+    @Published private(set) var currentClaudeLivePayload: ClaudeStatuslineBridgePayload?
+    @Published private(set) var currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
     @Published var isBusy = false
     @Published var busyMessage: String?
     @Published var errorMessage: String?
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
+    @Published var currentClaudeBridgeError: String?
 
     private let persistence = AccountsPersistence()
     private let vault = KeychainAuthVault()
@@ -72,6 +75,7 @@ final class AppModel: ObservableObject {
     private let codexAccountService = CodexAccountService()
     private let globalClaudeCredentialService = GlobalClaudeCredentialService()
     private let claudeAuthStatusService = ClaudeAuthStatusService()
+    private let claudeStatuslineBridgeService = ClaudeStatuslineBridgeService()
     private let currentCLIProbeTTL: TimeInterval = 90
 
     init() {
@@ -188,7 +192,10 @@ final class AppModel: ObservableObject {
             currentClaudeState = CurrentClaudeState(source: .notInstalled, authFingerprint: nil)
             currentClaudeStatus = nil
             currentClaudeValidatedAt = nil
+            currentClaudeLivePayload = nil
+            currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
             currentClaudeError = nil
+            currentClaudeBridgeError = nil
             return
         }
 
@@ -200,6 +207,7 @@ final class AppModel: ObservableObject {
                 currentClaudeStatus = status
                 currentClaudeValidatedAt = Date()
                 currentClaudeError = nil
+                refreshClaudeStatuslineBridgeState()
                 return
             }
 
@@ -214,11 +222,14 @@ final class AppModel: ObservableObject {
             currentClaudeStatus = status
             currentClaudeValidatedAt = Date()
             currentClaudeError = nil
+            refreshClaudeStatuslineBridgeState()
         } catch {
             currentClaudeState = CurrentClaudeState(source: .unreadable, authFingerprint: nil)
             currentClaudeStatus = nil
             currentClaudeValidatedAt = nil
+            currentClaudeLivePayload = nil
             currentClaudeError = error.localizedDescription
+            refreshClaudeStatuslineBridgeState()
         }
     }
 
@@ -282,6 +293,58 @@ final class AppModel: ObservableObject {
             try self.refreshStoredClaudeMetadataIfNeeded()
             await self.refreshCurrentClaudeState()
         }
+    }
+
+    func installClaudeLiveLimitsBridge() async {
+        guard !isBusy else { return }
+        isBusy = true
+        busyMessage = "Подключаю живые лимиты Claude…"
+        currentClaudeBridgeError = nil
+
+        defer {
+            isBusy = false
+            busyMessage = nil
+        }
+
+        do {
+            try claudeStatuslineBridgeService.installBridge()
+            refreshClaudeStatuslineBridgeState()
+        } catch {
+            currentClaudeBridgeError = error.localizedDescription
+        }
+    }
+
+    func uninstallClaudeLiveLimitsBridge() async {
+        guard !isBusy else { return }
+        isBusy = true
+        busyMessage = "Отключаю мост Claude…"
+        currentClaudeBridgeError = nil
+
+        defer {
+            isBusy = false
+            busyMessage = nil
+        }
+
+        do {
+            try claudeStatuslineBridgeService.uninstallBridge()
+            refreshClaudeStatuslineBridgeState()
+        } catch {
+            currentClaudeBridgeError = error.localizedDescription
+        }
+    }
+
+    func refreshClaudeLiveLimitsBridge() async {
+        guard !isBusy else { return }
+        isBusy = true
+        busyMessage = "Обновляю мост Claude…"
+        currentClaudeBridgeError = nil
+
+        defer {
+            isBusy = false
+            busyMessage = nil
+        }
+
+        refreshClaudeStatuslineBridgeState()
     }
 
     func validateAll() async {
@@ -369,6 +432,14 @@ final class AppModel: ObservableObject {
 
     func claudeAuthInstalled() -> Bool {
         claudeAuthStatusService.isInstalled()
+    }
+
+    func claudeLiveBridgeInstalled() -> Bool {
+        currentClaudeLiveBridgeStatus.installed
+    }
+
+    func claudeLiveBridgeSnapshotUpdatedAt() -> Date? {
+        currentClaudeLivePayload?.updatedAt
     }
 
     func currentCLIReferenceAccount() -> StoredAccount? {
@@ -821,6 +892,47 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func currentClaudeLiveRateLimitSections() -> [RateLimitDisplaySection] {
+        guard let payload = currentClaudeLivePayload else {
+            return []
+        }
+
+        var rows: [RateLimitDisplayRow] = []
+        if let fiveHour = payload.snapshot.rateLimits?.fiveHour {
+            rows.append(
+                RateLimitDisplayRow(
+                    id: "claude.five_hour",
+                    title: "5ч лимит",
+                    usedPercent: normalizeUsedPercent(fiveHour.usedPercentage),
+                    resetText: resetText(for: fiveHour.resetsAt)
+                )
+            )
+        }
+
+        if let sevenDay = payload.snapshot.rateLimits?.sevenDay {
+            rows.append(
+                RateLimitDisplayRow(
+                    id: "claude.seven_day",
+                    title: "Недельный лимит",
+                    usedPercent: normalizeUsedPercent(sevenDay.usedPercentage),
+                    resetText: resetText(for: sevenDay.resetsAt)
+                )
+            )
+        }
+
+        guard !rows.isEmpty else {
+            return []
+        }
+
+        return [
+            RateLimitDisplaySection(
+                id: "claude.live",
+                title: "Claude Code",
+                rows: rows
+            )
+        ]
+    }
+
     func rateLimitSections(for account: StoredAccount) -> [RateLimitDisplaySection] {
         let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
         return RateLimitDisplayBuilder.makeSections(
@@ -918,6 +1030,10 @@ final class AppModel: ObservableObject {
             return currentClaudeError
         }
 
+        if let currentClaudeBridgeError {
+            return currentClaudeBridgeError
+        }
+
         if let account {
             if account.status == .needsReauth {
                 return "Этому аккаунту Claude Code нужен повторный вход в терминале."
@@ -973,6 +1089,49 @@ final class AppModel: ObservableObject {
         return "Не удалось обновить живые лимиты."
     }
 
+    private func refreshClaudeStatuslineBridgeState() {
+        do {
+            currentClaudeLiveBridgeStatus = try claudeStatuslineBridgeService.bridgeStatus()
+            currentClaudeBridgeError = nil
+        } catch {
+            currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
+            currentClaudeLivePayload = nil
+            currentClaudeBridgeError = error.localizedDescription
+            return
+        }
+
+        guard currentClaudeLiveBridgeStatus.hasSnapshot else {
+            currentClaudeLivePayload = nil
+            return
+        }
+
+        do {
+            currentClaudeLivePayload = try claudeStatuslineBridgeService.readSnapshot()
+            currentClaudeBridgeError = nil
+        } catch {
+            currentClaudeLivePayload = nil
+            currentClaudeBridgeError = error.localizedDescription
+        }
+    }
+
+    private func normalizeUsedPercent(_ value: Double?) -> Int {
+        let raw = Int((value ?? 0).rounded())
+        return min(max(raw, 0), 100)
+    }
+
+    private func resetText(for timestamp: Int64?) -> String? {
+        guard let timestamp else { return nil }
+        return "Сброс в \(resetDateText(for: Date(timeIntervalSince1970: TimeInterval(timestamp))))"
+    }
+
+    private func resetDateText(for date: Date, now: Date = .now) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) {
+            return Self.shortTimeFormatter.string(from: date)
+        }
+        return "\(Self.shortTimeFormatter.string(from: date)), \(Self.dayMonthFormatter.string(from: date))"
+    }
+
     private func refreshStoredClaudeMetadataIfNeeded() throws {
         guard
             let status = currentClaudeStatus ?? (try? claudeAuthStatusService.readStatus()),
@@ -997,4 +1156,18 @@ final class AppModel: ObservableObject {
             }
         }
     }
+
+    private static let shortTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let dayMonthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "d MMMM"
+        return formatter
+    }()
 }

@@ -387,6 +387,10 @@ private struct CurrentClaudeDetailPane: View {
         model.currentClaudeOverview()
     }
 
+    private var liveSections: [RateLimitDisplaySection] {
+        model.currentClaudeLiveRateLimitSections()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
@@ -403,15 +407,44 @@ private struct CurrentClaudeDetailPane: View {
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy)
                     }
+
+                    if model.claudeLiveBridgeInstalled() {
+                        Button("Отключить мост") {
+                            Task { await model.uninstallClaudeLiveLimitsBridge() }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy)
+                    } else if model.currentClaudeStatus?.loggedIn == true {
+                        Button("Подключить живые лимиты") {
+                            Task { await model.installClaudeLiveLimitsBridge() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.isBusy)
+                    }
                 }
             )
 
             MinimalSeparator()
 
-            EmptyLimitsCard(
-                title: "Поддержка Claude Code подключена",
-                subtitle: "Сейчас здесь честно показываются только аккаунт, организация и план. Лимиты Anthropic пока не подключены, потому что они приходят из живой сессии Claude Code и очень легко сделать ложную картину."
-            )
+            if let bridgeError = model.currentClaudeBridgeError {
+                InlineWarningCard(text: bridgeError)
+                MinimalSeparator()
+            }
+
+            if liveSections.isEmpty {
+                EmptyLimitsCard(
+                    title: bridgeCardTitle,
+                    subtitle: bridgeCardSubtitle
+                )
+            } else {
+                ForEach(Array(liveSections.enumerated()), id: \.element.id) { index, section in
+                    LimitSectionCard(section: section)
+
+                    if index < liveSections.count - 1 {
+                        MinimalSeparator()
+                    }
+                }
+            }
         }
     }
 
@@ -431,7 +464,39 @@ private struct CurrentClaudeDetailPane: View {
             parts.append("Проверено \(formatted(date: date))")
         }
 
+        if let date = model.claudeLiveBridgeSnapshotUpdatedAt() {
+            parts.append("Лимиты \(formatted(date: date))")
+        }
+
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var bridgeCardTitle: String {
+        if !model.claudeLiveBridgeInstalled() {
+            return "Живые лимиты Claude выключены"
+        }
+
+        if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
+            return "Мост подключён"
+        }
+
+        return "Claude пока не прислал лимиты"
+    }
+
+    private var bridgeCardSubtitle: String {
+        if !model.claudeLiveBridgeInstalled() {
+            return "Нажмите «Подключить живые лимиты». Приложение аккуратно обернёт текущий statusLine Claude, сохранит прошлую команду и сможет читать только официальный statusline JSON."
+        }
+
+        if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
+            return "Теперь откройте Claude Code и получите хотя бы один ответ в живой сессии. После этого statusLine начнёт присылать снимок, который приложение сможет прочитать."
+        }
+
+        if model.currentClaudeStatus?.authMethod?.lowercased() == "claude.ai" {
+            return "Снимок уже есть, но поле rate_limits пока пустое. Такое бывает до первого полноценного ответа или когда текущая сессия ещё не успела обновить statusLine."
+        }
+
+        return "Для текущего типа входа официальный rate_limits в statusLine может вообще не приходить. Поэтому я не рисую выдуманные проценты."
     }
 
     private func formatted(date: Date) -> String {
