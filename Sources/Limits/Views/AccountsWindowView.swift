@@ -111,18 +111,6 @@ struct AccountsWindowView: View {
         )
     }
 
-    private var shouldShowCurrentClaudeStatusRow: Bool {
-        guard shouldShowCurrentClaudeSidebarRow else {
-            return false
-        }
-
-        if case .stored = model.currentClaudeState.source {
-            return false
-        }
-
-        return true
-    }
-
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -190,8 +178,8 @@ struct AccountsWindowView: View {
                 .padding(.bottom, 6)
 
             List(selection: selectionBinding) {
-                if sidebarFilter.includesCodex {
-                    Section {
+                Section {
+                    if sidebarFilter.includesCodex {
                         SidebarRowView(
                             icon: "terminal",
                             title: "Codex CLI",
@@ -200,6 +188,17 @@ struct AccountsWindowView: View {
                             accent: .blue
                         )
                         .tag(AccountsSidebarSelection.currentCodexCLI)
+                    }
+
+                    if sidebarFilter.includesClaude, shouldShowCurrentClaudeSidebarRow {
+                        SidebarRowView(
+                            icon: "text.bubble",
+                            title: "Claude Code",
+                            subtitle: model.currentClaudeOverview().title,
+                            trailing: currentClaudeTrailingText,
+                            accent: .purple
+                        )
+                        .tag(AccountsSidebarSelection.currentClaudeCode)
                     }
                 }
 
@@ -239,25 +238,14 @@ struct AccountsWindowView: View {
                     }
                 }
 
-                if sidebarFilter.includesClaude, shouldShowCurrentClaudeSidebarRow || !model.claudeAccounts.isEmpty {
+                if sidebarFilter.includesClaude, !model.claudeAccounts.isEmpty {
                     Section("Аккаунты Claude") {
-                        if shouldShowCurrentClaudeStatusRow {
-                            SidebarRowView(
-                                icon: "text.bubble",
-                                title: "Claude Code",
-                                subtitle: model.currentClaudeOverview().title,
-                                trailing: nil,
-                                accent: .purple
-                            )
-                            .tag(AccountsSidebarSelection.currentClaudeCode)
-                        }
-
                         ForEach(model.claudeAccounts) { account in
                             SidebarRowView(
-                                icon: "text.bubble",
+                                icon: "person.crop.circle",
                                 title: account.label,
-                                subtitle: claudeSidebarSubtitle(for: account),
-                                trailing: nil,
+                                subtitle: nil,
+                                trailing: claudeSidebarTrailing(for: account),
                                 accent: claudeSidebarAccent(for: account)
                             )
                             .tag(AccountsSidebarSelection.claudeAccount(account.id))
@@ -317,6 +305,14 @@ struct AccountsWindowView: View {
         return nil
     }
 
+    private var currentClaudeTrailingText: String? {
+        model.currentClaudeLiveRateLimitSections()
+            .first?
+            .rows
+            .first
+            .map { "\(max(0, 100 - $0.usedPercent))%" }
+    }
+
     private func sidebarTrailing(for account: StoredAccount) -> String? {
         if let used = account.lastRateLimit?.primary?.usedPercent {
             return "\(max(0, 100 - used))%"
@@ -341,13 +337,12 @@ struct AccountsWindowView: View {
         }
     }
 
-    private func claudeSidebarSubtitle(for account: ClaudeStoredAccount) -> String? {
-        if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
-            return account.email
+    private func claudeSidebarTrailing(for account: ClaudeStoredAccount) -> String? {
+        guard model.isCurrentClaudeAccount(account) else {
+            return nil
         }
 
-        let plan = model.localizedClaudePlan(account.subscriptionType)
-        return plan == "Подписка Claude" ? account.shortStatusText : plan
+        return currentClaudeTrailingText
     }
 
     private func claudeSidebarAccent(for account: ClaudeStoredAccount) -> Color {
@@ -374,14 +369,6 @@ struct AccountsWindowView: View {
             codexAccountIDs: Set(model.accounts.map(\.id)),
             claudeAccountIDs: Set(model.claudeAccounts.map(\.id))
         )
-
-        if destination == .currentClaudeCode,
-           case .stored(let id) = model.currentClaudeState.source,
-           activeFilter.includesClaude,
-           model.claudeAccounts.contains(where: { $0.id == id }) {
-            sidebarSelectionRaw = AccountsSidebarSelection.claudeAccount(id).rawValue
-            return
-        }
 
         guard AccountsPresentationLogic.isVisible(destination: destination, filter: activeFilter) else {
             sidebarSelectionRaw = sidebarSelection(
