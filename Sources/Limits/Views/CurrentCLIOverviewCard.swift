@@ -150,15 +150,9 @@ struct CompactLimitBarsView: View {
     var dense = false
 
     var body: some View {
-        let visibleRows = Array(rows.prefix(2))
-
         VStack(alignment: .leading, spacing: dense ? 6 : 8) {
-            ForEach(Array(visibleRows.enumerated()), id: \.element.id) { index, row in
+            ForEach(Array(rows.prefix(2))) { row in
                 CompactLimitBarRow(row: row, dense: dense)
-
-                if index < visibleRows.count - 1 {
-                    MinimalSeparator()
-                }
             }
         }
     }

@@ -338,17 +338,24 @@ private struct CurrentCLIDetailPane: View {
             )
 
             if let errorMessage = model.errorMessage {
+                MinimalSeparator()
                 InlineWarningCard(text: errorMessage)
             }
 
             if sections.isEmpty {
+                MinimalSeparator()
                 EmptyLimitsCard(
                     title: "Лимиты пока не загружены",
                     subtitle: overview.note ?? "Проверьте авторизацию или обновите данные."
                 )
             } else {
-                ForEach(sections) { section in
+                MinimalSeparator()
+                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                     LimitSectionCard(section: section)
+
+                    if index < sections.count - 1 {
+                        MinimalSeparator()
+                    }
                 }
             }
         }
@@ -423,13 +430,19 @@ private struct StoredAccountDetailPane: View {
             )
 
             if sections.isEmpty {
+                MinimalSeparator()
                 EmptyLimitsCard(
                     title: "Лимиты пока не загружены",
                     subtitle: "Нажмите «Обновить», чтобы получить актуальные данные по этому аккаунту."
                 )
             } else {
-                ForEach(sections) { section in
+                MinimalSeparator()
+                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                     LimitSectionCard(section: section)
+
+                    if index < sections.count - 1 {
+                        MinimalSeparator()
+                    }
                 }
             }
         }
@@ -523,12 +536,6 @@ private struct DetailHeroCard<Actions: View>: View {
                 actions
             }
         }
-        .padding(22)
-        .glassPanelSurface(
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-            tone: .clear,
-            fallbackMaterial: .ultraThinMaterial
-        )
     }
 }
 
@@ -540,24 +547,12 @@ private struct LimitSectionCard: View {
             Text(section.title)
                 .font(.title3.weight(.semibold))
 
-            let rows = Array(section.rows)
-
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                ForEach(section.rows) { row in
                     LimitProgressRowView(row: row)
-
-                    if index < rows.count - 1 {
-                        MinimalSeparator()
-                    }
                 }
             }
         }
-        .padding(22)
-        .glassPanelSurface(
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-            tone: .clear,
-            fallbackMaterial: .ultraThinMaterial
-        )
     }
 }
 
@@ -613,7 +608,7 @@ private struct LimitProgressBar: View {
             let fillWidth = progress == 0 ? 0 : max(10, availableWidth * progress)
 
             ZStack(alignment: .leading) {
-                MinimalProgressTrack()
+                MinimalProgressTrack(fillOpacity: 0.075, strokeOpacity: 0.18)
 
                 Capsule()
                     .fill(tint.gradient)
@@ -636,12 +631,6 @@ private struct EmptyLimitsCard: View {
             Text(subtitle)
                 .foregroundStyle(.secondary)
         }
-        .padding(22)
-        .glassPanelSurface(
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-            tone: .clear,
-            fallbackMaterial: .ultraThinMaterial
-        )
     }
 }
 
@@ -652,12 +641,7 @@ private struct InlineWarningCard: View {
         Text(text)
             .font(.callout)
             .foregroundStyle(.red)
-            .padding(16)
-            .glassPanelSurface(
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                tone: .clear,
-                fallbackMaterial: .ultraThinMaterial
-            )
+            .padding(.vertical, 2)
     }
 }
 

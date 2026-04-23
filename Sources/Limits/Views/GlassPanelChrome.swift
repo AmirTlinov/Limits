@@ -121,7 +121,14 @@ struct MinimalSeparator: View {
 }
 
 struct MinimalProgressTrack: View {
+    let fillOpacity: Double
+    let strokeOpacity: Double
     @Environment(\.colorScheme) private var colorScheme
+
+    init(fillOpacity: Double = 0.035, strokeOpacity: Double = 0.14) {
+        self.fillOpacity = fillOpacity
+        self.strokeOpacity = strokeOpacity
+    }
 
     var body: some View {
         Capsule()
@@ -133,10 +140,10 @@ struct MinimalProgressTrack: View {
     }
 
     private var trackFill: Color {
-        colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.06)
+        colorScheme == .dark ? .white.opacity(fillOpacity * 1.35) : .black.opacity(fillOpacity)
     }
 
     private var trackStroke: Color {
-        colorScheme == .dark ? .white.opacity(0.20) : .black.opacity(0.16)
+        colorScheme == .dark ? .white.opacity(strokeOpacity * 1.25) : .black.opacity(strokeOpacity)
     }
 }
