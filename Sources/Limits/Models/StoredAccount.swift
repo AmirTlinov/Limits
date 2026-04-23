@@ -55,21 +55,22 @@ struct StoredAccount: Identifiable, Codable, Hashable {
     var status: AccountStatus
     var statusMessage: String?
     var lastRateLimit: RateLimitSnapshotModel?
+    var lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?
     var authFingerprint: String
     var keychainAccount: String
 
     var shortStatusText: String {
         switch status {
         case .unknown:
-            return "Unknown"
+            return "Неизвестно"
         case .ok:
             return "OK"
         case .needsReauth:
-            return "Reauth"
+            return "Нужен вход"
         case .limitReached:
-            return "Limited"
+            return "Лимит достигнут"
         case .validationFailed:
-            return "Failed"
+            return "Ошибка"
         }
     }
 }
@@ -90,5 +91,5 @@ struct AccountValidationResult {
     let email: String
     let planType: String
     let rateLimit: RateLimitSnapshotModel?
+    let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
 }
-

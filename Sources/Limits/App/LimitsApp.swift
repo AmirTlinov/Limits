@@ -14,11 +14,11 @@ struct LimitsApp: App {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup("Accounts", id: "accounts") {
+        WindowGroup("Лимиты", id: "accounts") {
             AccountsWindowView(model: model)
         }
 
-        MenuBarExtra("Limits", systemImage: "person.crop.circle.badge.checkmark") {
+        MenuBarExtra("Лимиты", systemImage: "person.crop.circle.badge.checkmark") {
             MenuBarContentView(model: model) {
                 openWindow(id: "accounts")
                 NSApp.activate(ignoringOtherApps: true)

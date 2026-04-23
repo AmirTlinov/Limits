@@ -88,7 +88,8 @@ struct CodexAccountService: @unchecked Sendable {
             identity: identity,
             email: email,
             planType: account.planType ?? "unknown",
-            rateLimit: rateLimitsResponse?.preferredSnapshot
+            rateLimit: rateLimitsResponse?.preferredSnapshot,
+            rateLimitsByLimitId: rateLimitsResponse?.rateLimitsByLimitId
         )
     }
 

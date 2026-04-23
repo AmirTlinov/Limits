@@ -16,13 +16,13 @@ struct CLIStateBadge: View {
     private var label: String {
         switch source {
         case .missing:
-            return "Missing"
+            return "Нет входа"
         case .stored:
-            return "Stored"
+            return "Активен"
         case .external:
-            return "Drift"
+            return "Дрифт"
         case .unreadable:
-            return "Unreadable"
+            return "Ошибка"
         }
     }
 

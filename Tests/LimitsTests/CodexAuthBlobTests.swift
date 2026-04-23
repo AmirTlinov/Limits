@@ -45,9 +45,40 @@ import Testing
 
     let now = Date(timeIntervalSince1970: 1_777_000_000 - 600)
 
-    #expect(snapshot.compactUsageSummary() == "5h 9% · Weekly 60%")
-    #expect(snapshot.compactResetSummary(now: now) == "6d 17h")
-    #expect(snapshot.panelSummary(now: now) == "5h 9% · Weekly 60% | 6d 17h")
+    #expect(snapshot.compactUsageSummary() == "5ч 9% · Неделя 60%")
+    #expect(snapshot.compactResetSummary(now: now) == "6д 17ч")
+    #expect(snapshot.panelSummary(now: now) == "5ч 9% · Неделя 60% | 6д 17ч")
+}
+
+@Test func displayBuilderKeepsCodexFirstAndModelSectionsAfterIt() {
+    let codex = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: 1_777_000_000, usedPercent: 9, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(resetsAt: 1_777_579_600, usedPercent: 60, windowDurationMins: 10_080)
+    )
+
+    let spark = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex_bengalfox",
+        limitName: "GPT-5.3-Codex-Spark",
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: 1_777_000_000, usedPercent: 15, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(resetsAt: 1_777_579_600, usedPercent: 5, windowDurationMins: 10_080)
+    )
+
+    let sections = RateLimitDisplayBuilder.makeSections(
+        primary: codex,
+        byLimitId: ["codex": codex, "codex_bengalfox": spark]
+    )
+
+    #expect(sections.count == 2)
+    #expect(sections.first?.title == "Codex CLI")
+    #expect(sections.last?.title == "GPT-5.3-Codex-Spark")
 }
 
 @MainActor
@@ -65,6 +96,7 @@ import Testing
         status: .ok,
         statusMessage: nil,
         lastRateLimit: nil,
+        lastRateLimitsByLimitId: nil,
         authFingerprint: "stored-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )
@@ -93,6 +125,7 @@ import Testing
         status: .ok,
         statusMessage: nil,
         lastRateLimit: nil,
+        lastRateLimitsByLimitId: nil,
         authFingerprint: "same-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )

@@ -47,13 +47,13 @@ struct MenuBarContentView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             if model.hasCurrentCLIAuthToImport() {
-                Button("Import current") {
+                Button("Импортировать") {
                     Task { await model.importCurrentCLIAuth() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isBusy)
             } else if model.shouldOfferAddAccountAsPrimaryAction() {
-                Button("Add account") {
+                Button("Добавить") {
                     Task { await model.addAccount() }
                 }
                 .buttonStyle(.borderedProminent)
@@ -62,32 +62,32 @@ struct MenuBarContentView: View {
 
             Spacer(minLength: 0)
 
-            Button("Manage…") {
+            Button("Окно…") {
                 openAccountsWindow()
             }
             .buttonStyle(.bordered)
             .disabled(model.isBusy)
 
             Menu {
-                Button("Add account") {
+                Button("Добавить аккаунт") {
                     Task { await model.addAccount() }
                 }
 
                 if model.hasCurrentCLIAuthToImport() {
-                    Button("Import current CLI auth") {
+                    Button("Импортировать текущую авторизацию") {
                         Task { await model.importCurrentCLIAuth() }
                     }
                 }
 
                 if !model.accounts.isEmpty {
-                    Button("Validate now") {
+                    Button("Обновить лимиты") {
                         Task { await model.validateAll() }
                     }
                 }
 
                 Divider()
 
-                Button("Quit") {
+                Button("Выход") {
                     NSApplication.shared.terminate(nil)
                 }
             } label: {

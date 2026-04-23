@@ -29,6 +29,7 @@ final class AppModel: ObservableObject {
         let email: String
         let planType: String
         let rateLimit: RateLimitSnapshotModel?
+        let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
         let validatedAt: Date
     }
 
@@ -139,6 +140,7 @@ final class AppModel: ObservableObject {
                 email: result.email,
                 planType: result.planType,
                 rateLimit: result.rateLimit,
+                rateLimitsByLimitId: result.rateLimitsByLimitId,
                 validatedAt: Date()
             )
             currentCLIProbeError = nil
@@ -153,7 +155,7 @@ final class AppModel: ObservableObject {
     }
 
     func addAccount() async {
-        await runBusy("Signing in…") { [self] in
+        await runBusy("Выполняю вход…") { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -164,7 +166,7 @@ final class AppModel: ObservableObject {
     }
 
     func importCurrentCLIAuth() async {
-        await runBusy("Importing current CLI auth…") { [self] in
+        await runBusy("Импортирую текущую CLI-авторизацию…") { [self] in
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
             await self.validateAll()
@@ -172,7 +174,7 @@ final class AppModel: ObservableObject {
     }
 
     func activateAccount(_ account: StoredAccount) async {
-        await runBusy("Switching global auth…") { [self] in
+        await runBusy("Переключаю глобальную авторизацию…") { [self] in
             let authData = try self.vault.read(account: account.keychainAccount)
             try self.globalAuthService.writeGlobalAuth(authData)
             await self.refreshCurrentCLIState()
@@ -181,7 +183,7 @@ final class AppModel: ObservableObject {
     }
 
     func reauthenticateAccount(_ account: StoredAccount) async {
-        await runBusy("Re-authenticating \(account.label)…") { [self] in
+        await runBusy("Повторно авторизую \(account.label)…") { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -211,6 +213,7 @@ final class AppModel: ObservableObject {
                 stored.lastValidatedAt = Date()
                 stored.updatedAt = Date()
                 stored.lastRateLimit = result.rateLimit
+                stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
                 stored.status = resolveStatus(from: result.rateLimit)
                 stored.statusMessage = statusMessage(for: result.rateLimit)
             }
@@ -226,10 +229,14 @@ final class AppModel: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+
+        if isCurrentCLIAccount(account) {
+            await refreshCurrentCLIProbe(force: true)
+        }
     }
 
     func deleteAccount(_ account: StoredAccount) async {
-        await runBusy("Deleting \(account.label)…") { [self] in
+        await runBusy("Удаляю \(account.label)…") { [self] in
             try self.vault.delete(account: account.keychainAccount)
             self.accounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
@@ -287,17 +294,17 @@ final class AppModel: ObservableObject {
             )
         case .missing:
             return CurrentCLIOverview(
-                title: "No CLI auth",
+                title: "Нет CLI-авторизации",
                 subtitle: nil,
                 limits: nil,
-                note: accounts.isEmpty ? "Add your first account." : "Pick a saved snapshot or add a new one."
+                note: accounts.isEmpty ? "Добавьте первый аккаунт." : "Выберите сохранённый снимок или добавьте новый аккаунт."
             )
         case .unreadable:
             return CurrentCLIOverview(
-                title: "Unreadable auth file",
+                title: "Не удалось прочитать auth.json",
                 subtitle: nil,
                 limits: nil,
-                note: accounts.isEmpty ? "Fix ~/.codex/auth.json or add a new account." : "Fix auth.json or switch to a saved snapshot."
+                note: accounts.isEmpty ? "Исправьте ~/.codex/auth.json или добавьте новый аккаунт." : "Исправьте auth.json или переключитесь на сохранённый снимок."
             )
         }
     }
@@ -309,38 +316,38 @@ final class AppModel: ObservableObject {
     func currentCLISummary() -> String {
         switch currentCLIState.source {
         case .missing:
-            return "CLI auth missing"
+            return "CLI-авторизация отсутствует"
         case .stored:
-            return "Stored account active"
+            return "Активен сохранённый аккаунт"
         case .external(let accountId):
             if let accountId {
-                return "CLI auth drifted (\(accountId))"
+                return "Обнаружен дрейф CLI-авторизации (\(accountId))"
             }
-            return "CLI auth drifted"
+            return "Обнаружен дрейф CLI-авторизации"
         case .unreadable:
-            return "CLI auth unreadable"
+            return "Не удалось прочитать CLI-авторизацию"
         }
     }
 
     func currentCLIDetail() -> String {
         switch currentCLIState.source {
         case .missing:
-            return "Global ~/.codex/auth.json is missing."
+            return "Глобальный ~/.codex/auth.json отсутствует."
         case .stored(let id):
             if let label = accounts.first(where: { $0.id == id })?.label {
-                return "\(label) is active for future CLI commands."
+                return "\(label) активен для следующих CLI-команд."
             }
-            return "A saved account is active for future CLI commands."
+            return "Сохранённый аккаунт активен для следующих CLI-команд."
         case .external(let accountId):
             if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
-                return "Global ~/.codex/auth.json points to \(matched.label), but the saved auth snapshot differs."
+                return "Глобальный ~/.codex/auth.json указывает на \(matched.label), но снимок авторизации уже отличается."
             }
             if let accountId {
-                return "Global ~/.codex/auth.json points to \(accountId). Import it here or switch to a saved account."
+                return "Глобальный ~/.codex/auth.json указывает на \(accountId). Импортируйте его или переключитесь на сохранённый аккаунт."
             }
-            return "Global ~/.codex/auth.json does not match any saved account."
+            return "Глобальный ~/.codex/auth.json не совпадает ни с одним сохранённым аккаунтом."
         case .unreadable:
-            return "Global ~/.codex/auth.json exists, but this app could not read it as a valid auth blob."
+            return "Глобальный ~/.codex/auth.json существует, но приложение не смогло прочитать его как корректный auth blob."
         }
     }
 
@@ -420,6 +427,7 @@ final class AppModel: ObservableObject {
             status: resolveStatus(from: result.rateLimit),
             statusMessage: statusMessage(for: result.rateLimit),
             lastRateLimit: result.rateLimit,
+            lastRateLimitsByLimitId: result.rateLimitsByLimitId,
             authFingerprint: result.authFingerprint,
             keychainAccount: keychainAccount
         )
@@ -483,7 +491,7 @@ final class AppModel: ObservableObject {
         }
 
         if let primary = rateLimit.primary {
-            return "Primary window \(primary.usedPercent)% used"
+            return "За 5 часов использовано \(primary.usedPercent)%"
         }
 
         return nil
@@ -528,25 +536,63 @@ final class AppModel: ObservableObject {
                 return account.email
             }
             if let probe, probe.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-                return probe.planType.capitalized
+                return localizedPlan(probe.planType)
             }
             if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-                return account.planType.capitalized
+                return localizedPlan(account.planType)
             }
             return nil
         }
 
         if let probe, probe.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-            return probe.planType.capitalized
+            return localizedPlan(probe.planType)
         }
         return nil
+    }
+
+    func currentCLIRateLimitSections() -> [RateLimitDisplaySection] {
+        RateLimitDisplayBuilder.makeSections(
+            primary: currentCLIProbe?.rateLimit ?? currentCLIReferenceAccount()?.lastRateLimit,
+            byLimitId: currentCLIProbe?.rateLimitsByLimitId ?? currentCLIReferenceAccount()?.lastRateLimitsByLimitId
+        )
+    }
+
+    func rateLimitSections(for account: StoredAccount) -> [RateLimitDisplaySection] {
+        let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
+        return RateLimitDisplayBuilder.makeSections(
+            primary: useLiveProbe ? currentCLIProbe?.rateLimit : account.lastRateLimit,
+            byLimitId: useLiveProbe ? currentCLIProbe?.rateLimitsByLimitId : account.lastRateLimitsByLimitId
+        )
+    }
+
+    func sidebarSecondaryText(for account: StoredAccount) -> String {
+        account.lastRateLimit?.compactUsageSummary() ?? account.email
+    }
+
+    func currentCLIValidatedAt() -> Date? {
+        currentCLIProbe?.validatedAt ?? currentCLIReferenceAccount()?.lastValidatedAt
+    }
+
+    func localizedPlan(_ value: String) -> String {
+        switch value.lowercased() {
+        case "pro":
+            return "План Pro"
+        case "plus":
+            return "План Plus"
+        case "free":
+            return "Бесплатный план"
+        case "unknown":
+            return "План неизвестен"
+        default:
+            return value
+        }
     }
 
     private func titleForStoredAccount(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
         if let account {
             return account.label
         }
-        return probe?.email ?? "Stored account"
+        return probe?.email ?? "Сохранённый аккаунт"
     }
 
     private func titleForExternalAuth(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
@@ -556,7 +602,7 @@ final class AppModel: ObservableObject {
         if let account {
             return account.label
         }
-        return currentCLIState.accountId ?? "External auth"
+        return currentCLIState.accountId ?? "Внешняя авторизация"
     }
 
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
@@ -564,19 +610,19 @@ final class AppModel: ObservableObject {
             return currentCLIProbeNote(for: probeError)
         }
         guard let account else {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Refreshing live limits…" : nil
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Обновляю живые лимиты…" : nil
         }
         if account.lastRateLimit == nil {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Refreshing live limits…" : "Validate to load limits."
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Обновляю живые лимиты…" : "Нажмите «Обновить», чтобы загрузить лимиты."
         }
         if account.status == .limitReached {
-            return account.statusMessage ?? "Limit reached."
+            return account.statusMessage ?? "Лимит достигнут."
         }
         if account.status == .needsReauth {
-            return "Re-authentication needed."
+            return "Нужна повторная авторизация."
         }
         if account.status == .validationFailed {
-            return "Last validation failed."
+            return "Последняя проверка завершилась ошибкой."
         }
         return nil
     }
@@ -586,19 +632,19 @@ final class AppModel: ObservableObject {
             return currentCLIProbeNote(for: probeError)
         }
         if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
-            return "Refreshing live limits…"
+            return "Обновляю живые лимиты…"
         }
         if account != nil {
-            return "Saved snapshot differs."
+            return "Сохранённый снимок уже отличается."
         }
-        return "Import current auth or switch to a saved snapshot."
+        return "Импортируйте текущую авторизацию или переключитесь на сохранённый снимок."
     }
 
     private func currentCLIProbeNote(for message: String) -> String {
         let lowered = message.lowercased()
         if lowered.contains("unauthorized") || lowered.contains("401") || lowered.contains("auth") || lowered.contains("login") {
-            return "Current auth needs re-authentication."
+            return "Текущей авторизации нужен повторный вход."
         }
-        return "Could not refresh live limits."
+        return "Не удалось обновить живые лимиты."
     }
 }
