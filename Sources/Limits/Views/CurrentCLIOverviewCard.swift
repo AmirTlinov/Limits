@@ -52,7 +52,7 @@ struct CurrentCLIOverviewCard: View {
         }
         .padding(compact ? 12 : 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(backgroundShape)
     }
 
     private var noteColor: Color {
@@ -65,6 +65,16 @@ struct CurrentCLIOverviewCard: View {
             return .secondary
         case .unreadable:
             return .red
+        }
+    }
+
+    @ViewBuilder
+    private var backgroundShape: some View {
+        if compact {
+            Color.clear
+        } else {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.regularMaterial)
         }
     }
 }

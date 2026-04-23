@@ -24,6 +24,11 @@ struct MenuBarContentView: View {
             )
 
             if !quickSwitchAccounts.isEmpty {
+                Divider()
+                    .padding(.horizontal, 2)
+            }
+
+            if !quickSwitchAccounts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
                         AccountSwitchRow(account: account) {
