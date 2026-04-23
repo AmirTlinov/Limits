@@ -60,36 +60,55 @@ extension View {
     }
 
     func trayPanelSectionChrome<PanelShape: Shape>(
-        in shape: PanelShape
+        in shape: PanelShape,
+        interactive: Bool = false
     ) -> some View {
-        modifier(TrayPanelSectionModifier(shape: shape))
+        modifier(TrayPanelSectionModifier(shape: shape, interactive: interactive))
     }
 }
 
 private struct TrayPanelSectionModifier<PanelShape: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var colorScheme
 
     let shape: PanelShape
+    let interactive: Bool
 
     func body(content: Content) -> some View {
-        content
-            .background {
-                if reduceTransparency {
-                    shape.fill(Color(nsColor: .windowBackgroundColor).opacity(0.78))
+        if reduceTransparency {
+            content
+                .background(shape.fill(Color(nsColor: .windowBackgroundColor).opacity(0.78)))
+                .overlay {
+                    shape.stroke(borderColor, lineWidth: 1)
                 }
-            }
-            .overlay {
-                shape.stroke(borderColor, lineWidth: 1)
-            }
+        } else if #available(macOS 26.0, *) {
+            content
+                .glassEffect(glass, in: shape)
+                .overlay {
+                    shape.stroke(borderColor, lineWidth: 1)
+                }
+        } else {
+            content
+                .background(shape.fill(.ultraThinMaterial))
+                .overlay {
+                    shape.stroke(borderColor, lineWidth: 1)
+                }
+        }
     }
 
     private var borderColor: Color {
         if reduceTransparency {
-            return .primary.opacity(0.08)
+            return .primary.opacity(0.10)
         }
 
-        return colorScheme == .dark ? .white.opacity(0.14) : .white.opacity(0.28)
+        return colorScheme == .dark ? .white.opacity(0.18) : .white.opacity(0.34)
+    }
+
+    @available(macOS 26.0, *)
+    private var glass: Glass {
+        let base: Glass = contrast == .increased ? .regular : .clear
+        return interactive ? base.interactive() : base
     }
 }
 
@@ -102,12 +121,22 @@ struct MinimalSeparator: View {
 }
 
 struct MinimalProgressTrack: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Capsule()
-            .fill(.primary.opacity(0.035))
+            .fill(trackFill)
             .overlay {
                 Capsule()
-                    .stroke(.primary.opacity(0.14), lineWidth: 1)
+                    .stroke(trackStroke, lineWidth: 1)
             }
+    }
+
+    private var trackFill: Color {
+        colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.06)
+    }
+
+    private var trackStroke: Color {
+        colorScheme == .dark ? .white.opacity(0.20) : .black.opacity(0.16)
     }
 }

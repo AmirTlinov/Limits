@@ -19,23 +19,44 @@ struct MenuBarContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CurrentCLIOverviewCard(
-                overview: overview,
-                source: model.currentCLIState.source,
-                compactRows: currentCompactRows,
-                updatedAt: model.currentCLIValidatedAt(),
-                isBusy: model.isBusy,
-                busyMessage: model.busyMessage,
-                compact: true
-            )
+            if #available(macOS 26.0, *), !quickSwitchAccounts.isEmpty {
+                GlassEffectContainer(spacing: 6) {
+                    CurrentCLIOverviewCard(
+                        overview: overview,
+                        source: model.currentCLIState.source,
+                        compactRows: currentCompactRows,
+                        updatedAt: model.currentCLIValidatedAt(),
+                        isBusy: model.isBusy,
+                        busyMessage: model.busyMessage,
+                        compact: true
+                    )
 
-            if !quickSwitchAccounts.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
                         AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
                             Task { await model.activateAccount(account) }
                         }
                         .disabled(model.isBusy)
+                    }
+                }
+            } else {
+                CurrentCLIOverviewCard(
+                    overview: overview,
+                    source: model.currentCLIState.source,
+                    compactRows: currentCompactRows,
+                    updatedAt: model.currentCLIValidatedAt(),
+                    isBusy: model.isBusy,
+                    busyMessage: model.busyMessage,
+                    compact: true
+                )
+
+                if !quickSwitchAccounts.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(quickSwitchAccounts) { account in
+                            AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
+                                Task { await model.activateAccount(account) }
+                            }
+                            .disabled(model.isBusy)
+                        }
                     }
                 }
             }
@@ -162,7 +183,10 @@ private struct AccountSwitchRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .trayPanelSectionChrome(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .trayPanelSectionChrome(
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                interactive: true
+            )
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
