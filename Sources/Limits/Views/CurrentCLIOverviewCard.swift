@@ -217,10 +217,10 @@ private struct CompactLimitBar: View {
             let fillWidth = progress == 0 ? 0 : max(8, availableWidth * progress)
 
             ZStack(alignment: .leading) {
-                MinimalProgressTrack()
+                MinimalProgressTrack(fillOpacity: 0.045, strokeOpacity: 0.16)
 
                 Capsule()
-                    .fill(tint.gradient)
+                    .fill(tint.opacity(0.86))
                     .padding(2)
                     .frame(width: fillWidth)
             }

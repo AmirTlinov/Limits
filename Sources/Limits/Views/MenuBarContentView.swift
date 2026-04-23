@@ -61,6 +61,7 @@ struct MenuBarContentView: View {
                     badgeText: codexBadgeText,
                     badgeColor: codexAccent,
                     interactive: false,
+                    style: .current,
                     action: nil
                 )
 
@@ -76,6 +77,7 @@ struct MenuBarContentView: View {
                         badgeText: claudeBadgeText,
                         badgeColor: claudeAccent,
                         interactive: false,
+                        style: .current,
                         action: nil
                     )
                 }
@@ -83,7 +85,9 @@ struct MenuBarContentView: View {
 
             if hasStoredRows {
                 MinimalSeparator()
-                    .padding(.vertical, 2)
+                    .opacity(0.55)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 4)
 
                 Group {
                     if shouldScrollStoredRows {
@@ -115,7 +119,7 @@ struct MenuBarContentView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             if model.hasCurrentCLIAuthToImport() {
-                panelActionButton("Импортировать", primary: true) {
+                panelActionButton("Импорт", primary: true) {
                     Task { await model.importCurrentCLIAuth() }
                 }
                 .disabled(model.isBusy)
@@ -162,8 +166,8 @@ struct MenuBarContentView: View {
                     NSApplication.shared.terminate(nil)
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
-                    .imageScale(.large)
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .semibold))
                     .frame(width: 32, height: 32)
             }
             .menuStyle(.borderlessButton)
@@ -178,18 +182,22 @@ struct MenuBarContentView: View {
                     .buttonStyle(.glass)
                     .buttonBorderShape(.roundedRectangle(radius: 14))
                     .tint(.accentColor)
+                    .controlSize(.regular)
             } else {
                 Button(title, action: action)
                     .buttonStyle(.glass)
                     .buttonBorderShape(.roundedRectangle(radius: 14))
+                    .controlSize(.regular)
             }
         } else {
             if primary {
                 Button(title, action: action)
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
             } else {
                 Button(title, action: action)
                     .buttonStyle(.bordered)
+                    .controlSize(.regular)
             }
         }
     }
@@ -341,7 +349,8 @@ struct MenuBarContentView: View {
                     accent: statusColor(for: account.status, isCurrent: false, providerAccent: .blue),
                     badgeText: nil,
                     badgeColor: .secondary,
-                    interactive: true
+                    interactive: true,
+                    style: .stored
                 ) {
                     Task { await model.activateAccount(account) }
                 }
@@ -359,7 +368,8 @@ struct MenuBarContentView: View {
                     accent: statusColor(for: account.status, isCurrent: false, providerAccent: .purple),
                     badgeText: nil,
                     badgeColor: .secondary,
-                    interactive: true
+                    interactive: true,
+                    style: .stored
                 ) {
                     Task { await model.activateClaudeAccount(account) }
                 }
@@ -367,6 +377,46 @@ struct MenuBarContentView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private enum TrayAccountRowStyle {
+    case current
+    case stored
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .current: 18
+        case .stored: 16
+        }
+    }
+
+    var verticalPadding: CGFloat {
+        switch self {
+        case .current: 12
+        case .stored: 10
+        }
+    }
+
+    var titleWeight: Font.Weight {
+        switch self {
+        case .current: .semibold
+        case .stored: .medium
+        }
+    }
+
+    var fillOpacity: Double {
+        switch self {
+        case .current: 0.075
+        case .stored: 0.038
+        }
+    }
+
+    var strokeOpacity: Double {
+        switch self {
+        case .current: 0.075
+        case .stored: 0.030
+        }
     }
 }
 
@@ -381,6 +431,7 @@ private struct TrayAccountRow: View {
     let badgeText: String?
     let badgeColor: Color
     let interactive: Bool
+    let style: TrayAccountRowStyle
     let action: (() -> Void)?
 
     var body: some View {
@@ -397,15 +448,16 @@ private struct TrayAccountRow: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: style == .current ? 8 : 7) {
             HStack(spacing: 10) {
                 Image(systemName: symbolName)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(accent.opacity(style == .current ? 0.95 : 0.80))
                     .frame(width: 14)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
+                        .font(.body.weight(style.titleWeight))
                         .lineLimit(1)
 
                     if let subtitle, !subtitle.isEmpty {
@@ -421,10 +473,10 @@ private struct TrayAccountRow: View {
                 if let badgeText, !badgeText.isEmpty {
                     Text(badgeText)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(badgeColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(badgeColor.opacity(0.14), in: Capsule())
+                        .foregroundStyle(badgeColor.opacity(0.88))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(badgeColor.opacity(0.095), in: Capsule())
                 }
             }
 
@@ -449,24 +501,19 @@ private struct TrayAccountRow: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.vertical, style.verticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(backgroundChrome)
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous))
     }
 
     @ViewBuilder
     private var backgroundChrome: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
 
-        if interactive {
-            Color.clear
-                .trayPanelSectionChrome(in: shape, interactive: true)
-        } else {
-            Color.clear
-                .overlay {
-                    shape.stroke(.primary.opacity(0.10), lineWidth: 1)
-                }
-        }
+        Color.white.opacity(style.fillOpacity)
+            .overlay {
+                shape.stroke(.primary.opacity(style.strokeOpacity), lineWidth: 1)
+            }
     }
 }
