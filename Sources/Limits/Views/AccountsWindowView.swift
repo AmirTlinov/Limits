@@ -86,7 +86,7 @@ struct AccountsWindowView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("Обновить лимиты")
+                .help("Обновить")
                 .disabled(model.isBusy)
             }
         }
@@ -131,7 +131,7 @@ struct AccountsWindowView: View {
                             }
                         }
 
-                        Button("Обновить лимиты") {
+                        Button("Обновить") {
                             Task { await model.validateAccount(account) }
                         }
 
@@ -165,7 +165,7 @@ struct AccountsWindowView: View {
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .background(Color.clear)
+        .background(DetailPaneBackground())
     }
 
     private var currentCLITrailingText: String? {
@@ -277,20 +277,20 @@ private struct CurrentCLIDetailPane: View {
                         Button("Импортировать текущую авторизацию") {
                             Task { await model.importCurrentCLIAuth() }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .heroActionStyle(primary: true)
                         .disabled(model.isBusy)
                     } else if model.shouldOfferAddAccountAsPrimaryAction() {
                         Button("Добавить аккаунт") {
                             Task { await model.addAccount() }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .heroActionStyle(primary: true)
                         .disabled(model.isBusy)
                     }
 
-                    Button("Обновить лимиты") {
+                    Button("Обновить") {
                         Task { await model.refreshCurrentCLIPanel(forceProbe: true) }
                     }
-                    .buttonStyle(.bordered)
+                    .heroActionStyle()
                     .disabled(model.isBusy)
                 }
             )
@@ -363,20 +363,20 @@ private struct StoredAccountDetailPane: View {
                         Button("Сделать текущим") {
                             Task { await model.activateAccount(account) }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .heroActionStyle(primary: true)
                         .disabled(model.isBusy)
                     }
 
                     Button("Обновить") {
                         Task { await model.validateAccount(account) }
                     }
-                    .buttonStyle(.bordered)
+                    .heroActionStyle()
                     .disabled(model.isBusy)
 
                     Button("Повторный вход") {
                         Task { await model.reauthenticateAccount(account) }
                     }
-                    .buttonStyle(.bordered)
+                    .heroActionStyle()
                     .disabled(model.isBusy)
 
                     Button("Удалить", role: .destructive) {
@@ -431,6 +431,17 @@ private struct StoredAccountDetailPane: View {
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+private struct DetailPaneBackground: View {
+    var body: some View {
+        Color.clear
+            .glassPanelSurface(
+                in: Rectangle(),
+                tone: .regular,
+                fallbackMaterial: .ultraThinMaterial
+            )
     }
 }
 
@@ -600,6 +611,30 @@ private struct InlineWarningCard: View {
             .font(.callout)
             .foregroundStyle(.red)
             .padding(.vertical, 2)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func heroActionStyle(primary: Bool = false) -> some View {
+        if #available(macOS 26.0, *) {
+            if primary {
+                self
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.roundedRectangle(radius: 14))
+                    .tint(.accentColor)
+            } else {
+                self
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.roundedRectangle(radius: 14))
+            }
+        } else {
+            if primary {
+                self.buttonStyle(.borderedProminent)
+            } else {
+                self.buttonStyle(.bordered)
+            }
+        }
     }
 }
 

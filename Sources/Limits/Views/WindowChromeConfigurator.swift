@@ -22,5 +22,7 @@ struct WindowChromeConfigurator: NSViewRepresentable {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         window.isMovableByWindowBackground = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
     }
 }
