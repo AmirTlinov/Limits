@@ -181,7 +181,7 @@ struct AccountsWindowView: View {
                 Section {
                     if sidebarFilter.includesCodex {
                         SidebarRowView(
-                            icon: "terminal",
+                            icon: "person.crop.circle.fill.badge.checkmark",
                             title: "Codex CLI",
                             subtitle: overview.title,
                             trailing: currentCLITrailingText,
@@ -192,7 +192,7 @@ struct AccountsWindowView: View {
 
                     if sidebarFilter.includesClaude, shouldShowCurrentClaudeSidebarRow {
                         SidebarRowView(
-                            icon: "text.bubble",
+                            icon: "person.crop.circle.fill.badge.checkmark",
                             title: "Claude Code",
                             subtitle: model.currentClaudeOverview().title,
                             trailing: currentClaudeTrailingText,
@@ -206,7 +206,7 @@ struct AccountsWindowView: View {
                     Section("Аккаунты Codex") {
                         ForEach(model.accounts) { account in
                             SidebarRowView(
-                                icon: "person.crop.circle",
+                                icon: sidebarIcon(for: account),
                                 title: account.label,
                                 subtitle: nil,
                                 trailing: sidebarTrailing(for: account),
@@ -242,7 +242,7 @@ struct AccountsWindowView: View {
                     Section("Аккаунты Claude") {
                         ForEach(model.claudeAccounts) { account in
                             SidebarRowView(
-                                icon: "person.crop.circle",
+                                icon: claudeSidebarIcon(for: account),
                                 title: account.label,
                                 subtitle: nil,
                                 trailing: claudeSidebarTrailing(for: account),
@@ -320,6 +320,10 @@ struct AccountsWindowView: View {
         return nil
     }
 
+    private func sidebarIcon(for account: StoredAccount) -> String {
+        model.isCurrentCLIAccount(account) ? "person.crop.circle.fill.badge.checkmark" : "person.crop.circle"
+    }
+
     private func sidebarAccent(for account: StoredAccount) -> Color {
         if model.isCurrentCLIAccount(account) {
             return .blue
@@ -343,6 +347,10 @@ struct AccountsWindowView: View {
         }
 
         return currentClaudeTrailingText
+    }
+
+    private func claudeSidebarIcon(for account: ClaudeStoredAccount) -> String {
+        model.isCurrentClaudeAccount(account) ? "person.crop.circle.fill.badge.checkmark" : "person.crop.circle"
     }
 
     private func claudeSidebarAccent(for account: ClaudeStoredAccount) -> Color {
