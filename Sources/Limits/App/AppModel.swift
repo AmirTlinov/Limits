@@ -319,11 +319,8 @@ final class AppModel: ObservableObject {
             return "CLI-авторизация отсутствует"
         case .stored:
             return "Активен сохранённый аккаунт"
-        case .external(let accountId):
-            if let accountId {
-                return "Обнаружен дрейф CLI-авторизации (\(accountId))"
-            }
-            return "Обнаружен дрейф CLI-авторизации"
+        case .external:
+            return "Активна текущая CLI-авторизация"
         case .unreadable:
             return "Не удалось прочитать CLI-авторизацию"
         }
@@ -340,12 +337,12 @@ final class AppModel: ObservableObject {
             return "Сохранённый аккаунт активен для следующих CLI-команд."
         case .external(let accountId):
             if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
-                return "Глобальный ~/.codex/auth.json указывает на \(matched.label), но снимок авторизации уже отличается."
+                return "Сейчас активна текущая CLI-авторизация для \(matched.label). При необходимости импортируйте её обновлённое состояние."
             }
             if let accountId {
-                return "Глобальный ~/.codex/auth.json указывает на \(accountId). Импортируйте его или переключитесь на сохранённый аккаунт."
+                return "Сейчас активна CLI-авторизация \(accountId). Импортируйте её, чтобы использовать в приложении."
             }
-            return "Глобальный ~/.codex/auth.json не совпадает ни с одним сохранённым аккаунтом."
+            return "Сейчас активна CLI-авторизация, которая ещё не сохранена в приложении."
         case .unreadable:
             return "Глобальный ~/.codex/auth.json существует, но приложение не смогло прочитать его как корректный auth blob."
         }
@@ -627,7 +624,7 @@ final class AppModel: ObservableObject {
         return nil
     }
 
-    private func noteForExternalAuth(_ account: StoredAccount?) -> String {
+    private func noteForExternalAuth(_ account: StoredAccount?) -> String? {
         if let probeError = currentCLIProbeError {
             return currentCLIProbeNote(for: probeError)
         }
@@ -635,9 +632,9 @@ final class AppModel: ObservableObject {
             return "Обновляю живые лимиты…"
         }
         if account != nil {
-            return "Сохранённый снимок уже отличается."
+            return nil
         }
-        return "Импортируйте текущую авторизацию или переключитесь на сохранённый снимок."
+        return "Импортируйте текущую авторизацию, чтобы она появилась в приложении."
     }
 
     private func currentCLIProbeNote(for message: String) -> String {

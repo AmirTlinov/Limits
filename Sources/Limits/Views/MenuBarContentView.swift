@@ -18,6 +18,7 @@ struct MenuBarContentView: View {
             CurrentCLIOverviewCard(
                 overview: overview,
                 source: model.currentCLIState.source,
+                updatedAt: model.currentCLIValidatedAt(),
                 isBusy: model.isBusy,
                 busyMessage: model.busyMessage,
                 compact: true

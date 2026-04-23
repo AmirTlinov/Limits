@@ -1,8 +1,13 @@
+import AppKit
 import SwiftUI
 
 struct CurrentCLIOverviewCard: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     let overview: AppModel.CurrentCLIOverview
     let source: AppModel.CurrentCLIState.Source
+    let updatedAt: Date?
     let isBusy: Bool
     let busyMessage: String?
     let compact: Bool
@@ -25,7 +30,9 @@ struct CurrentCLIOverviewCard: View {
 
                 Spacer(minLength: 8)
 
-                CLIStateBadge(source: source)
+                if let badgeSource {
+                    CLIStateBadge(source: badgeSource)
+                }
             }
 
             if let limits = overview.limits {
@@ -43,11 +50,24 @@ struct CurrentCLIOverviewCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if isBusy, let busyMessage {
-                Text(busyMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            if isBusy || updatedAtText != nil {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if isBusy, let busyMessage {
+                        Text(busyMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if let updatedAtText {
+                        Text(updatedAtText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
             }
         }
         .padding(compact ? 12 : 14)
@@ -60,7 +80,7 @@ struct CurrentCLIOverviewCard: View {
         case .stored:
             return .secondary
         case .external:
-            return .orange
+            return .secondary
         case .missing:
             return .secondary
         case .unreadable:
@@ -68,13 +88,57 @@ struct CurrentCLIOverviewCard: View {
         }
     }
 
+    private var badgeSource: AppModel.CurrentCLIState.Source? {
+        if compact {
+            switch source {
+            case .stored, .external:
+                return nil
+            case .missing, .unreadable:
+                return source
+            }
+        }
+
+        return source
+    }
+
+    private var updatedAtText: String? {
+        guard let updatedAt else { return nil }
+        return "Обновлено \(Self.updatedAtText(for: updatedAt))"
+    }
+
     @ViewBuilder
     private var backgroundShape: some View {
-        if compact {
+        let shape = RoundedRectangle(cornerRadius: compact ? 18 : 14, style: .continuous)
+
+        if compact, reduceTransparency {
+            shape.fill(Color(nsColor: .windowBackgroundColor))
+        } else if compact, #available(macOS 26.0, *) {
             Color.clear
+                .glassEffect(contrast == .increased ? .regular : .clear, in: shape)
         } else {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.regularMaterial)
+            shape.fill(.regularMaterial)
         }
     }
+
+    private static func updatedAtText(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return timeFormatter.string(from: date)
+        }
+        return dayTimeFormatter.string(from: date)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let dayTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "d MMM, HH:mm"
+        return formatter
+    }()
 }

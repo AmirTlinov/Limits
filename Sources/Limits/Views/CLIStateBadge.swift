@@ -20,7 +20,7 @@ struct CLIStateBadge: View {
         case .stored:
             return "Активен"
         case .external:
-            return "Дрифт"
+            return "Текущий CLI"
         case .unreadable:
             return "Ошибка"
         }
@@ -33,7 +33,7 @@ struct CLIStateBadge: View {
         case .stored:
             return .blue
         case .external:
-            return .orange
+            return .secondary
         case .unreadable:
             return .red
         }
