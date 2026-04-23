@@ -19,12 +19,26 @@ final class StatusItemController: NSObject {
             return
         }
 
-        let item = NSStatusBar.system.statusItem(withLength: 30)
+        let item = NSStatusBar.system.statusItem(withLength: 76)
+        item.isVisible = true
         statusItem = item
 
         if let button = item.button {
-            button.image = Self.statusBarImage()
-            button.imagePosition = .imageOnly
+            button.wantsLayer = true
+            button.layer?.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.94).cgColor
+            button.layer?.cornerRadius = 10
+            button.layer?.borderWidth = 1
+            button.layer?.borderColor = NSColor.white.withAlphaComponent(0.28).cgColor
+            button.image = nil
+            button.imagePosition = .noImage
+            button.title = "Limits"
+            button.attributedTitle = NSAttributedString(
+                string: "Limits",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 12.2, weight: .semibold),
+                    .foregroundColor: NSColor.white,
+                ]
+            )
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.toolTip = "Limits"
@@ -70,42 +84,5 @@ final class StatusItemController: NSObject {
 
     private func closePopover() {
         popover.performClose(nil)
-    }
-
-    private static func statusBarImage() -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        defer {
-            image.unlockFocus()
-            image.isTemplate = true
-        }
-
-        NSColor.black.setStroke()
-        NSColor.black.setFill()
-
-        let outer = NSBezierPath(ovalIn: NSRect(x: 2.5, y: 2.5, width: 13, height: 13))
-        outer.lineWidth = 1.8
-        outer.stroke()
-
-        let arc = NSBezierPath()
-        arc.appendArc(
-            withCenter: CGPoint(x: 9, y: 8.5),
-            radius: 4.5,
-            startAngle: 205,
-            endAngle: 335
-        )
-        arc.lineWidth = 1.6
-        arc.stroke()
-
-        let needle = NSBezierPath()
-        needle.move(to: CGPoint(x: 9, y: 8.5))
-        needle.line(to: CGPoint(x: 12.4, y: 11.5))
-        needle.lineWidth = 1.8
-        needle.stroke()
-
-        NSBezierPath(ovalIn: NSRect(x: 7.6, y: 7.1, width: 2.8, height: 2.8)).fill()
-
-        return image
     }
 }
