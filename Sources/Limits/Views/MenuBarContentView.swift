@@ -74,7 +74,7 @@ struct MenuBarContentView: View {
             TrayProviderSection(
                 title: "Codex CLI",
                 countText: categoryCountText(codexAccountCount),
-                accent: .blue,
+                accent: ProviderAccent.codex,
                 isExpanded: $codexExpanded
             ) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -101,7 +101,7 @@ struct MenuBarContentView: View {
                             compactRows: compactRows(from: model.rateLimitSections(for: account)),
                             detailText: storedCodexDetail(for: account),
                             metaText: nil,
-                            accent: statusColor(for: account.status, isCurrent: false, providerAccent: .blue),
+                            accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.codex),
                             badgeText: nil,
                             badgeColor: .secondary,
                             interactive: true,
@@ -122,7 +122,7 @@ struct MenuBarContentView: View {
                 TrayProviderSection(
                     title: "Claude Code",
                     countText: categoryCountText(claudeAccountCount),
-                    accent: .purple,
+                    accent: ProviderAccent.claude,
                     isExpanded: $claudeExpanded
                 ) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -151,7 +151,7 @@ struct MenuBarContentView: View {
                                 compactRows: [],
                                 detailText: account.shortStatusText,
                                 metaText: nil,
-                                accent: statusColor(for: account.status, isCurrent: false, providerAccent: .purple),
+                                accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.claude),
                                 badgeText: nil,
                                 badgeColor: .secondary,
                                 interactive: true,
@@ -341,7 +341,7 @@ struct MenuBarContentView: View {
     private var codexAccent: Color {
         switch model.currentCLIState.source {
         case .stored, .external:
-            return .blue
+            return ProviderAccent.codex
         case .missing:
             return .secondary
         case .unreadable:
@@ -352,7 +352,7 @@ struct MenuBarContentView: View {
     private var claudeAccent: Color {
         switch model.currentClaudeState.source {
         case .stored, .external:
-            return .purple
+            return ProviderAccent.claude
         case .loggedOut, .unreadable:
             return .red
         case .notInstalled:
@@ -583,7 +583,7 @@ private struct TrayAccountRow: View {
             }
 
             if !compactRows.isEmpty {
-                CompactLimitBarsView(rows: compactRows, dense: true)
+                CompactLimitBarsView(rows: compactRows, dense: true, tint: accent)
             } else if let detailText, !detailText.isEmpty {
                 Text(detailText)
                     .font(.caption)

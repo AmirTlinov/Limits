@@ -185,7 +185,7 @@ struct AccountsWindowView: View {
                             title: "Codex CLI",
                             subtitle: overview.title,
                             trailing: currentCLITrailingText,
-                            accent: .blue
+                            accent: ProviderAccent.codex
                         )
                         .tag(AccountsSidebarSelection.currentCodexCLI)
                     }
@@ -196,7 +196,7 @@ struct AccountsWindowView: View {
                             title: "Claude Code",
                             subtitle: model.currentClaudeOverview().title,
                             trailing: currentClaudeTrailingText,
-                            accent: .purple
+                            accent: ProviderAccent.claude
                         )
                         .tag(AccountsSidebarSelection.currentClaudeCode)
                     }
@@ -326,7 +326,7 @@ struct AccountsWindowView: View {
 
     private func sidebarAccent(for account: StoredAccount) -> Color {
         if model.isCurrentCLIAccount(account) {
-            return .blue
+            return ProviderAccent.codex
         }
 
         switch account.status {
@@ -355,7 +355,7 @@ struct AccountsWindowView: View {
 
     private func claudeSidebarAccent(for account: ClaudeStoredAccount) -> Color {
         if model.isCurrentClaudeAccount(account) {
-            return .purple
+            return ProviderAccent.claude
         }
 
         switch account.status {
@@ -536,7 +536,7 @@ private struct CurrentCLIDetailPane: View {
             } else {
                 MinimalSeparator()
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section)
+                    LimitSectionCard(section: section, tint: ProviderAccent.codex)
 
                     if index < sections.count - 1 {
                         MinimalSeparator()
@@ -631,7 +631,7 @@ private struct CurrentClaudeDetailPane: View {
                 )
             } else {
                 ForEach(Array(liveSections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section)
+                    LimitSectionCard(section: section, tint: ProviderAccent.claude)
 
                     if index < liveSections.count - 1 {
                         MinimalSeparator()
@@ -719,7 +719,7 @@ private struct StoredClaudeDetailPane: View {
             DetailHeroCard(
                 title: account.label,
                 subtitle: account.email,
-                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent, currentAccent: .purple)),
+                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent, currentAccent: ProviderAccent.claude)),
                 note: accountNote,
                 metaLine: accountMetaLine,
                 actions: {
@@ -773,7 +773,7 @@ private struct StoredClaudeDetailPane: View {
                 )
             } else {
                 ForEach(Array(liveSections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section)
+                    LimitSectionCard(section: section, tint: ProviderAccent.claude)
 
                     if index < liveSections.count - 1 {
                         MinimalSeparator()
@@ -925,7 +925,7 @@ private struct StoredAccountDetailPane: View {
             } else {
                 MinimalSeparator()
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section)
+                    LimitSectionCard(section: section, tint: ProviderAccent.codex)
 
                     if index < sections.count - 1 {
                         MinimalSeparator()
@@ -1028,6 +1028,7 @@ private struct DetailHeroCard<Actions: View>: View {
 
 private struct LimitSectionCard: View {
     let section: RateLimitDisplaySection
+    let tint: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1036,7 +1037,7 @@ private struct LimitSectionCard: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(section.rows) { row in
-                    LimitProgressRowView(row: row)
+                    LimitProgressRowView(row: row, tint: tint)
                 }
             }
         }
@@ -1045,6 +1046,7 @@ private struct LimitSectionCard: View {
 
 private struct LimitProgressRowView: View {
     let row: RateLimitDisplayRow
+    let tint: Color
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
@@ -1054,7 +1056,7 @@ private struct LimitProgressRowView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 160, alignment: .leading)
 
-                LimitProgressBar(progress: row.remainingProgressValue, tint: tint)
+                LimitProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
                     .frame(maxWidth: .infinity)
 
                 VStack(alignment: .trailing, spacing: 2) {
@@ -1073,15 +1075,8 @@ private struct LimitProgressRowView: View {
         }
     }
 
-    private var tint: Color {
-        switch row.remainingPercent {
-        case 0...9:
-            return .red
-        case 10...24:
-            return .orange
-        default:
-            return .blue
-        }
+    private var resolvedTint: Color {
+        row.remainingPercent <= 9 ? .red : tint
     }
 }
 
@@ -1162,9 +1157,9 @@ private struct ClaudeStateBadge: View {
     private var color: Color {
         switch model.currentClaudeState.source {
         case .stored:
-            return .purple
+            return ProviderAccent.claude
         case .external:
-            return .blue
+            return ProviderAccent.claude
         case .loggedOut, .unreadable:
             return .red
         case .notInstalled:
@@ -1176,7 +1171,7 @@ private struct ClaudeStateBadge: View {
 private struct AccountStatusBadge: View {
     let status: AccountStatus
     let isCurrent: Bool
-    var currentAccent: Color = .blue
+    var currentAccent: Color = ProviderAccent.codex
 
     var body: some View {
         Text(label)

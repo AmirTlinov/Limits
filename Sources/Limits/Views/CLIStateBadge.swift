@@ -31,7 +31,7 @@ struct CLIStateBadge: View {
         case .missing:
             return .secondary
         case .stored:
-            return .blue
+            return ProviderAccent.codex
         case .external:
             return .secondary
         case .unreadable:

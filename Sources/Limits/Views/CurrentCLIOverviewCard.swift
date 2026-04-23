@@ -33,7 +33,7 @@ struct CurrentCLIOverviewCard: View {
             }
 
             if compact, !compactRows.isEmpty {
-                CompactLimitBarsView(rows: compactRows)
+                CompactLimitBarsView(rows: compactRows, tint: ProviderAccent.codex)
             } else if let limits = overview.limits {
                 Text(limits)
                     .font(compact ? .system(size: 14, weight: .semibold, design: .rounded) : .system(size: 16, weight: .semibold, design: .rounded))
@@ -148,11 +148,12 @@ struct CurrentCLIOverviewCard: View {
 struct CompactLimitBarsView: View {
     let rows: [RateLimitDisplayRow]
     var dense = false
+    var tint: Color = ProviderAccent.codex
 
     var body: some View {
         VStack(alignment: .leading, spacing: dense ? 6 : 8) {
             ForEach(Array(rows.prefix(2))) { row in
-                CompactLimitBarRow(row: row, dense: dense)
+                CompactLimitBarRow(row: row, dense: dense, tint: tint)
             }
         }
     }
@@ -161,6 +162,7 @@ struct CompactLimitBarsView: View {
 private struct CompactLimitBarRow: View {
     let row: RateLimitDisplayRow
     let dense: Bool
+    let tint: Color
 
     var body: some View {
         HStack(spacing: dense ? 6 : 8) {
@@ -169,7 +171,7 @@ private struct CompactLimitBarRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: dense ? 46 : 56, alignment: .leading)
 
-            CompactLimitBar(progress: row.remainingProgressValue, tint: tint, height: dense ? 8 : 10)
+            CompactLimitBar(progress: row.remainingProgressValue, tint: resolvedTint, height: dense ? 8 : 10)
                 .frame(maxWidth: .infinity)
 
             Text("\(row.remainingPercent)%")
@@ -194,15 +196,8 @@ private struct CompactLimitBarRow: View {
         }
     }
 
-    private var tint: Color {
-        switch row.remainingPercent {
-        case 0...9:
-            return .red
-        case 10...24:
-            return .orange
-        default:
-            return .blue
-        }
+    private var resolvedTint: Color {
+        row.remainingPercent <= 9 ? .red : tint
     }
 }
 
