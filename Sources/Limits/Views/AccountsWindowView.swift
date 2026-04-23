@@ -104,6 +104,25 @@ struct AccountsWindowView: View {
         )
     }
 
+    private var shouldShowCurrentClaudeSidebarRow: Bool {
+        AccountsPresentationLogic.shouldShowCurrentClaude(
+            source: model.currentClaudeState.source,
+            storedClaudeCount: model.claudeAccounts.count
+        )
+    }
+
+    private var shouldShowCurrentClaudeStatusRow: Bool {
+        guard shouldShowCurrentClaudeSidebarRow else {
+            return false
+        }
+
+        if case .stored = model.currentClaudeState.source {
+            return false
+        }
+
+        return true
+    }
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -155,6 +174,9 @@ struct AccountsWindowView: View {
         .onChange(of: model.claudeAccounts) { _, _ in
             ensureValidSelection()
         }
+        .onChange(of: model.currentClaudeState.source) { _, _ in
+            ensureValidSelection()
+        }
         .onChange(of: sidebarFilterRaw) { _, _ in
             ensureValidSelection()
         }
@@ -168,8 +190,8 @@ struct AccountsWindowView: View {
                 .padding(.bottom, 6)
 
             List(selection: selectionBinding) {
-                Section {
-                    if sidebarFilter.includesCodex {
+                if sidebarFilter.includesCodex {
+                    Section {
                         SidebarRowView(
                             icon: "terminal",
                             title: "Codex CLI",
@@ -178,17 +200,6 @@ struct AccountsWindowView: View {
                             accent: .blue
                         )
                         .tag(AccountsSidebarSelection.currentCodexCLI)
-                    }
-
-                    if sidebarFilter.includesClaude {
-                        SidebarRowView(
-                            icon: "text.bubble",
-                            title: "Claude Code",
-                            subtitle: model.currentClaudeOverview().title,
-                            trailing: nil,
-                            accent: .purple
-                        )
-                        .tag(AccountsSidebarSelection.currentClaudeCode)
                     }
                 }
 
@@ -228,8 +239,19 @@ struct AccountsWindowView: View {
                     }
                 }
 
-                if sidebarFilter.includesClaude, !model.claudeAccounts.isEmpty {
+                if sidebarFilter.includesClaude, shouldShowCurrentClaudeSidebarRow || !model.claudeAccounts.isEmpty {
                     Section("Аккаунты Claude") {
+                        if shouldShowCurrentClaudeStatusRow {
+                            SidebarRowView(
+                                icon: "text.bubble",
+                                title: "Claude Code",
+                                subtitle: model.currentClaudeOverview().title,
+                                trailing: nil,
+                                accent: .purple
+                            )
+                            .tag(AccountsSidebarSelection.currentClaudeCode)
+                        }
+
                         ForEach(model.claudeAccounts) { account in
                             SidebarRowView(
                                 icon: "text.bubble",
@@ -352,6 +374,14 @@ struct AccountsWindowView: View {
             codexAccountIDs: Set(model.accounts.map(\.id)),
             claudeAccountIDs: Set(model.claudeAccounts.map(\.id))
         )
+
+        if destination == .currentClaudeCode,
+           case .stored(let id) = model.currentClaudeState.source,
+           activeFilter.includesClaude,
+           model.claudeAccounts.contains(where: { $0.id == id }) {
+            sidebarSelectionRaw = AccountsSidebarSelection.claudeAccount(id).rawValue
+            return
+        }
 
         guard AccountsPresentationLogic.isVisible(destination: destination, filter: activeFilter) else {
             sidebarSelectionRaw = sidebarSelection(
@@ -560,6 +590,14 @@ private struct CurrentClaudeDetailPane: View {
                 note: overview.note,
                 metaLine: metaLine,
                 actions: {
+                    if model.hasCurrentClaudeAuthToImport() {
+                        Button("Сохранить аккаунт") {
+                            Task { await model.importCurrentClaudeAuth() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.isBusy)
+                    }
+
                     if model.currentClaudeStatus?.loggedIn == true {
                         Button("Обновить") {
                             Task { await model.refreshCurrentClaudeAccount() }

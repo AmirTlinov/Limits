@@ -34,7 +34,7 @@ final class AppModel: ObservableObject {
     }
 
     struct CurrentClaudeState {
-        enum Source {
+        enum Source: Equatable {
             case notInstalled
             case loggedOut
             case stored(UUID)
@@ -89,6 +89,7 @@ final class AppModel: ObservableObject {
             claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
             await refreshCurrentCLIState()
             await refreshCurrentClaudeState()
+            await adoptCurrentClaudeAccountIfNeeded()
 
             if accounts.isEmpty, globalAuthService.hasGlobalAuth() {
                 try await importCurrentCLIAuthNow()
@@ -608,6 +609,23 @@ final class AppModel: ObservableObject {
             return true
         }
         return false
+    }
+
+    private func adoptCurrentClaudeAccountIfNeeded() async {
+        guard claudeAccounts.isEmpty else {
+            return
+        }
+
+        guard case .external = currentClaudeState.source else {
+            return
+        }
+
+        do {
+            try importCurrentClaudeAuthNow()
+            await refreshCurrentClaudeState()
+        } catch {
+            currentClaudeError = error.localizedDescription
+        }
     }
 
     private func importCurrentCLIAuthNow() async throws {
