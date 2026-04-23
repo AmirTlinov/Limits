@@ -30,101 +30,79 @@ struct MenuBarContentView: View {
     }
 
     private var shouldShowClaudeRow: Bool {
-        switch model.currentClaudeState.source {
-        case .stored, .external, .loggedOut, .unreadable:
-            return true
-        case .notInstalled:
-            return !model.claudeAccounts.isEmpty
-        }
+        AccountsPresentationLogic.shouldShowCurrentClaude(
+            source: model.currentClaudeState.source,
+            storedClaudeCount: model.claudeAccounts.count
+        )
     }
 
     private var hasStoredRows: Bool {
         !storedCodexAccounts.isEmpty || !storedClaudeAccounts.isEmpty
     }
 
+    private var shouldScrollStoredRows: Bool {
+        AccountsPresentationLogic.needsStoredAccountsScroll(
+            storedCodexCount: storedCodexAccounts.count,
+            storedClaudeCount: storedClaudeAccounts.count
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
+                TrayAccountRow(
+                    symbolName: "terminal",
+                    title: codexOverview.title,
+                    subtitle: codexOverview.subtitle,
+                    compactRows: currentCodexRows,
+                    detailText: codexCurrentDetailText,
+                    metaText: updatedAtText(for: model.currentCLIValidatedAt()),
+                    accent: codexAccent,
+                    badgeText: codexBadgeText,
+                    badgeColor: codexAccent,
+                    interactive: false,
+                    action: nil
+                )
+
+                if shouldShowClaudeRow {
                     TrayAccountRow(
-                        symbolName: "terminal",
-                        title: codexOverview.title,
-                        subtitle: codexOverview.subtitle,
-                        compactRows: currentCodexRows,
-                        detailText: codexCurrentDetailText,
-                        metaText: updatedAtText(for: model.currentCLIValidatedAt()),
-                        accent: codexAccent,
-                        badgeText: codexBadgeText,
-                        badgeColor: codexAccent,
+                        symbolName: "text.bubble",
+                        title: claudeOverview.title,
+                        subtitle: claudeOverview.subtitle,
+                        compactRows: currentClaudeRows,
+                        detailText: claudeCurrentDetailText,
+                        metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
+                        accent: claudeAccent,
+                        badgeText: claudeBadgeText,
+                        badgeColor: claudeAccent,
                         interactive: false,
                         action: nil
                     )
+                }
+            }
 
-                    if shouldShowClaudeRow {
-                        TrayAccountRow(
-                            symbolName: "text.bubble",
-                            title: claudeOverview.title,
-                            subtitle: claudeOverview.subtitle,
-                            compactRows: currentClaudeRows,
-                            detailText: claudeCurrentDetailText,
-                            metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
-                            accent: claudeAccent,
-                            badgeText: claudeBadgeText,
-                            badgeColor: claudeAccent,
-                            interactive: false,
-                            action: nil
-                        )
-                    }
+            if hasStoredRows {
+                MinimalSeparator()
+                    .padding(.vertical, 2)
 
-                    if hasStoredRows {
-                        MinimalSeparator()
-                            .padding(.vertical, 2)
-                    }
-
-                    ForEach(storedCodexAccounts) { account in
-                        TrayAccountRow(
-                            symbolName: "terminal",
-                            title: account.label,
-                            subtitle: storedCodexSubtitle(for: account),
-                            compactRows: compactRows(from: model.rateLimitSections(for: account)),
-                            detailText: storedCodexDetail(for: account),
-                            metaText: nil,
-                            accent: statusColor(for: account.status, isCurrent: false, providerAccent: .blue),
-                            badgeText: nil,
-                            badgeColor: .secondary,
-                            interactive: true
-                        ) {
-                            Task { await model.activateAccount(account) }
+                Group {
+                    if shouldScrollStoredRows {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            storedAccountRows
                         }
-                        .disabled(model.isBusy)
-                    }
-
-                    ForEach(storedClaudeAccounts) { account in
-                        TrayAccountRow(
-                            symbolName: "text.bubble",
-                            title: account.label,
-                            subtitle: storedClaudeSubtitle(for: account),
-                            compactRows: [],
-                            detailText: account.shortStatusText,
-                            metaText: nil,
-                            accent: statusColor(for: account.status, isCurrent: false, providerAccent: .purple),
-                            badgeText: nil,
-                            badgeColor: .secondary,
-                            interactive: true
-                        ) {
-                            Task { await model.activateClaudeAccount(account) }
-                        }
-                        .disabled(model.isBusy)
+                        .frame(maxHeight: 240)
+                    } else {
+                        storedAccountRows
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: 320)
 
             footer
         }
         .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: 326)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             Task {
                 await model.refreshCurrentCLIPanel(forceProbe: false)
@@ -348,6 +326,48 @@ struct MenuBarContentView: View {
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+
+    @ViewBuilder
+    private var storedAccountRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(storedCodexAccounts) { account in
+                TrayAccountRow(
+                    symbolName: "terminal",
+                    title: account.label,
+                    subtitle: storedCodexSubtitle(for: account),
+                    compactRows: compactRows(from: model.rateLimitSections(for: account)),
+                    detailText: storedCodexDetail(for: account),
+                    metaText: nil,
+                    accent: statusColor(for: account.status, isCurrent: false, providerAccent: .blue),
+                    badgeText: nil,
+                    badgeColor: .secondary,
+                    interactive: true
+                ) {
+                    Task { await model.activateAccount(account) }
+                }
+                .disabled(model.isBusy)
+            }
+
+            ForEach(storedClaudeAccounts) { account in
+                TrayAccountRow(
+                    symbolName: "text.bubble",
+                    title: account.label,
+                    subtitle: storedClaudeSubtitle(for: account),
+                    compactRows: [],
+                    detailText: account.shortStatusText,
+                    metaText: nil,
+                    accent: statusColor(for: account.status, isCurrent: false, providerAccent: .purple),
+                    badgeText: nil,
+                    badgeColor: .secondary,
+                    interactive: true
+                ) {
+                    Task { await model.activateClaudeAccount(account) }
+                }
+                .disabled(model.isBusy)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 
 private struct TrayAccountRow: View {

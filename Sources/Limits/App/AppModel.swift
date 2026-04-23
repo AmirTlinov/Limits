@@ -423,13 +423,6 @@ final class AppModel: ObservableObject {
         return false
     }
 
-    func menuPanelAccounts() -> [StoredAccount] {
-        if case .stored(let id) = currentCLIState.source {
-            return accounts.filter { $0.id != id }
-        }
-        return accounts
-    }
-
     func claudeAuthInstalled() -> Bool {
         claudeAuthStatusService.isInstalled()
     }
