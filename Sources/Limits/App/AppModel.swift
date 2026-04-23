@@ -33,19 +33,45 @@ final class AppModel: ObservableObject {
         let validatedAt: Date
     }
 
+    struct CurrentClaudeState {
+        enum Source {
+            case notInstalled
+            case loggedOut
+            case stored(UUID)
+            case external(String?)
+            case unreadable
+        }
+
+        var source: Source = .notInstalled
+        var authFingerprint: String?
+    }
+
+    struct CurrentClaudeOverview {
+        let title: String
+        let subtitle: String?
+        let note: String?
+    }
+
     @Published private(set) var accounts: [StoredAccount] = []
+    @Published private(set) var claudeAccounts: [ClaudeStoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
     @Published private(set) var currentCLIProbe: CurrentCLIProbe?
     @Published private(set) var isRefreshingCurrentCLIProbe = false
+    @Published private(set) var currentClaudeState = CurrentClaudeState()
+    @Published private(set) var currentClaudeStatus: ClaudeAuthStatus?
+    @Published private(set) var currentClaudeValidatedAt: Date?
     @Published var isBusy = false
     @Published var busyMessage: String?
     @Published var errorMessage: String?
     @Published var currentCLIProbeError: String?
+    @Published var currentClaudeError: String?
 
     private let persistence = AccountsPersistence()
     private let vault = KeychainAuthVault()
     private let globalAuthService = GlobalCodexAuthService()
     private let codexAccountService = CodexAccountService()
+    private let globalClaudeCredentialService = GlobalClaudeCredentialService()
+    private let claudeAuthStatusService = ClaudeAuthStatusService()
     private let currentCLIProbeTTL: TimeInterval = 90
 
     init() {
@@ -54,8 +80,11 @@ final class AppModel: ObservableObject {
 
     func bootstrap() async {
         do {
-            accounts = try persistence.load().accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            let state = try persistence.load()
+            accounts = state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
             await refreshCurrentCLIState()
+            await refreshCurrentClaudeState()
 
             if accounts.isEmpty, globalAuthService.hasGlobalAuth() {
                 try await importCurrentCLIAuthNow()
@@ -154,6 +183,45 @@ final class AppModel: ObservableObject {
         await refreshCurrentCLIProbe(force: forceProbe)
     }
 
+    func refreshCurrentClaudeState() async {
+        guard claudeAuthStatusService.isInstalled() else {
+            currentClaudeState = CurrentClaudeState(source: .notInstalled, authFingerprint: nil)
+            currentClaudeStatus = nil
+            currentClaudeValidatedAt = nil
+            currentClaudeError = nil
+            return
+        }
+
+        do {
+            let status = try claudeAuthStatusService.readStatus()
+
+            guard status.loggedIn else {
+                currentClaudeState = CurrentClaudeState(source: .loggedOut, authFingerprint: nil)
+                currentClaudeStatus = status
+                currentClaudeValidatedAt = Date()
+                currentClaudeError = nil
+                return
+            }
+
+            let credential = try globalClaudeCredentialService.readGlobalCredential()
+            let fingerprint = CodexAuthBlob.fingerprint(for: credential)
+            if let matched = claudeAccounts.first(where: { $0.authFingerprint == fingerprint }) {
+                currentClaudeState = CurrentClaudeState(source: .stored(matched.id), authFingerprint: fingerprint)
+            } else {
+                currentClaudeState = CurrentClaudeState(source: .external(status.email), authFingerprint: fingerprint)
+            }
+
+            currentClaudeStatus = status
+            currentClaudeValidatedAt = Date()
+            currentClaudeError = nil
+        } catch {
+            currentClaudeState = CurrentClaudeState(source: .unreadable, authFingerprint: nil)
+            currentClaudeStatus = nil
+            currentClaudeValidatedAt = nil
+            currentClaudeError = error.localizedDescription
+        }
+    }
+
     func addAccount() async {
         await runBusy("Выполняю вход…") { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
@@ -170,6 +238,13 @@ final class AppModel: ObservableObject {
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
             await self.validateAll()
+        }
+    }
+
+    func importCurrentClaudeAuth() async {
+        await runBusy("Импортирую текущий Claude Code…") { [self] in
+            try self.importCurrentClaudeAuthNow()
+            await self.refreshCurrentClaudeState()
         }
     }
 
@@ -193,12 +268,29 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
+        await runBusy("Переключаю Claude Code…") { [self] in
+            let credential = try self.vault.read(account: account.keychainAccount)
+            try self.globalClaudeCredentialService.writeGlobalCredential(credential)
+            await self.refreshCurrentClaudeState()
+            try self.refreshStoredClaudeMetadataIfNeeded()
+        }
+    }
+
+    func refreshCurrentClaudeAccount() async {
+        await runBusy("Обновляю Claude Code…") { [self] in
+            try self.refreshStoredClaudeMetadataIfNeeded()
+            await self.refreshCurrentClaudeState()
+        }
+    }
+
     func validateAll() async {
         for account in accounts {
             await validateAccount(account)
         }
         await refreshCurrentCLIState()
         await refreshCurrentCLIProbe(force: true)
+        await refreshCurrentClaudeState()
     }
 
     func validateAccount(_ account: StoredAccount) async {
@@ -245,8 +337,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func deleteClaudeAccount(_ account: ClaudeStoredAccount) async {
+        await runBusy("Удаляю \(account.label)…") { [self] in
+            try self.vault.delete(account: account.keychainAccount)
+            self.claudeAccounts.removeAll { $0.id == account.id }
+            try self.saveAccounts()
+            await self.refreshCurrentClaudeState()
+        }
+    }
+
     func isCurrentCLIAccount(_ account: StoredAccount) -> Bool {
         if case .stored(let id) = currentCLIState.source {
+            return id == account.id
+        }
+        return false
+    }
+
+    func isCurrentClaudeAccount(_ account: ClaudeStoredAccount) -> Bool {
+        if case .stored(let id) = currentClaudeState.source {
             return id == account.id
         }
         return false
@@ -259,6 +367,10 @@ final class AppModel: ObservableObject {
         return accounts
     }
 
+    func claudeAuthInstalled() -> Bool {
+        claudeAuthStatusService.isInstalled()
+    }
+
     func currentCLIReferenceAccount() -> StoredAccount? {
         switch currentCLIState.source {
         case .stored(let id):
@@ -267,6 +379,18 @@ final class AppModel: ObservableObject {
             guard let accountId else { return nil }
             return accounts.first(where: { $0.accountId == accountId })
         case .missing, .unreadable:
+            return nil
+        }
+    }
+
+    func currentClaudeReferenceAccount() -> ClaudeStoredAccount? {
+        switch currentClaudeState.source {
+        case .stored(let id):
+            return claudeAccounts.first(where: { $0.id == id })
+        case .external:
+            guard let fingerprint = currentClaudeState.authFingerprint else { return nil }
+            return claudeAccounts.first(where: { $0.authFingerprint == fingerprint })
+        case .notInstalled, .loggedOut, .unreadable:
             return nil
         }
     }
@@ -305,6 +429,43 @@ final class AppModel: ObservableObject {
                 subtitle: nil,
                 limits: nil,
                 note: accounts.isEmpty ? "Исправьте ~/.codex/auth.json или добавьте новый аккаунт." : "Исправьте auth.json или переключитесь на сохранённый снимок."
+            )
+        }
+    }
+
+    func currentClaudeOverview() -> CurrentClaudeOverview {
+        let account = currentClaudeReferenceAccount()
+
+        switch currentClaudeState.source {
+        case .stored:
+            return CurrentClaudeOverview(
+                title: account?.label ?? currentClaudeStatus?.email ?? "Claude Code",
+                subtitle: claudeSubtitle(account: account, status: currentClaudeStatus),
+                note: claudeNote(account: account)
+            )
+        case .external:
+            return CurrentClaudeOverview(
+                title: currentClaudeStatus?.email ?? account?.label ?? "Claude Code",
+                subtitle: claudeSubtitle(account: account, status: currentClaudeStatus),
+                note: account == nil ? "Импортируйте текущий Claude Code, чтобы сохранить снимок и быстро переключаться между аккаунтами." : claudeNote(account: account)
+            )
+        case .loggedOut:
+            return CurrentClaudeOverview(
+                title: "Claude Code не авторизован",
+                subtitle: nil,
+                note: "Войдите в Claude Code в терминале, затем импортируйте текущий аккаунт сюда."
+            )
+        case .notInstalled:
+            return CurrentClaudeOverview(
+                title: "Claude Code не установлен",
+                subtitle: nil,
+                note: "Установите CLI `claude`, чтобы приложение могло увидеть текущий аккаунт."
+            )
+        case .unreadable:
+            return CurrentClaudeOverview(
+                title: "Не удалось прочитать Claude Code",
+                subtitle: nil,
+                note: currentClaudeError ?? "Приложение не смогло получить текущую авторизацию Claude Code."
             )
         }
     }
@@ -376,10 +537,32 @@ final class AppModel: ObservableObject {
         return false
     }
 
+    func hasCurrentClaudeAuthToImport() -> Bool {
+        if case .external = currentClaudeState.source {
+            return true
+        }
+        return false
+    }
+
     private func importCurrentCLIAuthNow() async throws {
         let currentAuth = try globalAuthService.readGlobalAuth()
         let result = try await codexAccountService.validate(authData: currentAuth)
         try upsertAccount(from: result, preferredLabel: result.email)
+    }
+
+    private func importCurrentClaudeAuthNow() throws {
+        let credential = try globalClaudeCredentialService.readGlobalCredential()
+        let status = try claudeAuthStatusService.readStatus()
+
+        guard status.loggedIn, let email = status.email else {
+            throw ClaudeAuthStatusServiceError.commandFailed("Claude Code сейчас не авторизован.")
+        }
+
+        try upsertClaudeAccount(
+            credential: credential,
+            status: status,
+            preferredLabel: email
+        )
     }
 
     private func upsertAccount(from result: AccountValidationResult, preferredLabel: String, existingID: UUID? = nil) throws {
@@ -447,8 +630,78 @@ final class AppModel: ObservableObject {
         try saveAccounts()
     }
 
+    private func upsertClaudeAccount(
+        credential: Data,
+        status: ClaudeAuthStatus,
+        preferredLabel: String,
+        existingID: UUID? = nil
+    ) throws {
+        let fingerprint = CodexAuthBlob.fingerprint(for: credential)
+        let existingIndex: Int? = {
+            if let existingID {
+                return claudeAccounts.firstIndex(where: { $0.id == existingID })
+            }
+            return claudeAccounts.firstIndex(where: {
+                $0.authFingerprint == fingerprint ||
+                $0.email.caseInsensitiveCompare(status.email ?? preferredLabel) == .orderedSame
+            })
+        }()
+
+        let keychainAccount: String
+        let recordID: UUID
+        let label: String
+        let createdAt: Date
+
+        if let existingIndex {
+            keychainAccount = claudeAccounts[existingIndex].keychainAccount
+            recordID = claudeAccounts[existingIndex].id
+            label = claudeAccounts[existingIndex].label
+            createdAt = claudeAccounts[existingIndex].createdAt
+        } else {
+            recordID = UUID()
+            keychainAccount = "claude.\(recordID.uuidString)"
+            label = makeUniqueClaudeLabel(base: preferredLabel)
+            createdAt = Date()
+        }
+
+        try vault.save(credential, account: keychainAccount, label: label)
+
+        let updatedRecord = ClaudeStoredAccount(
+            id: recordID,
+            label: label,
+            email: status.email ?? preferredLabel,
+            subscriptionType: status.subscriptionType ?? "unknown",
+            authMethod: status.authMethod,
+            orgName: status.orgName,
+            createdAt: createdAt,
+            updatedAt: Date(),
+            lastValidatedAt: Date(),
+            status: .ok,
+            statusMessage: "Аккаунт Claude Code готов.",
+            authFingerprint: fingerprint,
+            keychainAccount: keychainAccount
+        )
+
+        if let existingIndex {
+            claudeAccounts[existingIndex] = updatedRecord
+        } else {
+            claudeAccounts.append(updatedRecord)
+        }
+
+        claudeAccounts.sort { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+        try saveAccounts()
+    }
+
+    private func updateClaudeAccount(_ id: UUID, mutate: (inout ClaudeStoredAccount) -> Void) throws {
+        guard let index = claudeAccounts.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        mutate(&claudeAccounts[index])
+        try saveAccounts()
+    }
+
     private func saveAccounts() throws {
-        try persistence.save(PersistedState(accounts: accounts))
+        try persistence.save(PersistedState(accounts: accounts, claudeAccounts: claudeAccounts))
     }
 
     static func resolveStoredAccountMatch(identity: AuthIdentity, fingerprint: String, accounts: [StoredAccount]) -> StoredAccount? {
@@ -527,6 +780,20 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func makeUniqueClaudeLabel(base: String) -> String {
+        guard !claudeAccounts.contains(where: { $0.label.caseInsensitiveCompare(base) == .orderedSame }) else {
+            var counter = 2
+            while true {
+                let candidate = "\(base) \(counter)"
+                if !claudeAccounts.contains(where: { $0.label.caseInsensitiveCompare(candidate) == .orderedSame }) {
+                    return candidate
+                }
+                counter += 1
+            }
+        }
+        return base
+    }
+
     private func subtitle(for account: StoredAccount?, probe: CurrentCLIProbe?) -> String? {
         if let account {
             if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
@@ -570,6 +837,13 @@ final class AppModel: ObservableObject {
         currentCLIProbe?.validatedAt ?? currentCLIReferenceAccount()?.lastValidatedAt
     }
 
+    func claudeValidatedAt(for account: ClaudeStoredAccount? = nil) -> Date? {
+        if let account {
+            return account.lastValidatedAt
+        }
+        return currentClaudeValidatedAt ?? currentClaudeReferenceAccount()?.lastValidatedAt
+    }
+
     func localizedPlan(_ value: String) -> String {
         switch value.lowercased() {
         case "pro":
@@ -582,6 +856,27 @@ final class AppModel: ObservableObject {
             return "План неизвестен"
         default:
             return value
+        }
+    }
+
+    func localizedClaudePlan(_ value: String?) -> String {
+        switch value?.lowercased() {
+        case "max":
+            return "Claude Max"
+        case "pro":
+            return "Claude Pro"
+        case "team":
+            return "Claude Team"
+        case "enterprise":
+            return "Claude Enterprise"
+        case "console":
+            return "Claude Console"
+        case "claude.ai":
+            return "Подписка Claude"
+        case "unknown", nil:
+            return "План неизвестен"
+        default:
+            return value ?? "План неизвестен"
         }
     }
 
@@ -600,6 +895,39 @@ final class AppModel: ObservableObject {
             return account.label
         }
         return currentCLIState.accountId ?? "Внешняя авторизация"
+    }
+
+    private func claudeSubtitle(account: ClaudeStoredAccount?, status: ClaudeAuthStatus?) -> String? {
+        if let account, account.label.caseInsensitiveCompare(account.email) != .orderedSame {
+            return account.email
+        }
+
+        if let status, let subscriptionType = status.subscriptionType {
+            return localizedClaudePlan(subscriptionType)
+        }
+
+        if let account {
+            return localizedClaudePlan(account.subscriptionType)
+        }
+
+        return nil
+    }
+
+    private func claudeNote(account: ClaudeStoredAccount?) -> String? {
+        if let currentClaudeError {
+            return currentClaudeError
+        }
+
+        if let account {
+            if account.status == .needsReauth {
+                return "Этому аккаунту Claude Code нужен повторный вход в терминале."
+            }
+            if let orgName = account.orgName, !orgName.isEmpty {
+                return "Организация: \(orgName). Лимиты Claude я пока намеренно не рисую, потому что у Anthropic они живут внутри живой сессии и здесь нельзя честно обещать точность."
+            }
+        }
+
+        return "Лимиты Claude я пока намеренно не рисую, потому что у Anthropic они живут внутри живой сессии и здесь нельзя честно обещать точность."
     }
 
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
@@ -643,5 +971,30 @@ final class AppModel: ObservableObject {
             return "Текущей авторизации нужен повторный вход."
         }
         return "Не удалось обновить живые лимиты."
+    }
+
+    private func refreshStoredClaudeMetadataIfNeeded() throws {
+        guard
+            let status = currentClaudeStatus ?? (try? claudeAuthStatusService.readStatus()),
+            status.loggedIn,
+            let email = status.email,
+            let fingerprint = currentClaudeState.authFingerprint ?? (try? globalClaudeCredentialService.readGlobalCredential()).map({ CodexAuthBlob.fingerprint(for: $0) })
+        else {
+            return
+        }
+
+        if let current = currentClaudeReferenceAccount() {
+            try updateClaudeAccount(current.id) { stored in
+                stored.email = email
+                stored.subscriptionType = status.subscriptionType ?? stored.subscriptionType
+                stored.authMethod = status.authMethod
+                stored.orgName = status.orgName
+                stored.authFingerprint = fingerprint
+                stored.updatedAt = Date()
+                stored.lastValidatedAt = Date()
+                stored.status = .ok
+                stored.statusMessage = "Аккаунт Claude Code готов."
+            }
+        }
     }
 }

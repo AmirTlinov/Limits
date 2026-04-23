@@ -77,6 +77,23 @@ struct StoredAccount: Identifiable, Codable, Hashable {
 
 struct PersistedState: Codable {
     var accounts: [StoredAccount]
+    var claudeAccounts: [ClaudeStoredAccount]
+
+    init(accounts: [StoredAccount], claudeAccounts: [ClaudeStoredAccount] = []) {
+        self.accounts = accounts
+        self.claudeAccounts = claudeAccounts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case accounts
+        case claudeAccounts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accounts = try container.decodeIfPresent([StoredAccount].self, forKey: .accounts) ?? []
+        claudeAccounts = try container.decodeIfPresent([ClaudeStoredAccount].self, forKey: .claudeAccounts) ?? []
+    }
 }
 
 struct AuthIdentity: Hashable {

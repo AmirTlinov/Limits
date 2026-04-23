@@ -2,39 +2,59 @@ import AppKit
 import SwiftUI
 
 private enum AccountsSidebarSelection: Hashable {
-    case currentCLI
-    case account(UUID)
+    case currentCodexCLI
+    case codexAccount(UUID)
+    case currentClaudeCode
+    case claudeAccount(UUID)
 
     var rawValue: String {
         switch self {
-        case .currentCLI:
+        case .currentCodexCLI:
             return "current-cli"
-        case .account(let id):
+        case .codexAccount(let id):
             return "account:\(id.uuidString)"
+        case .currentClaudeCode:
+            return "current-claude"
+        case .claudeAccount(let id):
+            return "claude-account:\(id.uuidString)"
         }
     }
 
     init?(rawValue: String) {
         if rawValue == "current-cli" {
-            self = .currentCLI
+            self = .currentCodexCLI
             return
         }
 
-        guard rawValue.hasPrefix("account:") else {
+        if rawValue == "current-claude" {
+            self = .currentClaudeCode
+            return
+        }
+
+        if rawValue.hasPrefix("account:") {
+            let value = String(rawValue.dropFirst("account:".count))
+            guard let id = UUID(uuidString: value) else {
+                return nil
+            }
+            self = .codexAccount(id)
+            return
+        }
+
+        guard rawValue.hasPrefix("claude-account:") else {
             return nil
         }
 
-        let value = String(rawValue.dropFirst("account:".count))
+        let value = String(rawValue.dropFirst("claude-account:".count))
         guard let id = UUID(uuidString: value) else {
             return nil
         }
-        self = .account(id)
+        self = .claudeAccount(id)
     }
 }
 
 struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
-    @SceneStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCLI.rawValue
+    @SceneStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
 
     private var overview: AppModel.CurrentCLIOverview {
         model.currentCLIOverview()
@@ -42,13 +62,13 @@ struct AccountsWindowView: View {
 
     private var selectionBinding: Binding<AccountsSidebarSelection?> {
         Binding(
-            get: { AccountsSidebarSelection(rawValue: sidebarSelectionRaw) ?? .currentCLI },
-            set: { sidebarSelectionRaw = ($0 ?? .currentCLI).rawValue }
+            get: { AccountsSidebarSelection(rawValue: sidebarSelectionRaw) ?? .currentCodexCLI },
+            set: { sidebarSelectionRaw = ($0 ?? .currentCodexCLI).rawValue }
         )
     }
 
-    private var selectedAccount: StoredAccount? {
-        guard case .account(let id) = selectionBinding.wrappedValue else {
+    private var selectedCodexAccount: StoredAccount? {
+        guard case .codexAccount(let id) = selectionBinding.wrappedValue else {
             return nil
         }
         return model.accounts.first(where: { $0.id == id })
@@ -94,9 +114,15 @@ struct AccountsWindowView: View {
         .frame(minWidth: 980, minHeight: 620)
         .onAppear {
             ensureValidSelection()
-            Task { await model.refreshCurrentCLIPanel(forceProbe: false) }
+            Task {
+                await model.refreshCurrentCLIPanel(forceProbe: false)
+                await model.refreshCurrentClaudeState()
+            }
         }
         .onChange(of: model.accounts) { _, _ in
+            ensureValidSelection()
+        }
+        .onChange(of: model.claudeAccounts) { _, _ in
             ensureValidSelection()
         }
     }
@@ -106,15 +132,24 @@ struct AccountsWindowView: View {
             Section {
                 SidebarRowView(
                     icon: "terminal",
-                    title: "Текущий CLI",
+                    title: "Codex CLI",
                     subtitle: overview.title,
                     trailing: currentCLITrailingText,
                     accent: .blue
                 )
-                .tag(AccountsSidebarSelection.currentCLI)
+                .tag(AccountsSidebarSelection.currentCodexCLI)
+
+                SidebarRowView(
+                    icon: "text.bubble",
+                    title: "Claude Code",
+                    subtitle: model.currentClaudeOverview().title,
+                    trailing: nil,
+                    accent: .purple
+                )
+                .tag(AccountsSidebarSelection.currentClaudeCode)
             }
 
-            Section("Аккаунты") {
+            Section("Аккаунты Codex") {
                 ForEach(model.accounts) { account in
                     SidebarRowView(
                         icon: "person.crop.circle",
@@ -123,7 +158,7 @@ struct AccountsWindowView: View {
                         trailing: sidebarTrailing(for: account),
                         accent: sidebarAccent(for: account)
                     )
-                    .tag(AccountsSidebarSelection.account(account.id))
+                    .tag(AccountsSidebarSelection.codexAccount(account.id))
                     .contextMenu {
                         if !model.isCurrentCLIAccount(account) {
                             Button("Сделать текущим") {
@@ -147,6 +182,7 @@ struct AccountsWindowView: View {
                     }
                 }
             }
+
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
@@ -156,8 +192,10 @@ struct AccountsWindowView: View {
     private var detail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                if let selectedAccount {
-                    StoredAccountDetailPane(model: model, account: selectedAccount)
+                if let selectedCodexAccount {
+                    StoredAccountDetailPane(model: model, account: selectedCodexAccount)
+                } else if selectionBinding.wrappedValue == .currentClaudeCode {
+                    CurrentClaudeDetailPane(model: model)
                 } else {
                     CurrentCLIDetailPane(model: model)
                 }
@@ -204,12 +242,16 @@ struct AccountsWindowView: View {
 
     private func ensureValidSelection() {
         guard let selection = AccountsSidebarSelection(rawValue: sidebarSelectionRaw) else {
-            sidebarSelectionRaw = AccountsSidebarSelection.currentCLI.rawValue
+            sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
             return
         }
 
-        if case .account(let id) = selection, !model.accounts.contains(where: { $0.id == id }) {
-            sidebarSelectionRaw = AccountsSidebarSelection.currentCLI.rawValue
+        if case .codexAccount(let id) = selection, !model.accounts.contains(where: { $0.id == id }) {
+            sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+        }
+
+        if case .claudeAccount(let id) = selection, !model.claudeAccounts.contains(where: { $0.id == id }) {
+            sidebarSelectionRaw = AccountsSidebarSelection.currentClaudeCode.rawValue
         }
     }
 }
@@ -327,6 +369,69 @@ private struct CurrentCLIDetailPane: View {
             return "Обновляю живые лимиты…"
         }
         return nil
+    }
+
+    private func formatted(date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+private struct CurrentClaudeDetailPane: View {
+    @ObservedObject var model: AppModel
+
+    private var overview: AppModel.CurrentClaudeOverview {
+        model.currentClaudeOverview()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            DetailHeroCard(
+                title: overview.title,
+                subtitle: overview.subtitle,
+                stateBadge: AnyView(ClaudeStateBadge(model: model)),
+                note: overview.note,
+                metaLine: metaLine,
+                actions: {
+                    if model.currentClaudeStatus?.loggedIn == true {
+                        Button("Обновить") {
+                            Task { await model.refreshCurrentClaudeAccount() }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy)
+                    }
+                }
+            )
+
+            MinimalSeparator()
+
+            EmptyLimitsCard(
+                title: "Поддержка Claude Code подключена",
+                subtitle: "Сейчас здесь честно показываются только аккаунт, организация и план. Лимиты Anthropic пока не подключены, потому что они приходят из живой сессии Claude Code и очень легко сделать ложную картину."
+            )
+        }
+    }
+
+    private var metaLine: String? {
+        var parts: [String] = []
+
+        if let status = model.currentClaudeStatus {
+            if let authMethod = status.authMethod {
+                parts.append(authMethod)
+            }
+            if let orgName = status.orgName, !orgName.isEmpty {
+                parts.append(orgName)
+            }
+        }
+
+        if let date = model.claudeValidatedAt() {
+            parts.append("Проверено \(formatted(date: date))")
+        }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func formatted(date: Date) -> String {
@@ -603,9 +708,51 @@ private struct InlineWarningCard: View {
     }
 }
 
+private struct ClaudeStateBadge: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        Text(label)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.16), in: Capsule())
+            .foregroundStyle(color)
+    }
+
+    private var label: String {
+        switch model.currentClaudeState.source {
+        case .stored:
+            return "Текущий"
+        case .external:
+            return "Внешний"
+        case .loggedOut:
+            return "Нет входа"
+        case .notInstalled:
+            return "Не установлен"
+        case .unreadable:
+            return "Ошибка"
+        }
+    }
+
+    private var color: Color {
+        switch model.currentClaudeState.source {
+        case .stored:
+            return .purple
+        case .external:
+            return .blue
+        case .loggedOut, .unreadable:
+            return .red
+        case .notInstalled:
+            return .secondary
+        }
+    }
+}
+
 private struct AccountStatusBadge: View {
     let status: AccountStatus
     let isCurrent: Bool
+    var currentAccent: Color = .blue
 
     var body: some View {
         Text(label)
@@ -631,7 +778,7 @@ private struct AccountStatusBadge: View {
 
     private var color: Color {
         if isCurrent {
-            return .blue
+            return currentAccent
         }
         return switch status {
         case .ok: .green

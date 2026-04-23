@@ -138,3 +138,36 @@ import Testing
 
     #expect(match?.id == id)
 }
+
+@Test func persistedStateDecodesWithoutClaudeAccountsField() throws {
+    let data = """
+    {
+      "accounts": []
+    }
+    """.data(using: .utf8)!
+
+    let state = try JSONDecoder.limits.decode(PersistedState.self, from: data)
+
+    #expect(state.accounts.isEmpty)
+    #expect(state.claudeAccounts.isEmpty)
+}
+
+@Test func decodesClaudeAuthStatusJson() throws {
+    let data = """
+    {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "email": "user@example.com",
+      "orgId": "org_123",
+      "orgName": "Example Org",
+      "subscriptionType": "max"
+    }
+    """.data(using: .utf8)!
+
+    let status = try JSONDecoder.limits.decode(ClaudeAuthStatus.self, from: data)
+
+    #expect(status.loggedIn)
+    #expect(status.email == "user@example.com")
+    #expect(status.subscriptionType == "max")
+}
