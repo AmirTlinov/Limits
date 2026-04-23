@@ -68,7 +68,7 @@ xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 mkdir -p "$DIST_DIR"
 (
   cd "$DIST_DIR"
-  ditto -c -k --keepParent "$APP_NAME.app" "$(basename "$ZIP_PATH")"
+  COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$(basename "$ZIP_PATH")"
 )
 shasum -a 256 "$ZIP_PATH" > "$CHECKSUM_PATH"
 
