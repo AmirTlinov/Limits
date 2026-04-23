@@ -172,7 +172,7 @@ struct AccountsWindowView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            SidebarFilterPicker(selection: sidebarFilterBinding)
+            ProviderFilterPicker(selection: sidebarFilterBinding)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
@@ -402,42 +402,6 @@ struct AccountsWindowView: View {
         case .claudeAccount(let id):
             return .claudeAccount(id)
         }
-    }
-}
-
-private extension AccountsSidebarFilter {
-    var includesCodex: Bool {
-        switch self {
-        case .all, .codex:
-            return true
-        case .claude:
-            return false
-        }
-    }
-
-    var includesClaude: Bool {
-        switch self {
-        case .all, .claude:
-            return true
-        case .codex:
-            return false
-        }
-    }
-}
-
-private struct SidebarFilterPicker: View {
-    @Binding var selection: AccountsSidebarFilter
-
-    var body: some View {
-        Picker("Показать аккаунты", selection: $selection) {
-            Text("Все").tag(AccountsSidebarFilter.all)
-            Text("Codex").tag(AccountsSidebarFilter.codex)
-            Text("Claude").tag(AccountsSidebarFilter.claude)
-        }
-        .pickerStyle(.segmented)
-        .controlSize(.small)
-        .labelsHidden()
-        .accessibilityLabel("Показать аккаунты")
     }
 }
 

@@ -119,3 +119,12 @@ import Testing
     #expect(AccountsPresentationLogic.defaultDestination(for: .codex) == .currentCodexCLI)
     #expect(AccountsPresentationLogic.defaultDestination(for: .claude) == .currentClaudeCode)
 }
+
+@Test func sidebarFilterIncludesExpectedProviders() {
+    #expect(AccountsSidebarFilter.all.includesCodex)
+    #expect(AccountsSidebarFilter.all.includesClaude)
+    #expect(AccountsSidebarFilter.codex.includesCodex)
+    #expect(!AccountsSidebarFilter.codex.includesClaude)
+    #expect(!AccountsSidebarFilter.claude.includesCodex)
+    #expect(AccountsSidebarFilter.claude.includesClaude)
+}

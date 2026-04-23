@@ -7,6 +7,7 @@ struct MenuBarContentView: View {
 
     @AppStorage("limits.tray.codex.expanded") private var codexExpanded = true
     @AppStorage("limits.tray.claude.expanded") private var claudeExpanded = true
+    @AppStorage("limits.tray.provider.filter") private var providerFilterRaw = AccountsSidebarFilter.all.rawValue
 
     private var codexOverview: AppModel.CurrentCLIOverview {
         model.currentCLIOverview()
@@ -69,100 +70,34 @@ struct MenuBarContentView: View {
         shouldShowClaudeRow || !storedClaudeAccounts.isEmpty
     }
 
+    private var providerFilter: AccountsSidebarFilter {
+        AccountsSidebarFilter(rawValue: providerFilterRaw) ?? .all
+    }
+
+    private var providerFilterBinding: Binding<AccountsSidebarFilter> {
+        Binding(
+            get: { providerFilter },
+            set: { providerFilterRaw = $0.rawValue }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TrayProviderSection(
-                title: "Codex CLI",
-                countText: categoryCountText(codexAccountCount),
-                accent: ProviderAccent.codex,
-                isExpanded: $codexExpanded
-            ) {
-                VStack(alignment: .leading, spacing: 8) {
-                    TrayAccountRow(
-                        symbolName: "terminal",
-                        title: codexOverview.title,
-                        subtitle: codexOverview.subtitle,
-                        compactRows: currentCodexRows,
-                        detailText: codexCurrentDetailText,
-                        metaText: updatedAtText(for: model.currentCLIValidatedAt()),
-                        accent: codexAccent,
-                        badgeText: codexBadgeText,
-                        badgeColor: codexAccent,
-                        interactive: false,
-                        style: .current,
-                        action: nil
-                    )
+            ProviderFilterPicker(selection: providerFilterBinding)
+                .padding(.bottom, 2)
 
-                    ForEach(storedCodexAccounts) { account in
-                        TrayAccountRow(
-                            symbolName: "terminal",
-                            title: account.label,
-                            subtitle: storedCodexSubtitle(for: account),
-                            compactRows: compactRows(from: model.rateLimitSections(for: account)),
-                            detailText: storedCodexDetail(for: account),
-                            metaText: nil,
-                            accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.codex),
-                            badgeText: nil,
-                            badgeColor: .secondary,
-                            interactive: true,
-                            style: .stored
-                        ) {
-                            Task { await model.activateAccount(account) }
-                        }
-                        .disabled(model.isBusy)
-                    }
-                }
+            if providerFilter.includesCodex {
+                codexSection
             }
 
-            if shouldShowClaudeSection {
+            if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
                 MinimalSeparator()
                     .opacity(0.38)
                     .padding(.horizontal, 2)
+            }
 
-                TrayProviderSection(
-                    title: "Claude Code",
-                    countText: categoryCountText(claudeAccountCount),
-                    accent: ProviderAccent.claude,
-                    isExpanded: $claudeExpanded
-                ) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if shouldShowClaudeRow {
-                            TrayAccountRow(
-                                symbolName: "text.bubble",
-                                title: claudeOverview.title,
-                                subtitle: claudeOverview.subtitle,
-                                compactRows: currentClaudeRows,
-                                detailText: claudeCurrentDetailText,
-                                metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
-                                accent: claudeAccent,
-                                badgeText: claudeBadgeText,
-                                badgeColor: claudeAccent,
-                                interactive: false,
-                                style: .current,
-                                action: nil
-                            )
-                        }
-
-                        ForEach(storedClaudeAccounts) { account in
-                            TrayAccountRow(
-                                symbolName: "text.bubble",
-                                title: account.label,
-                                subtitle: storedClaudeSubtitle(for: account),
-                                compactRows: [],
-                                detailText: account.shortStatusText,
-                                metaText: nil,
-                                accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.claude),
-                                badgeText: nil,
-                                badgeColor: .secondary,
-                                interactive: true,
-                                style: .stored
-                            ) {
-                                Task { await model.activateClaudeAccount(account) }
-                            }
-                            .disabled(model.isBusy)
-                        }
-                    }
-                }
+            if providerFilter.includesClaude, shouldShowClaudeSection {
+                claudeSection
             }
 
             footer
@@ -175,6 +110,98 @@ struct MenuBarContentView: View {
             Task {
                 await model.refreshCurrentCLIPanel(forceProbe: false)
                 await model.refreshCurrentClaudeState()
+            }
+        }
+    }
+
+    private var codexSection: some View {
+        TrayProviderSection(
+            title: "Codex CLI",
+            countText: categoryCountText(codexAccountCount),
+            accent: ProviderAccent.codex,
+            isExpanded: $codexExpanded
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                TrayAccountRow(
+                    symbolName: "terminal",
+                    title: codexOverview.title,
+                    subtitle: codexOverview.subtitle,
+                    compactRows: currentCodexRows,
+                    detailText: codexCurrentDetailText,
+                    metaText: updatedAtText(for: model.currentCLIValidatedAt()),
+                    accent: codexAccent,
+                    badgeText: codexBadgeText,
+                    badgeColor: codexAccent,
+                    interactive: false,
+                    style: .current,
+                    action: nil
+                )
+
+                ForEach(storedCodexAccounts) { account in
+                    TrayAccountRow(
+                        symbolName: "terminal",
+                        title: account.label,
+                        subtitle: storedCodexSubtitle(for: account),
+                        compactRows: compactRows(from: model.rateLimitSections(for: account)),
+                        detailText: storedCodexDetail(for: account),
+                        metaText: nil,
+                        accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.codex),
+                        badgeText: nil,
+                        badgeColor: .secondary,
+                        interactive: true,
+                        style: .stored
+                    ) {
+                        Task { await model.activateAccount(account) }
+                    }
+                    .disabled(model.isBusy)
+                }
+            }
+        }
+    }
+
+    private var claudeSection: some View {
+        TrayProviderSection(
+            title: "Claude Code",
+            countText: categoryCountText(claudeAccountCount),
+            accent: ProviderAccent.claude,
+            isExpanded: $claudeExpanded
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                if shouldShowClaudeRow {
+                    TrayAccountRow(
+                        symbolName: "text.bubble",
+                        title: claudeOverview.title,
+                        subtitle: claudeOverview.subtitle,
+                        compactRows: currentClaudeRows,
+                        detailText: claudeCurrentDetailText,
+                        metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
+                        accent: claudeAccent,
+                        badgeText: claudeBadgeText,
+                        badgeColor: claudeAccent,
+                        interactive: false,
+                        style: .current,
+                        action: nil
+                    )
+                }
+
+                ForEach(storedClaudeAccounts) { account in
+                    TrayAccountRow(
+                        symbolName: "text.bubble",
+                        title: account.label,
+                        subtitle: storedClaudeSubtitle(for: account),
+                        compactRows: [],
+                        detailText: account.shortStatusText,
+                        metaText: nil,
+                        accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.claude),
+                        badgeText: nil,
+                        badgeColor: .secondary,
+                        interactive: true,
+                        style: .stored
+                    ) {
+                        Task { await model.activateClaudeAccount(account) }
+                    }
+                    .disabled(model.isBusy)
+                }
             }
         }
     }

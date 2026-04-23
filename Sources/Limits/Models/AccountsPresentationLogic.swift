@@ -13,6 +13,26 @@ enum AccountsSidebarFilter: String, CaseIterable {
     case claude
 }
 
+extension AccountsSidebarFilter {
+    var includesCodex: Bool {
+        switch self {
+        case .all, .codex:
+            return true
+        case .claude:
+            return false
+        }
+    }
+
+    var includesClaude: Bool {
+        switch self {
+        case .all, .claude:
+            return true
+        case .codex:
+            return false
+        }
+    }
+}
+
 enum AccountsPresentationLogic {
     static let storedRowsScrollThreshold = 4
 
