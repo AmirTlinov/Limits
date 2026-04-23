@@ -176,17 +176,17 @@ struct AccountsWindowView: View {
 
     private var currentCLITrailingText: String? {
         if let used = model.currentCLIProbe?.rateLimit?.primary?.usedPercent {
-            return "\(used)%"
+            return "\(max(0, 100 - used))%"
         }
         if let used = model.currentCLIReferenceAccount()?.lastRateLimit?.primary?.usedPercent {
-            return "\(used)%"
+            return "\(max(0, 100 - used))%"
         }
         return nil
     }
 
     private func sidebarTrailing(for account: StoredAccount) -> String? {
         if let used = account.lastRateLimit?.primary?.usedPercent {
-            return "\(used)%"
+            return "\(max(0, 100 - used))%"
         }
         return nil
     }
@@ -524,7 +524,11 @@ private struct DetailHeroCard<Actions: View>: View {
             }
         }
         .padding(22)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .glassPanelSurface(
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+            tone: .clear,
+            fallbackMaterial: .ultraThinMaterial
+        )
     }
 }
 
@@ -543,7 +547,11 @@ private struct LimitSectionCard: View {
             }
         }
         .padding(22)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .glassPanelSurface(
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+            tone: .clear,
+            fallbackMaterial: .ultraThinMaterial
+        )
     }
 }
 
@@ -558,11 +566,11 @@ private struct LimitProgressRowView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 160, alignment: .leading)
 
-                LimitProgressBar(progress: row.progressValue, tint: tint)
+                LimitProgressBar(progress: row.remainingProgressValue, tint: tint)
                     .frame(maxWidth: .infinity)
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(row.usedPercent)% использовано")
+                    Text("\(row.remainingPercent)% осталось")
                         .font(.headline)
                         .monospacedDigit()
 
@@ -578,13 +586,11 @@ private struct LimitProgressRowView: View {
     }
 
     private var tint: Color {
-        switch row.usedPercent {
-        case 100...:
+        switch row.remainingPercent {
+        case 0...9:
             return .red
-        case 85...:
+        case 10...24:
             return .orange
-        case 60...:
-            return .yellow
         default:
             return .blue
         }
@@ -597,13 +603,17 @@ private struct LimitProgressBar: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let availableWidth = max(0, geometry.size.width - 2)
+            let fillWidth = progress == 0 ? 0 : max(10, availableWidth * progress)
+
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(.primary.opacity(0.08))
+                    .stroke(.primary.opacity(0.08), lineWidth: 1)
 
                 Capsule()
                     .fill(tint.gradient)
-                    .frame(width: progress == 0 ? 0 : max(10, geometry.size.width * progress))
+                    .padding(1)
+                    .frame(width: fillWidth)
             }
         }
         .frame(height: 12)
@@ -622,7 +632,11 @@ private struct EmptyLimitsCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding(22)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .glassPanelSurface(
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+            tone: .clear,
+            fallbackMaterial: .ultraThinMaterial
+        )
     }
 }
 
@@ -634,7 +648,11 @@ private struct InlineWarningCard: View {
             .font(.callout)
             .foregroundStyle(.red)
             .padding(16)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .glassPanelSurface(
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                tone: .clear,
+                fallbackMaterial: .ultraThinMaterial
+            )
     }
 }
 

@@ -13,6 +13,10 @@ struct RateLimitDisplayRow: Identifiable, Hashable {
     var progressValue: Double {
         min(max(Double(usedPercent) / 100, 0), 1)
     }
+
+    var remainingProgressValue: Double {
+        min(max(Double(remainingPercent) / 100, 0), 1)
+    }
 }
 
 struct RateLimitDisplaySection: Identifiable, Hashable {

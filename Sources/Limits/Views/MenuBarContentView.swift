@@ -15,11 +15,16 @@ struct MenuBarContentView: View {
         model.menuPanelAccounts()
     }
 
+    private var currentCompactRows: [RateLimitDisplayRow] {
+        compactRows(from: model.currentCLIRateLimitSections())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             CurrentCLIOverviewCard(
                 overview: overview,
                 source: model.currentCLIState.source,
+                compactRows: currentCompactRows,
                 updatedAt: model.currentCLIValidatedAt(),
                 isBusy: model.isBusy,
                 busyMessage: model.busyMessage,
@@ -29,7 +34,7 @@ struct MenuBarContentView: View {
             if !quickSwitchAccounts.isEmpty, #available(macOS 26.0, *), !reduceTransparency {
                 GlassEffectContainer(spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
-                        AccountSwitchRow(account: account) {
+                        AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
                             Task { await model.activateAccount(account) }
                         }
                         .disabled(model.isBusy)
@@ -38,7 +43,7 @@ struct MenuBarContentView: View {
             } else if !quickSwitchAccounts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
-                        AccountSwitchRow(account: account) {
+                        AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
                             Task { await model.activateAccount(account) }
                         }
                         .disabled(model.isBusy)
@@ -135,38 +140,48 @@ struct MenuBarContentView: View {
             }
         }
     }
+
+    private func compactRows(from sections: [RateLimitDisplaySection]) -> [RateLimitDisplayRow] {
+        Array((sections.first?.rows ?? []).prefix(2))
+    }
 }
 
 private struct AccountSwitchRow: View {
     let account: StoredAccount
+    let compactRows: [RateLimitDisplayRow]
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 7, height: 7)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 7, height: 7)
 
-                VStack(alignment: .leading, spacing: 2) {
                     Text(account.label)
                         .lineLimit(1)
 
+                    Spacer(minLength: 8)
+                }
+
+                if !compactRows.isEmpty {
+                    CompactLimitBarsView(rows: compactRows, dense: true)
+                } else {
                     Text(account.lastRateLimit?.compactUsageSummary() ?? account.shortStatusText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-
-                Spacer(minLength: 8)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassPanelSurface(
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                tone: .clear,
                 interactive: true,
-                fallbackMaterial: .thinMaterial
+                fallbackMaterial: .ultraThinMaterial
             )
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }

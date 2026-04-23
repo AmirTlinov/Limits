@@ -3,6 +3,7 @@ import SwiftUI
 struct CurrentCLIOverviewCard: View {
     let overview: AppModel.CurrentCLIOverview
     let source: AppModel.CurrentCLIState.Source
+    let compactRows: [RateLimitDisplayRow]
     let updatedAt: Date?
     let isBusy: Bool
     let busyMessage: String?
@@ -31,7 +32,9 @@ struct CurrentCLIOverviewCard: View {
                 }
             }
 
-            if let limits = overview.limits {
+            if compact, !compactRows.isEmpty {
+                CompactLimitBarsView(rows: compactRows)
+            } else if let limits = overview.limits {
                 Text(limits)
                     .font(compact ? .system(size: 14, weight: .semibold, design: .rounded) : .system(size: 16, weight: .semibold, design: .rounded))
                     .monospacedDigit()
@@ -105,13 +108,13 @@ struct CurrentCLIOverviewCard: View {
     @ViewBuilder
     private var backgroundShape: some View {
         let shape = RoundedRectangle(cornerRadius: compact ? 18 : 14, style: .continuous)
-        let tone: GlassPanelTone = compact ? .regular : .clear
+        let tone: GlassPanelTone = .clear
 
         Color.clear
             .glassPanelSurface(
                 in: shape,
                 tone: tone,
-                fallbackMaterial: .regularMaterial
+                fallbackMaterial: compact ? .ultraThinMaterial : .regularMaterial
             )
     }
 
@@ -136,4 +139,89 @@ struct CurrentCLIOverviewCard: View {
         formatter.dateFormat = "d MMM, HH:mm"
         return formatter
     }()
+}
+
+struct CompactLimitBarsView: View {
+    let rows: [RateLimitDisplayRow]
+    var dense = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: dense ? 6 : 8) {
+            ForEach(Array(rows.prefix(2))) { row in
+                CompactLimitBarRow(row: row, dense: dense)
+            }
+        }
+    }
+}
+
+private struct CompactLimitBarRow: View {
+    let row: RateLimitDisplayRow
+    let dense: Bool
+
+    var body: some View {
+        HStack(spacing: dense ? 6 : 8) {
+            Text(compactTitle)
+                .font(dense ? .caption : .caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: dense ? 46 : 56, alignment: .leading)
+
+            CompactLimitBar(progress: row.remainingProgressValue, tint: tint, height: dense ? 8 : 10)
+                .frame(maxWidth: .infinity)
+
+            Text("\(row.remainingPercent)%")
+                .font(dense ? .caption.weight(.semibold) : .caption.weight(.bold))
+                .monospacedDigit()
+                .frame(width: dense ? 38 : 44, alignment: .trailing)
+        }
+    }
+
+    private var compactTitle: String {
+        switch row.title {
+        case "5ч лимит":
+            return "5ч"
+        case "Недельный лимит":
+            return "Неделя"
+        case "1ч лимит":
+            return "1ч"
+        case "Суточный лимит":
+            return "Сутки"
+        default:
+            return row.title.replacingOccurrences(of: " лимит", with: "")
+        }
+    }
+
+    private var tint: Color {
+        switch row.remainingPercent {
+        case 0...9:
+            return .red
+        case 10...24:
+            return .orange
+        default:
+            return .blue
+        }
+    }
+}
+
+private struct CompactLimitBar: View {
+    let progress: Double
+    let tint: Color
+    let height: CGFloat
+
+    var body: some View {
+        GeometryReader { geometry in
+            let availableWidth = max(0, geometry.size.width - 2)
+            let fillWidth = progress == 0 ? 0 : max(8, availableWidth * progress)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .stroke(.primary.opacity(0.08), lineWidth: 1)
+
+                Capsule()
+                    .fill(tint.gradient)
+                    .padding(1)
+                    .frame(width: fillWidth)
+            }
+        }
+        .frame(height: height)
+    }
 }
