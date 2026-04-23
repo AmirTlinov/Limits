@@ -108,14 +108,18 @@ struct CurrentCLIOverviewCard: View {
     @ViewBuilder
     private var backgroundShape: some View {
         let shape = RoundedRectangle(cornerRadius: compact ? 18 : 14, style: .continuous)
-        let tone: GlassPanelTone = .clear
 
-        Color.clear
-            .glassPanelSurface(
-                in: shape,
-                tone: tone,
-                fallbackMaterial: compact ? .ultraThinMaterial : .regularMaterial
-            )
+        if compact {
+            Color.clear
+                .trayPanelSectionChrome(in: shape)
+        } else {
+            Color.clear
+                .glassPanelSurface(
+                    in: shape,
+                    tone: .clear,
+                    fallbackMaterial: .regularMaterial
+                )
+        }
     }
 
     private static func updatedAtText(for date: Date) -> String {

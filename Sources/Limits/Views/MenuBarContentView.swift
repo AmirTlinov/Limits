@@ -2,8 +2,6 @@ import AppKit
 import SwiftUI
 
 struct MenuBarContentView: View {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
     @ObservedObject var model: AppModel
     let openAccountsWindow: () -> Void
 
@@ -31,16 +29,7 @@ struct MenuBarContentView: View {
                 compact: true
             )
 
-            if !quickSwitchAccounts.isEmpty, #available(macOS 26.0, *), !reduceTransparency {
-                GlassEffectContainer(spacing: 6) {
-                    ForEach(quickSwitchAccounts) { account in
-                        AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
-                            Task { await model.activateAccount(account) }
-                        }
-                        .disabled(model.isBusy)
-                    }
-                }
-            } else if !quickSwitchAccounts.isEmpty {
+            if !quickSwitchAccounts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(quickSwitchAccounts) { account in
                         AccountSwitchRow(account: account, compactRows: compactRows(from: model.rateLimitSections(for: account))) {
@@ -108,11 +97,6 @@ struct MenuBarContentView: View {
                 Image(systemName: "ellipsis.circle")
                     .imageScale(.large)
                     .frame(width: 32, height: 32)
-                    .glassPanelSurface(
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous),
-                        interactive: true,
-                        fallbackMaterial: .thinMaterial
-                    )
             }
             .menuStyle(.borderlessButton)
         }
@@ -123,8 +107,9 @@ struct MenuBarContentView: View {
         if #available(macOS 26.0, *) {
             if primary {
                 Button(title, action: action)
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.glass)
                     .buttonBorderShape(.roundedRectangle(radius: 14))
+                    .tint(.accentColor)
             } else {
                 Button(title, action: action)
                     .buttonStyle(.glass)
@@ -177,12 +162,7 @@ private struct AccountSwitchRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassPanelSurface(
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous),
-                tone: .clear,
-                interactive: true,
-                fallbackMaterial: .ultraThinMaterial
-            )
+            .trayPanelSectionChrome(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)

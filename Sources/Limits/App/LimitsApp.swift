@@ -18,11 +18,16 @@ struct LimitsApp: App {
             AccountsWindowView(model: model)
         }
 
-        MenuBarExtra("Лимиты", systemImage: "person.crop.circle.badge.checkmark") {
+        MenuBarExtra {
             MenuBarContentView(model: model) {
                 openWindow(id: "accounts")
                 NSApp.activate(ignoringOtherApps: true)
             }
+        } label: {
+            Image(systemName: "speedometer")
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14, weight: .semibold))
+                .accessibilityLabel("Лимиты")
         }
         .menuBarExtraStyle(.window)
     }

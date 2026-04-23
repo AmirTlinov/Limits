@@ -58,4 +58,37 @@ extension View {
             )
         )
     }
+
+    func trayPanelSectionChrome<PanelShape: Shape>(
+        in shape: PanelShape
+    ) -> some View {
+        modifier(TrayPanelSectionModifier(shape: shape))
+    }
+}
+
+private struct TrayPanelSectionModifier<PanelShape: Shape>: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
+    let shape: PanelShape
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if reduceTransparency {
+                    shape.fill(Color(nsColor: .windowBackgroundColor).opacity(0.78))
+                }
+            }
+            .overlay {
+                shape.stroke(borderColor, lineWidth: 1)
+            }
+    }
+
+    private var borderColor: Color {
+        if reduceTransparency {
+            return .primary.opacity(0.08)
+        }
+
+        return colorScheme == .dark ? .white.opacity(0.14) : .white.opacity(0.28)
+    }
 }
