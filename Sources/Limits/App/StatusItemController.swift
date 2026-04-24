@@ -221,13 +221,13 @@ final class StatusItemController: NSObject {
         tooltip: String,
         on button: NSStatusBarButton
     ) {
-        let readyAccountCount = rolledBackOtherAccountCount(for: .codex)
+        let codexAccountCount = visibleCodexAccountCount()
         let claudeAccountCount = visibleClaudeAccountCount()
         let image = StatusItemIconRenderer.render(
             codex: ProviderRingSnapshot(snapshot: codexSnapshot),
             claude: ProviderRingSnapshot(snapshot: claudeSnapshot),
             selectedProvider: selectedProvider,
-            codexReadyAccountCount: readyAccountCount,
+            codexAccountCount: codexAccountCount,
             claudeAccountCount: claudeAccountCount
         )
 
@@ -238,7 +238,7 @@ final class StatusItemController: NSObject {
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.toolTip = tooltip
-        button.setAccessibilityLabel(accessibilityLabel(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot, codexReadyAccountCount: readyAccountCount, claudeAccountCount: claudeAccountCount))
+        button.setAccessibilityLabel(accessibilityLabel(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot, codexAccountCount: codexAccountCount, claudeAccountCount: claudeAccountCount))
         button.setAccessibilityTitle("Limits")
         button.needsDisplay = true
     }
@@ -274,7 +274,7 @@ final class StatusItemController: NSObject {
     private func accessibilityLabel(
         codexSnapshot: FiveHourLimitSnapshot,
         claudeSnapshot: FiveHourLimitSnapshot,
-        codexReadyAccountCount: Int,
+        codexAccountCount: Int,
         claudeAccountCount: Int
     ) -> String {
         var parts = [
@@ -282,8 +282,8 @@ final class StatusItemController: NSObject {
             accessibilitySegment(provider: .claude, snapshot: claudeSnapshot),
         ]
 
-        if codexReadyAccountCount > 0 {
-            parts.append(L10n.readyAccountCount(codexReadyAccountCount))
+        if codexAccountCount > 0 {
+            parts.append("Codex · \(L10n.accountCount(codexAccountCount))")
         }
 
         if claudeAccountCount > 0 {
@@ -311,15 +311,16 @@ final class StatusItemController: NSObject {
         return filter.trayStatusProvider
     }
 
-    private func rolledBackOtherAccountCount(for provider: TrayStatusProvider, now: Date = .now) -> Int {
-        switch provider {
-        case .codex:
-            return model.accounts.filter { account in
-                !model.isCurrentCLIAccount(account) && accountHasRolledBackFiveHourLimit(account, now: now)
-            }.count
-        case .claude:
-            return 0
+    private func visibleCodexAccountCount() -> Int {
+        let currentCountsAsAccount: Bool = switch model.currentCLIState.source {
+        case .stored, .external:
+            true
+        case .missing, .unreadable:
+            false
         }
+
+        let storedOtherCount = model.accounts.filter { !model.isCurrentCLIAccount($0) }.count
+        return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
     }
 
     private func visibleClaudeAccountCount() -> Int {
@@ -332,13 +333,6 @@ final class StatusItemController: NSObject {
 
         let storedOtherCount = model.claudeAccounts.filter { !model.isCurrentClaudeAccount($0) }.count
         return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
-    }
-
-    private func accountHasRolledBackFiveHourLimit(_ account: StoredAccount, now: Date) -> Bool {
-        if account.lastRateLimitsByLimitId?.values.contains(where: { $0.fiveHourHasReset(now: now) }) == true {
-            return true
-        }
-        return account.lastRateLimit?.fiveHourHasReset(now: now) == true
     }
 
     private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
@@ -392,7 +386,7 @@ private enum StatusItemIconRenderer {
         codex: ProviderRingSnapshot,
         claude: ProviderRingSnapshot,
         selectedProvider: TrayStatusProvider,
-        codexReadyAccountCount: Int,
+        codexAccountCount: Int,
         claudeAccountCount: Int
     ) -> NSImage {
         let size = NSSize(width: 46, height: 22)
@@ -407,7 +401,7 @@ private enum StatusItemIconRenderer {
             center: NSPoint(x: 12, y: size.height / 2),
             accent: .systemBlue,
             isSelected: selectedProvider == .codex,
-            centerText: codexReadyAccountCount > 0 ? String(min(codexReadyAccountCount, 9)) : nil
+            centerText: codexAccountCount > 0 ? String(min(codexAccountCount, 9)) : nil
         )
         drawProviderRing(
             claude,
