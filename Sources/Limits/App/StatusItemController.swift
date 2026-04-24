@@ -15,7 +15,7 @@ struct StatusItemInstallSnapshot: Equatable {
 final class StatusItemController: NSObject {
     private let model: AppModel
     private let openAccountsWindow: () -> Void
-    private let statusItemLength: CGFloat = 84
+    private let statusItemLength: CGFloat = 28
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
@@ -65,7 +65,7 @@ final class StatusItemController: NSObject {
         button.isBordered = false
         button.focusRingType = .none
         button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
+        button.imageScaling = .scaleNone
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.target = self
@@ -185,17 +185,12 @@ final class StatusItemController: NSObject {
 
     private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, tooltip: String, on button: NSStatusBarButton) {
         let title = provider.displayTitle
-        let image = StatusItemPillRenderer.render(
-            title: title,
-            progress: snapshot.remainingProgress ?? 1,
-            isProgressKnown: snapshot.remainingProgress != nil,
-            remainingPercent: snapshot.remainingPercent
-        )
+        let image = StatusItemIconRenderer.render()
 
         statusItem?.length = statusItemLength
         button.image = image
         button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
+        button.imageScaling = .scaleNone
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.toolTip = tooltip
@@ -276,100 +271,32 @@ private struct FiveHourLimitSnapshot {
     let resetText: String?
 }
 
-private enum StatusItemPillRenderer {
-    static func render(title: String, progress: Double, isProgressKnown: Bool, remainingPercent: Int?) -> NSImage {
-        let font = NSFont.systemFont(ofSize: 12.2, weight: .semibold)
-        let textSize = (title as NSString).size(withAttributes: [.font: font])
-        let width = max(64, min(76, ceil(textSize.width + 28)))
-        let height: CGFloat = 22
-        let size = NSSize(width: width, height: height)
+private enum StatusItemIconRenderer {
+    static func render() -> NSImage {
+        let size = NSSize(width: 22, height: 22)
         let image = NSImage(size: size)
-        image.isTemplate = false
+        image.isTemplate = true
 
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        let pillRect = NSRect(x: 1, y: 1, width: width - 2, height: height - 2)
-        let radius = pillRect.height / 2
-        let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: radius, yRadius: radius)
+        NSColor.black.setFill()
 
-        trackColor.setFill()
-        pillPath.fill()
+        let back = NSBezierPath(
+            roundedRect: NSRect(x: 4.2, y: 6.0, width: 9.2, height: 11.8),
+            xRadius: 2.7,
+            yRadius: 2.7
+        )
+        back.fill()
 
-        let clampedProgress = min(max(progress, 0), 1)
-        let fillWidth = pillRect.width * clampedProgress
-        if fillWidth > 0 {
-            NSGraphicsContext.saveGraphicsState()
-            pillPath.addClip()
-            fillColor(isProgressKnown: isProgressKnown, remainingPercent: remainingPercent).setFill()
-            NSRect(x: pillRect.minX, y: pillRect.minY, width: fillWidth, height: pillRect.height).fill()
-            NSGraphicsContext.restoreGraphicsState()
-        }
+        let front = NSBezierPath(
+            roundedRect: NSRect(x: 8.6, y: 3.9, width: 9.2, height: 11.8),
+            xRadius: 2.7,
+            yRadius: 2.7
+        )
+        front.fill()
 
-        borderColor.setStroke()
-        pillPath.lineWidth = 1
-        pillPath.stroke()
-        draw(title: title, font: font, in: pillRect)
 
         return image
-    }
-
-    private static var trackColor: NSColor {
-        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-        let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-        let alpha: CGFloat = if reduceTransparency {
-            increaseContrast ? 0.34 : 0.26
-        } else {
-            increaseContrast ? 0.26 : 0.16
-        }
-        return NSColor.labelColor.withAlphaComponent(alpha)
-    }
-
-    private static func fillColor(isProgressKnown: Bool, remainingPercent: Int?) -> NSColor {
-        guard isProgressKnown, let remainingPercent else {
-            return NSColor.systemBlue.withAlphaComponent(0.72)
-        }
-
-        switch remainingPercent {
-        case ...9:
-            return NSColor.systemRed.withAlphaComponent(0.94)
-        case 10...24:
-            return NSColor.systemOrange.withAlphaComponent(0.94)
-        default:
-            return NSColor.systemBlue.withAlphaComponent(0.94)
-        }
-    }
-
-    private static var borderColor: NSColor {
-        let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-        return NSColor.labelColor.withAlphaComponent(increaseContrast ? 0.38 : 0.24)
-    }
-
-    private static func draw(title: String, font: NSFont, in rect: NSRect) {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
-
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
-        shadow.shadowBlurRadius = 1
-        shadow.shadowOffset = NSSize(width: 0, height: 0)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white,
-            .paragraphStyle: paragraphStyle,
-            .shadow: shadow,
-        ]
-
-        let text = title as NSString
-        let textSize = text.size(withAttributes: attributes)
-        let textRect = NSRect(
-            x: rect.minX,
-            y: rect.midY - textSize.height / 2 - 0.5,
-            width: rect.width,
-            height: textSize.height + 1
-        )
-
-        text.draw(in: textRect, withAttributes: attributes)
     }
 }
