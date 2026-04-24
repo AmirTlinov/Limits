@@ -43,6 +43,12 @@
 "settings.language.title" = "Language";
 "settings.language.description" = "Choose the language used by the tray, windows, and messages.";
 "settings.language.system" = "Use system language";
+"settings.tray_legend.title" = "Tray icon";
+"settings.tray_legend.description" = "The two rings show account counts and 5-hour limit status at a glance.";
+"settings.tray_legend.codex.title" = "Blue ring — Codex";
+"settings.tray_legend.codex.subtitle" = "The number is your visible Codex account count.";
+"settings.tray_legend.claude.title" = "Orange ring — Claude";
+"settings.tray_legend.claude.subtitle" = "The number is your visible Claude account count.";
 "busy.connecting_claude_live" = "Connecting Claude live limits…";
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";

@@ -43,6 +43,12 @@
 "settings.language.title" = "Langue";
 "settings.language.description" = "Choisissez la langue de la barre de menus, des fenêtres et des messages.";
 "settings.language.system" = "Utiliser la langue du système";
+"settings.tray_legend.title" = "Icône de la barre de menus";
+"settings.tray_legend.description" = "Les deux anneaux affichent le nombre de comptes et l’état de la limite 5 h.";
+"settings.tray_legend.codex.title" = "Anneau bleu — Codex";
+"settings.tray_legend.codex.subtitle" = "Le nombre indique les comptes Codex visibles.";
+"settings.tray_legend.claude.title" = "Anneau orange — Claude";
+"settings.tray_legend.claude.subtitle" = "Le nombre indique les comptes Claude visibles.";
 "busy.connecting_claude_live" = "Connexion aux limites en direct de Claude…";
 "busy.deleting" = "Suppression de %@…";
 "busy.disconnecting_claude_bridge" = "Déconnexion du pont Claude…";

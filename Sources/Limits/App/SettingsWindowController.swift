@@ -30,8 +30,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: makeRootView())
         let window = NSWindow(contentViewController: hostingController)
         window.title = L10n.tr("settings.title")
-        window.setContentSize(NSSize(width: 520, height: 300))
-        window.minSize = NSSize(width: 520, height: 300)
+        window.setContentSize(NSSize(width: 560, height: 420))
+        window.minSize = NSSize(width: 560, height: 420)
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.titleVisibility = .visible
         window.isReleasedWhenClosed = false
@@ -110,6 +110,32 @@ struct SettingsView: View {
                 .frame(width: 260, alignment: .leading)
             }
 
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L10n.tr("settings.tray_legend.title"))
+                    .font(.headline)
+                Text(L10n.tr("settings.tray_legend.description"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 9) {
+                    TrayLegendRow(
+                        color: .blue,
+                        number: "3",
+                        title: L10n.tr("settings.tray_legend.codex.title"),
+                        subtitle: L10n.tr("settings.tray_legend.codex.subtitle")
+                    )
+
+                    TrayLegendRow(
+                        color: Color(red: 0.86, green: 0.39, blue: 0.24),
+                        number: "1",
+                        title: L10n.tr("settings.tray_legend.claude.title"),
+                        subtitle: L10n.tr("settings.tray_legend.claude.subtitle")
+                    )
+                }
+                .padding(14)
+                .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
             Spacer(minLength: 0)
         }
         .padding(28)
@@ -125,5 +151,38 @@ struct SettingsView: View {
                 languageDidChange()
             }
         )
+    }
+}
+
+private struct TrayLegendRow: View {
+    let color: Color
+    let number: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.28), lineWidth: 3)
+                    .frame(width: 24, height: 24)
+                Circle()
+                    .trim(from: 0, to: 0.72)
+                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 24, height: 24)
+                Text(number)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+            }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }

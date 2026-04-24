@@ -43,6 +43,12 @@
 "settings.language.title" = "语言";
 "settings.language.description" = "选择菜单栏、窗口和消息使用的语言。";
 "settings.language.system" = "使用系统语言";
+"settings.tray_legend.title" = "菜单栏图标";
+"settings.tray_legend.description" = "两个圆环一眼显示账户数量和 5 小时限额状态。";
+"settings.tray_legend.codex.title" = "蓝色圆环 — Codex";
+"settings.tray_legend.codex.subtitle" = "数字表示可见的 Codex 账户数量。";
+"settings.tray_legend.claude.title" = "橙色圆环 — Claude";
+"settings.tray_legend.claude.subtitle" = "数字表示可见的 Claude 账户数量。";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";

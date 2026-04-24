@@ -43,6 +43,12 @@
 "settings.language.title" = "Язык";
 "settings.language.description" = "Выберите язык трея, окон и сообщений.";
 "settings.language.system" = "Как в системе";
+"settings.tray_legend.title" = "Иконка в трее";
+"settings.tray_legend.description" = "Два кольца показывают аккаунты и состояние 5ч лимита одним взглядом.";
+"settings.tray_legend.codex.title" = "Синее кольцо — Codex";
+"settings.tray_legend.codex.subtitle" = "Число внутри показывает видимые Codex-аккаунты.";
+"settings.tray_legend.claude.title" = "Оранжевое кольцо — Claude";
+"settings.tray_legend.claude.subtitle" = "Число внутри показывает видимые Claude-аккаунты.";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";
