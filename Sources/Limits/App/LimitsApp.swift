@@ -19,9 +19,6 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
         }
         statusItemController = controller
         controller.install()
-        DispatchQueue.main.async { [weak self] in
-            self?.openAccountsWindow()
-        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -32,6 +29,12 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
     }
 
     func openAccountsWindow() {
+        if let existingWindow = existingAccountsWindow() {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         if let window = accountsWindowController?.window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -66,6 +69,12 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
 
         accountsWindowController = nil
     }
+
+    private func existingAccountsWindow() -> NSWindow? {
+        NSApp.windows.first { window in
+            window.title == "Лимиты" && window !== accountsWindowController?.window
+        }
+    }
 }
 
 @main
@@ -73,8 +82,8 @@ struct LimitsApp: App {
     @NSApplicationDelegateAdaptor(LimitsAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings {
-            EmptyView()
+        WindowGroup("Лимиты", id: "accounts") {
+            AccountsWindowView(model: appDelegate.model)
         }
     }
 }
