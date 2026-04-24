@@ -151,7 +151,7 @@ final class StatusItemController: NSObject {
     }
 
     private func currentTrayStatusProvider() -> TrayStatusProvider {
-        let rawFilter = UserDefaults.standard.string(forKey: AccountsSidebarFilter.trayFilterStorageKey)
+        let rawFilter = UserDefaults.standard.string(forKey: AccountsSidebarFilter.providerFilterStorageKey)
         let filter = rawFilter.flatMap(AccountsSidebarFilter.init(rawValue:)) ?? .all
         return filter.trayStatusProvider
     }

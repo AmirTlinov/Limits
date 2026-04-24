@@ -28,7 +28,7 @@ enum TrayStatusProvider: Equatable {
 }
 
 extension AccountsSidebarFilter {
-    static let trayFilterStorageKey = "limits.tray.provider.filter"
+    static let providerFilterStorageKey = "limits.tray.provider.filter"
 
     var includesCodex: Bool {
         switch self {

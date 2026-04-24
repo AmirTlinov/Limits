@@ -8,7 +8,7 @@ struct MenuBarContentView: View {
 
     @AppStorage("limits.tray.codex.expanded") private var codexExpanded = true
     @AppStorage("limits.tray.claude.expanded") private var claudeExpanded = true
-    @AppStorage(AccountsSidebarFilter.trayFilterStorageKey) private var providerFilterRaw = AccountsSidebarFilter.all.rawValue
+    @AppStorage(AccountsSidebarFilter.providerFilterStorageKey) private var providerFilterRaw = AccountsSidebarFilter.all.rawValue
 
     init(
         model: AppModel,
