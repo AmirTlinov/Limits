@@ -113,7 +113,37 @@ final class StatusItemController: NSObject {
         rebuildPopoverContent()
         button.layoutSubtreeIfNeeded()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        alignPopoverWindow(to: button)
+        DispatchQueue.main.async { [weak self, weak button] in
+            guard let self, let button else { return }
+            self.alignPopoverWindow(to: button)
+        }
         popover.contentViewController?.view.window?.makeKey()
+    }
+
+    private func alignPopoverWindow(to button: NSStatusBarButton) {
+        guard
+            let buttonWindow = button.window,
+            let popoverWindow = popover.contentViewController?.view.window
+        else {
+            RuntimeLog.tray.error("cannot align tray popover because windows are missing")
+            return
+        }
+
+        let anchorInWindow = button.convert(button.bounds, to: nil)
+        let anchor = buttonWindow.convertToScreen(anchorInWindow)
+        let screenFrame = buttonWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? anchor
+        var frame = popoverWindow.frame
+
+        frame.origin.x = anchor.midX - frame.width / 2
+        frame.origin.x = min(max(frame.origin.x, screenFrame.minX + 8), screenFrame.maxX - frame.width - 8)
+        frame.origin.y = anchor.minY - frame.height - 2
+        if frame.origin.y < screenFrame.minY + 8 {
+            frame.origin.y = screenFrame.minY + 8
+        }
+
+        popoverWindow.setFrame(frame, display: true)
+        RuntimeLog.tray.debug("tray popover aligned anchorX=\(anchor.midX, privacy: .public) anchorY=\(anchor.minY, privacy: .public) windowX=\(frame.minX, privacy: .public) windowY=\(frame.minY, privacy: .public)")
     }
 
     private func closePopover() {
