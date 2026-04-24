@@ -11,9 +11,22 @@ struct ProviderFilterPicker: View {
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
-        .tint(ProviderAccent.codex)
+        .tint(selection.tint)
         .labelsHidden()
         .frame(maxWidth: .infinity)
         .accessibilityLabel(L10n.tr("filter.show_accounts"))
+    }
+}
+
+private extension AccountsSidebarFilter {
+    var tint: Color {
+        switch self {
+        case .all:
+            return .secondary
+        case .codex:
+            return ProviderAccent.codex
+        case .claude:
+            return ProviderAccent.claude
+        }
     }
 }
