@@ -16,7 +16,7 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private let openAccountsWindow: () -> Void
     private let openSettingsWindow: () -> Void
-    private let statusItemLength: CGFloat = 28
+    private let statusItemLength: CGFloat = 54
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
@@ -194,27 +194,39 @@ final class StatusItemController: NSObject {
     }
 
     private func refreshStatusItemAppearance() {
-        let provider = currentTrayStatusProvider()
-        let snapshot = currentFiveHourLimitSnapshot(for: provider)
-        let tooltip = tooltipText(provider: provider, snapshot: snapshot)
+        let selectedProvider = currentTrayStatusProvider()
+        let codexSnapshot = currentFiveHourLimitSnapshot(for: .codex)
+        let claudeSnapshot = currentFiveHourLimitSnapshot(for: .claude)
+        let tooltip = tooltipText(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot)
 
         guard let button = statusItem?.button else {
             RuntimeLog.tray.error("cannot refresh status item because button is missing")
             return
         }
 
-        syncStatusButton(provider: provider, snapshot: snapshot, tooltip: tooltip, on: button)
-        RuntimeLog.tray.debug("status item refreshed provider=\(provider.displayTitle, privacy: .public) known=\(snapshot.remainingPercent != nil, privacy: .public)")
+        syncStatusButton(
+            selectedProvider: selectedProvider,
+            codexSnapshot: codexSnapshot,
+            claudeSnapshot: claudeSnapshot,
+            tooltip: tooltip,
+            on: button
+        )
+        RuntimeLog.tray.debug("status item refreshed selectedProvider=\(selectedProvider.displayTitle, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public)")
     }
 
-    private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, tooltip: String, on button: NSStatusBarButton) {
-        let title = provider.displayTitle
-        let readyAccountCount = rolledBackOtherAccountCount(for: provider)
+    private func syncStatusButton(
+        selectedProvider: TrayStatusProvider,
+        codexSnapshot: FiveHourLimitSnapshot,
+        claudeSnapshot: FiveHourLimitSnapshot,
+        tooltip: String,
+        on button: NSStatusBarButton
+    ) {
+        let readyAccountCount = rolledBackOtherAccountCount(for: .codex)
         let image = StatusItemIconRenderer.render(
-            progress: snapshot.remainingProgress ?? 1,
-            isProgressKnown: snapshot.remainingProgress != nil,
-            remainingPercent: snapshot.remainingPercent,
-            readyAccountCount: readyAccountCount
+            codex: ProviderRingSnapshot(snapshot: codexSnapshot),
+            claude: ProviderRingSnapshot(snapshot: claudeSnapshot),
+            selectedProvider: selectedProvider,
+            codexReadyAccountCount: readyAccountCount
         )
 
         statusItem?.length = statusItemLength
@@ -224,8 +236,8 @@ final class StatusItemController: NSObject {
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.toolTip = tooltip
-        button.setAccessibilityLabel(accessibilityLabel(provider: provider, snapshot: snapshot, readyAccountCount: readyAccountCount))
-        button.setAccessibilityTitle(title)
+        button.setAccessibilityLabel(accessibilityLabel(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot, codexReadyAccountCount: readyAccountCount))
+        button.setAccessibilityTitle("Limits")
         button.needsDisplay = true
     }
 
@@ -241,17 +253,33 @@ final class StatusItemController: NSObject {
         return L10n.tr("tray.tooltip.five_hour.no_data", provider.displayTitle)
     }
 
-    private func accessibilityLabel(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, readyAccountCount: Int) -> String {
+    private func tooltipText(codexSnapshot: FiveHourLimitSnapshot, claudeSnapshot: FiveHourLimitSnapshot) -> String {
+        [
+            tooltipText(provider: .codex, snapshot: codexSnapshot),
+            tooltipText(provider: .claude, snapshot: claudeSnapshot),
+        ].joined(separator: " · ")
+    }
+
+    private func accessibilitySegment(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
         let base: String = if let remainingPercent = snapshot.remainingPercent {
             L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
         } else {
             L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
         }
+        return base
+    }
 
-        guard readyAccountCount > 0 else {
-            return base
+    private func accessibilityLabel(codexSnapshot: FiveHourLimitSnapshot, claudeSnapshot: FiveHourLimitSnapshot, codexReadyAccountCount: Int) -> String {
+        var parts = [
+            accessibilitySegment(provider: .codex, snapshot: codexSnapshot),
+            accessibilitySegment(provider: .claude, snapshot: claudeSnapshot),
+        ]
+
+        if codexReadyAccountCount > 0 {
+            parts.append(L10n.readyAccountCount(codexReadyAccountCount))
         }
-        return base + " · " + L10n.readyAccountCount(readyAccountCount)
+
+        return parts.joined(separator: " · ")
     }
 
     private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
@@ -324,18 +352,59 @@ private struct FiveHourLimitSnapshot {
     let resetText: String?
 }
 
+private struct ProviderRingSnapshot {
+    let progress: Double
+    let isProgressKnown: Bool
+    let remainingPercent: Int?
+
+    init(snapshot: FiveHourLimitSnapshot) {
+        self.progress = snapshot.remainingProgress ?? 1
+        self.isProgressKnown = snapshot.remainingProgress != nil
+        self.remainingPercent = snapshot.remainingPercent
+    }
+}
+
 private enum StatusItemIconRenderer {
-    static func render(progress: Double, isProgressKnown: Bool, remainingPercent: Int?, readyAccountCount: Int) -> NSImage {
-        let size = NSSize(width: 22, height: 22)
+    static func render(
+        codex: ProviderRingSnapshot,
+        claude: ProviderRingSnapshot,
+        selectedProvider: TrayStatusProvider,
+        codexReadyAccountCount: Int
+    ) -> NSImage {
+        let size = NSSize(width: 46, height: 22)
         let image = NSImage(size: size)
         image.isTemplate = false
 
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        let center = NSPoint(x: size.width / 2, y: size.height / 2)
-        let radius: CGFloat = 8.0
-        let lineWidth: CGFloat = 2.2
+        drawProviderRing(
+            codex,
+            center: NSPoint(x: 12, y: size.height / 2),
+            accent: .systemBlue,
+            isSelected: selectedProvider == .codex,
+            centerText: codexReadyAccountCount > 0 ? String(min(codexReadyAccountCount, 9)) : nil
+        )
+        drawProviderRing(
+            claude,
+            center: NSPoint(x: 34, y: size.height / 2),
+            accent: .systemOrange,
+            isSelected: selectedProvider == .claude,
+            centerText: nil
+        )
+
+        return image
+    }
+
+    private static func drawProviderRing(
+        _ snapshot: ProviderRingSnapshot,
+        center: NSPoint,
+        accent: NSColor,
+        isSelected: Bool,
+        centerText: String?
+    ) {
+        let radius: CGFloat = isSelected ? 6.7 : 6.1
+        let lineWidth: CGFloat = isSelected ? 2.35 : 2.05
         let trackRect = NSRect(
             x: center.x - radius,
             y: center.y - radius,
@@ -344,15 +413,15 @@ private enum StatusItemIconRenderer {
         )
 
         let track = NSBezierPath(ovalIn: trackRect)
-        NSColor.labelColor.withAlphaComponent(0.30).setStroke()
+        accent.withAlphaComponent(snapshot.isProgressKnown ? 0.28 : 0.18).setStroke()
         track.lineWidth = lineWidth
         track.stroke()
 
-        if isProgressKnown {
-            let clamped = min(max(progress, 0), 1)
+        if snapshot.isProgressKnown {
+            let clamped = min(max(snapshot.progress, 0), 1)
             if clamped >= 0.995 {
                 let progressPath = NSBezierPath(ovalIn: trackRect)
-                progressColor(remainingPercent: remainingPercent).setStroke()
+                progressColor(providerAccent: accent, remainingPercent: snapshot.remainingPercent).setStroke()
                 progressPath.lineWidth = lineWidth
                 progressPath.stroke()
             } else if clamped > 0 {
@@ -366,23 +435,21 @@ private enum StatusItemIconRenderer {
                     endAngle: endAngle,
                     clockwise: true
                 )
-                progressColor(remainingPercent: remainingPercent).setStroke()
+                progressColor(providerAccent: accent, remainingPercent: snapshot.remainingPercent).setStroke()
                 progressPath.lineWidth = lineWidth
                 progressPath.lineCapStyle = .round
                 progressPath.stroke()
             }
         }
 
-        if readyAccountCount > 0 {
-            drawCount(min(readyAccountCount, 9), in: NSRect(origin: .zero, size: size))
+        if let centerText {
+            drawCount(centerText, at: center)
         }
-
-        return image
     }
 
-    private static func progressColor(remainingPercent: Int?) -> NSColor {
+    private static func progressColor(providerAccent: NSColor, remainingPercent: Int?) -> NSColor {
         guard let remainingPercent else {
-            return .systemOrange
+            return providerAccent
         }
 
         switch remainingPercent {
@@ -391,11 +458,11 @@ private enum StatusItemIconRenderer {
         case 10...24:
             return .systemOrange
         default:
-            return .systemOrange
+            return providerAccent
         }
     }
 
-    private static func drawCount(_ count: Int, in rect: NSRect) {
+    private static func drawCount(_ textValue: String, at center: NSPoint) {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
@@ -405,18 +472,18 @@ private enum StatusItemIconRenderer {
         shadow.shadowOffset = .zero
 
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 8.6, weight: .bold),
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraphStyle,
             .shadow: shadow,
         ]
 
-        let text = String(count) as NSString
+        let text = textValue as NSString
         let textSize = text.size(withAttributes: attributes)
         let textRect = NSRect(
-            x: rect.minX,
-            y: rect.midY - textSize.height / 2 - 0.4,
-            width: rect.width,
+            x: center.x - 5,
+            y: center.y - textSize.height / 2 - 0.35,
+            width: 10,
             height: textSize.height + 1
         )
         text.draw(in: textRect, withAttributes: attributes)
