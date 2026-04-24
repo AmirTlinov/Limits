@@ -233,3 +233,19 @@ extension RateLimitSnapshotModel {
         L10n.countdown(until: timestamp, now: now)
     }
 }
+
+extension RateLimitSnapshotModel {
+    var fiveHourResetDate: Date? {
+        guard let primary, primary.windowDurationMins == 300, let resetsAt = primary.resetsAt else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: TimeInterval(resetsAt))
+    }
+
+    func fiveHourHasReset(now: Date = .now) -> Bool {
+        guard let resetDate = fiveHourResetDate else {
+            return false
+        }
+        return resetDate <= now
+    }
+}

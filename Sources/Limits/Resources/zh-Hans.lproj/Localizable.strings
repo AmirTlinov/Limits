@@ -137,5 +137,9 @@
 "time.updated_at" = "已更新 %@";
 "tray.accessibility.five_hour" = "%@，5小时，剩余 %d%%";
 "tray.accessibility.five_hour.no_data" = "%@，5小时限额暂无数据";
+"tray.accessibility.ready_accounts.few" = "%d 个其他账户已恢复";
+"tray.accessibility.ready_accounts.many" = "%d 个其他账户已恢复";
+"tray.accessibility.ready_accounts.one" = "%d 个其他账户已恢复";
+"tray.accessibility.ready_accounts.other" = "%d 个其他账户已恢复";
 "tray.tooltip.five_hour" = "%@ · 5小时限额：剩余 %d%%";
 "tray.tooltip.five_hour.no_data" = "%@ · 5小时限额暂无数据";

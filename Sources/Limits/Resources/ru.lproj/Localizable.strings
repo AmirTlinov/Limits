@@ -137,5 +137,9 @@
 "time.updated_at" = "Обновлено %@";
 "tray.accessibility.five_hour" = "%@, 5 часов, %d%% осталось";
 "tray.accessibility.five_hour.no_data" = "%@, 5-часовой лимит пока без данных";
+"tray.accessibility.ready_accounts.few" = "%d других аккаунта откатились";
+"tray.accessibility.ready_accounts.many" = "%d других аккаунтов откатились";
+"tray.accessibility.ready_accounts.one" = "%d другой аккаунт откатился";
+"tray.accessibility.ready_accounts.other" = "%d других аккаунтов откатились";
 "tray.tooltip.five_hour" = "%@ · 5ч лимит: %d%% осталось";
 "tray.tooltip.five_hour.no_data" = "%@ · 5ч лимит пока без данных";

@@ -58,6 +58,27 @@ enum L10n {
         }
     }
 
+    static func readyAccountCount(_ count: Int) -> String {
+        switch languageFamily {
+        case "ru":
+            let mod10 = count % 10
+            let mod100 = count % 100
+            if mod10 == 1 && mod100 != 11 {
+                return tr("tray.accessibility.ready_accounts.one", count)
+            }
+            if (2...4).contains(mod10) && !(12...14).contains(mod100) {
+                return tr("tray.accessibility.ready_accounts.few", count)
+            }
+            return tr("tray.accessibility.ready_accounts.many", count)
+        case "zh", "ja":
+            return tr("tray.accessibility.ready_accounts.other", count)
+        default:
+            return count == 1
+                ? tr("tray.accessibility.ready_accounts.one", count)
+                : tr("tray.accessibility.ready_accounts.other", count)
+        }
+    }
+
     static func updatedAt(_ value: String) -> String {
         tr("time.updated_at", value)
     }

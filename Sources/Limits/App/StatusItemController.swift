@@ -65,7 +65,7 @@ final class StatusItemController: NSObject {
         button.isBordered = false
         button.focusRingType = .none
         button.imagePosition = .imageOnly
-        button.imageScaling = .scaleNone
+        button.imageScaling = .scaleProportionallyDown
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.target = self
@@ -185,16 +185,22 @@ final class StatusItemController: NSObject {
 
     private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, tooltip: String, on button: NSStatusBarButton) {
         let title = provider.displayTitle
-        let image = StatusItemIconRenderer.render()
+        let readyAccountCount = rolledBackOtherAccountCount(for: provider)
+        let image = StatusItemIconRenderer.render(
+            progress: snapshot.remainingProgress ?? 1,
+            isProgressKnown: snapshot.remainingProgress != nil,
+            remainingPercent: snapshot.remainingPercent,
+            readyAccountCount: readyAccountCount
+        )
 
         statusItem?.length = statusItemLength
         button.image = image
         button.imagePosition = .imageOnly
-        button.imageScaling = .scaleNone
+        button.imageScaling = .scaleProportionallyDown
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.toolTip = tooltip
-        button.setAccessibilityLabel(accessibilityLabel(provider: provider, snapshot: snapshot))
+        button.setAccessibilityLabel(accessibilityLabel(provider: provider, snapshot: snapshot, readyAccountCount: readyAccountCount))
         button.setAccessibilityTitle(title)
         button.needsDisplay = true
     }
@@ -211,12 +217,17 @@ final class StatusItemController: NSObject {
         return L10n.tr("tray.tooltip.five_hour.no_data", provider.displayTitle)
     }
 
-    private func accessibilityLabel(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
-        if let remainingPercent = snapshot.remainingPercent {
-            return L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
+    private func accessibilityLabel(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, readyAccountCount: Int) -> String {
+        let base: String = if let remainingPercent = snapshot.remainingPercent {
+            L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
+        } else {
+            L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
         }
 
-        return L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
+        guard readyAccountCount > 0 else {
+            return base
+        }
+        return base + " · " + L10n.readyAccountCount(readyAccountCount)
     }
 
     private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
@@ -235,6 +246,24 @@ final class StatusItemController: NSObject {
         let rawFilter = UserDefaults.standard.string(forKey: AccountsSidebarFilter.providerFilterStorageKey)
         let filter = rawFilter.flatMap(AccountsSidebarFilter.init(rawValue:)) ?? .all
         return filter.trayStatusProvider
+    }
+
+    private func rolledBackOtherAccountCount(for provider: TrayStatusProvider, now: Date = .now) -> Int {
+        switch provider {
+        case .codex:
+            return model.accounts.filter { account in
+                !model.isCurrentCLIAccount(account) && accountHasRolledBackFiveHourLimit(account, now: now)
+            }.count
+        case .claude:
+            return 0
+        }
+    }
+
+    private func accountHasRolledBackFiveHourLimit(_ account: StoredAccount, now: Date) -> Bool {
+        if account.lastRateLimitsByLimitId?.values.contains(where: { $0.fiveHourHasReset(now: now) }) == true {
+            return true
+        }
+        return account.lastRateLimit?.fiveHourHasReset(now: now) == true
     }
 
     private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
@@ -272,31 +301,100 @@ private struct FiveHourLimitSnapshot {
 }
 
 private enum StatusItemIconRenderer {
-    static func render() -> NSImage {
+    static func render(progress: Double, isProgressKnown: Bool, remainingPercent: Int?, readyAccountCount: Int) -> NSImage {
         let size = NSSize(width: 22, height: 22)
         let image = NSImage(size: size)
-        image.isTemplate = true
+        image.isTemplate = false
 
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        NSColor.black.setFill()
-
-        let back = NSBezierPath(
-            roundedRect: NSRect(x: 4.2, y: 6.0, width: 9.2, height: 11.8),
-            xRadius: 2.7,
-            yRadius: 2.7
+        let center = NSPoint(x: size.width / 2, y: size.height / 2)
+        let radius: CGFloat = 8.0
+        let lineWidth: CGFloat = 2.2
+        let trackRect = NSRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
         )
-        back.fill()
 
-        let front = NSBezierPath(
-            roundedRect: NSRect(x: 8.6, y: 3.9, width: 9.2, height: 11.8),
-            xRadius: 2.7,
-            yRadius: 2.7
-        )
-        front.fill()
+        let track = NSBezierPath(ovalIn: trackRect)
+        NSColor.labelColor.withAlphaComponent(0.30).setStroke()
+        track.lineWidth = lineWidth
+        track.stroke()
 
+        if isProgressKnown {
+            let clamped = min(max(progress, 0), 1)
+            if clamped >= 0.995 {
+                let progressPath = NSBezierPath(ovalIn: trackRect)
+                progressColor(remainingPercent: remainingPercent).setStroke()
+                progressPath.lineWidth = lineWidth
+                progressPath.stroke()
+            } else if clamped > 0 {
+                let startAngle: CGFloat = 90
+                let endAngle = startAngle - CGFloat(360 * clamped)
+                let progressPath = NSBezierPath()
+                progressPath.appendArc(
+                    withCenter: center,
+                    radius: radius,
+                    startAngle: startAngle,
+                    endAngle: endAngle,
+                    clockwise: true
+                )
+                progressColor(remainingPercent: remainingPercent).setStroke()
+                progressPath.lineWidth = lineWidth
+                progressPath.lineCapStyle = .round
+                progressPath.stroke()
+            }
+        }
+
+        if readyAccountCount > 0 {
+            drawCount(min(readyAccountCount, 9), in: NSRect(origin: .zero, size: size))
+        }
 
         return image
+    }
+
+    private static func progressColor(remainingPercent: Int?) -> NSColor {
+        guard let remainingPercent else {
+            return .systemOrange
+        }
+
+        switch remainingPercent {
+        case ...9:
+            return .systemRed
+        case 10...24:
+            return .systemOrange
+        default:
+            return .systemOrange
+        }
+    }
+
+    private static func drawCount(_ count: Int, in rect: NSRect) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.38)
+        shadow.shadowBlurRadius = 1.2
+        shadow.shadowOffset = .zero
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraphStyle,
+            .shadow: shadow,
+        ]
+
+        let text = String(count) as NSString
+        let textSize = text.size(withAttributes: attributes)
+        let textRect = NSRect(
+            x: rect.minX,
+            y: rect.midY - textSize.height / 2 - 0.4,
+            width: rect.width,
+            height: textSize.height + 1
+        )
+        text.draw(in: textRect, withAttributes: attributes)
     }
 }

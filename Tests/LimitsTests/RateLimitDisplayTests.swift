@@ -55,3 +55,55 @@ import Testing
         #expect(L10n.tr("limit.five_hour") == "5小时限额")
     }
 }
+
+@Test func trayReadyAccountCountUsesLocalizedPluralRules() {
+    L10n.withLanguage("en") {
+        #expect(L10n.readyAccountCount(1) == "1 other account ready")
+        #expect(L10n.readyAccountCount(2) == "2 other accounts ready")
+    }
+
+    L10n.withLanguage("ru") {
+        #expect(L10n.readyAccountCount(1) == "1 другой аккаунт откатился")
+        #expect(L10n.readyAccountCount(2) == "2 других аккаунта откатились")
+        #expect(L10n.readyAccountCount(5) == "5 других аккаунтов откатились")
+    }
+}
+
+@Test func fiveHourResetDetectionIgnoresFutureAndNonFiveHourWindows() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 24, hour: 12)))
+    let past = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 24, hour: 11)))
+    let future = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 24, hour: 13)))
+
+    let rolledBack = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(past.timeIntervalSince1970), usedPercent: 100, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let pending = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(future.timeIntervalSince1970), usedPercent: 100, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let weekly = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(past.timeIntervalSince1970), usedPercent: 100, windowDurationMins: 10080),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    #expect(rolledBack.fiveHourHasReset(now: now))
+    #expect(!pending.fiveHourHasReset(now: now))
+    #expect(!weekly.fiveHourHasReset(now: now))
+}

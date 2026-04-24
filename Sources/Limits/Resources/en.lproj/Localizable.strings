@@ -137,5 +137,9 @@
 "time.updated_at" = "Updated %@";
 "tray.accessibility.five_hour" = "%@, 5 hours, %d%% remaining";
 "tray.accessibility.five_hour.no_data" = "%@, 5-hour limit has no data yet";
+"tray.accessibility.ready_accounts.few" = "%d other accounts ready";
+"tray.accessibility.ready_accounts.many" = "%d other accounts ready";
+"tray.accessibility.ready_accounts.one" = "%d other account ready";
+"tray.accessibility.ready_accounts.other" = "%d other accounts ready";
 "tray.tooltip.five_hour" = "%@ · 5h limit: %d%% remaining";
 "tray.tooltip.five_hour.no_data" = "%@ · 5h limit has no data yet";
