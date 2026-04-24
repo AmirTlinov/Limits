@@ -15,6 +15,7 @@ struct StatusItemInstallSnapshot: Equatable {
 final class StatusItemController: NSObject {
     private let model: AppModel
     private let openAccountsWindow: () -> Void
+    private let statusItemLength: CGFloat = 84
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
@@ -33,7 +34,7 @@ final class StatusItemController: NSObject {
             return installSnapshot(for: item, isNewInstall: false)
         }
 
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let item = NSStatusBar.system.statusItem(withLength: statusItemLength)
         item.isVisible = true
         statusItem = item
 
@@ -101,10 +102,16 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func showPopover(relativeTo button: NSStatusBarButton) {
+    private func showPopover(relativeTo sender: NSStatusBarButton) {
+        let button = statusItem?.button ?? sender
+        guard button.window != nil else {
+            RuntimeLog.tray.error("cannot show tray popover because status button is detached")
+            return
+        }
+
         RuntimeLog.tray.info("tray popover opened")
-        refreshStatusItemAppearance()
         rebuildPopoverContent()
+        button.layoutSubtreeIfNeeded()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
@@ -155,7 +162,7 @@ final class StatusItemController: NSObject {
             remainingPercent: snapshot.remainingPercent
         )
 
-        statusItem?.length = image.size.width + 8
+        statusItem?.length = statusItemLength
         button.image = image
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
@@ -243,7 +250,7 @@ private enum StatusItemPillRenderer {
     static func render(title: String, progress: Double, isProgressKnown: Bool, remainingPercent: Int?) -> NSImage {
         let font = NSFont.systemFont(ofSize: 12.2, weight: .semibold)
         let textSize = (title as NSString).size(withAttributes: [.font: font])
-        let width = max(64, min(96, ceil(textSize.width + 28)))
+        let width = max(64, min(76, ceil(textSize.width + 28)))
         let height: CGFloat = 22
         let size = NSSize(width: width, height: height)
         let image = NSImage(size: size)
