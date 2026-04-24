@@ -52,7 +52,7 @@ let windows = CGWindowListCopyWindowInfo([.optionAll], CGWindowID(0)) as? [[Stri
 let matching = windows.filter { window in
     let owner = window[kCGWindowOwnerName as String] as? String
     let name = window[kCGWindowName as String] as? String
-    return owner == appName && name == "Лимиты"
+    return owner == appName && (name == "Limits" || name == "Лимиты")
 }
 print(matching.count)
 SWIFT

@@ -206,22 +206,22 @@ final class StatusItemController: NSObject {
 
     private func tooltipText(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
         if let remainingPercent = snapshot.remainingPercent {
-            var tooltip = "\(provider.displayTitle) · 5ч лимит: \(remainingPercent)% осталось"
+            var tooltip = L10n.tr("tray.tooltip.five_hour", provider.displayTitle, remainingPercent)
             if let resetText = snapshot.resetText {
                 tooltip += " · \(resetText)"
             }
             return tooltip
         }
 
-        return "\(provider.displayTitle) · 5ч лимит пока без данных"
+        return L10n.tr("tray.tooltip.five_hour.no_data", provider.displayTitle)
     }
 
     private func accessibilityLabel(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
         if let remainingPercent = snapshot.remainingPercent {
-            return "\(provider.displayTitle), 5 часов, \(remainingPercent)% осталось"
+            return L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
         }
 
-        return "\(provider.displayTitle), 5-часовой лимит пока без данных"
+        return L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
     }
 
     private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
@@ -266,7 +266,7 @@ final class StatusItemController: NSObject {
     }
 
     private func isFiveHourLimitRow(_ row: RateLimitDisplayRow) -> Bool {
-        row.title == "5ч лимит" || row.title.hasPrefix("5ч")
+        row.title == L10n.tr("limit.five_hour") || row.id.contains("five_hour")
     }
 }
 

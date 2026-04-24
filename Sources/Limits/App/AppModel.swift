@@ -236,7 +236,7 @@ final class AppModel: ObservableObject {
     }
 
     func addAccount() async {
-        await runBusy("Выполняю вход…") { [self] in
+        await runBusy(L10n.tr("busy.signing_in")) { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -247,7 +247,7 @@ final class AppModel: ObservableObject {
     }
 
     func importCurrentCLIAuth() async {
-        await runBusy("Импортирую текущую CLI-авторизацию…") { [self] in
+        await runBusy(L10n.tr("busy.importing_current_cli")) { [self] in
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
@@ -255,14 +255,14 @@ final class AppModel: ObservableObject {
     }
 
     func importCurrentClaudeAuth() async {
-        await runBusy("Импортирую текущий Claude Code…") { [self] in
+        await runBusy(L10n.tr("busy.importing_current_claude")) { [self] in
             try self.importCurrentClaudeAuthNow()
             await self.refreshCurrentClaudeState()
         }
     }
 
     func activateAccount(_ account: StoredAccount) async {
-        await runBusy("Переключаю глобальную авторизацию…") { [self] in
+        await runBusy(L10n.tr("busy.switching_global_auth")) { [self] in
             let authData = try self.vault.read(account: account.keychainAccount)
             try self.globalAuthService.writeGlobalAuth(authData)
             await self.refreshCurrentCLIState()
@@ -271,7 +271,7 @@ final class AppModel: ObservableObject {
     }
 
     func reauthenticateAccount(_ account: StoredAccount) async {
-        await runBusy("Повторно авторизую \(account.label)…") { [self] in
+        await runBusy(L10n.tr("busy.reauthenticating", account.label)) { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -282,7 +282,7 @@ final class AppModel: ObservableObject {
     }
 
     func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
-        await runBusy("Переключаю Claude Code…") { [self] in
+        await runBusy(L10n.tr("busy.switching_claude")) { [self] in
             let credential = try self.vault.read(account: account.keychainAccount)
             try self.globalClaudeCredentialService.writeGlobalCredential(credential)
             await self.refreshCurrentClaudeState()
@@ -291,7 +291,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentClaudeAccount() async {
-        await runBusy("Обновляю Claude Code…") { [self] in
+        await runBusy(L10n.tr("busy.refreshing_claude")) { [self] in
             try self.refreshStoredClaudeMetadataIfNeeded()
             await self.refreshCurrentClaudeState()
         }
@@ -300,7 +300,7 @@ final class AppModel: ObservableObject {
     func installClaudeLiveLimitsBridge() async {
         guard !isBusy else { return }
         isBusy = true
-        busyMessage = "Подключаю живые лимиты Claude…"
+        busyMessage = L10n.tr("busy.connecting_claude_live")
         currentClaudeBridgeError = nil
 
         defer {
@@ -319,7 +319,7 @@ final class AppModel: ObservableObject {
     func uninstallClaudeLiveLimitsBridge() async {
         guard !isBusy else { return }
         isBusy = true
-        busyMessage = "Отключаю мост Claude…"
+        busyMessage = L10n.tr("busy.disconnecting_claude_bridge")
         currentClaudeBridgeError = nil
 
         defer {
@@ -338,7 +338,7 @@ final class AppModel: ObservableObject {
     func refreshClaudeLiveLimitsBridge() async {
         guard !isBusy else { return }
         isBusy = true
-        busyMessage = "Обновляю мост Claude…"
+        busyMessage = L10n.tr("busy.refreshing_claude_bridge")
         currentClaudeBridgeError = nil
 
         defer {
@@ -423,7 +423,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteAccount(_ account: StoredAccount) async {
-        await runBusy("Удаляю \(account.label)…") { [self] in
+        await runBusy(L10n.tr("busy.deleting", account.label)) { [self] in
             try self.vault.delete(account: account.keychainAccount)
             self.accounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
@@ -433,7 +433,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteClaudeAccount(_ account: ClaudeStoredAccount) async {
-        await runBusy("Удаляю \(account.label)…") { [self] in
+        await runBusy(L10n.tr("busy.deleting", account.label)) { [self] in
             try self.vault.delete(account: account.keychainAccount)
             self.claudeAccounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
@@ -516,17 +516,17 @@ final class AppModel: ObservableObject {
             )
         case .missing:
             return CurrentCLIOverview(
-                title: "Нет CLI-авторизации",
+                title: L10n.tr("cli.no_auth.title"),
                 subtitle: nil,
                 limits: nil,
-                note: accounts.isEmpty ? "Добавьте первый аккаунт." : "Выберите сохранённый снимок или добавьте новый аккаунт."
+                note: accounts.isEmpty ? L10n.tr("cli.no_auth.note.empty") : L10n.tr("cli.no_auth.note.saved")
             )
         case .unreadable:
             return CurrentCLIOverview(
-                title: "Не удалось прочитать auth.json",
+                title: L10n.tr("cli.auth_unreadable.title"),
                 subtitle: nil,
                 limits: nil,
-                note: accounts.isEmpty ? "Исправьте ~/.codex/auth.json или добавьте новый аккаунт." : "Исправьте auth.json или переключитесь на сохранённый снимок."
+                note: accounts.isEmpty ? L10n.tr("cli.auth_unreadable.note.empty") : L10n.tr("cli.auth_unreadable.note.saved")
             )
         }
     }
@@ -545,25 +545,25 @@ final class AppModel: ObservableObject {
             return CurrentClaudeOverview(
                 title: currentClaudeStatus?.email ?? account?.label ?? "Claude Code",
                 subtitle: claudeSubtitle(account: account, status: currentClaudeStatus),
-                note: account == nil ? "Импортируйте текущий Claude Code, чтобы сохранить снимок и быстро переключаться между аккаунтами." : claudeNote(account: account)
+                note: account == nil ? L10n.tr("claude.import_current_note") : claudeNote(account: account)
             )
         case .loggedOut:
             return CurrentClaudeOverview(
-                title: "Claude Code не авторизован",
+                title: L10n.tr("claude.no_auth.title"),
                 subtitle: nil,
-                note: "Войдите в Claude Code в терминале, затем импортируйте текущий аккаунт сюда."
+                note: L10n.tr("claude.no_auth.note")
             )
         case .notInstalled:
             return CurrentClaudeOverview(
-                title: "Claude Code не установлен",
+                title: L10n.tr("claude.not_installed.title"),
                 subtitle: nil,
-                note: "Установите CLI `claude`, чтобы приложение могло увидеть текущий аккаунт."
+                note: L10n.tr("claude.not_installed.note")
             )
         case .unreadable:
             return CurrentClaudeOverview(
-                title: "Не удалось прочитать Claude Code",
+                title: L10n.tr("claude.unreadable.title"),
                 subtitle: nil,
-                note: currentClaudeError ?? "Приложение не смогло получить текущую авторизацию Claude Code."
+                note: currentClaudeError ?? L10n.tr("claude.unreadable.note")
             )
         }
     }
@@ -575,35 +575,35 @@ final class AppModel: ObservableObject {
     func currentCLISummary() -> String {
         switch currentCLIState.source {
         case .missing:
-            return "CLI-авторизация отсутствует"
+            return L10n.tr("cli.summary.missing")
         case .stored:
-            return "Активен сохранённый аккаунт"
+            return L10n.tr("cli.summary.stored")
         case .external:
-            return "Активна текущая CLI-авторизация"
+            return L10n.tr("cli.summary.external")
         case .unreadable:
-            return "Не удалось прочитать CLI-авторизацию"
+            return L10n.tr("cli.summary.unreadable")
         }
     }
 
     func currentCLIDetail() -> String {
         switch currentCLIState.source {
         case .missing:
-            return "Глобальный ~/.codex/auth.json отсутствует."
+            return L10n.tr("cli.detail.missing")
         case .stored(let id):
             if let label = accounts.first(where: { $0.id == id })?.label {
-                return "\(label) активен для следующих CLI-команд."
+                return L10n.tr("cli.detail.stored.named", label)
             }
-            return "Сохранённый аккаунт активен для следующих CLI-команд."
+            return L10n.tr("cli.detail.stored.fallback")
         case .external(let accountId):
             if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
-                return "Сейчас активна CLI-авторизация для \(matched.label). Аккаунт уже сохранён в приложении."
+                return L10n.tr("cli.detail.external.matched", matched.label)
             }
             if let accountId {
-                return "Сейчас активна CLI-авторизация \(accountId). Импортируйте её, чтобы использовать в приложении."
+                return L10n.tr("cli.detail.external.id", accountId)
             }
-            return "Сейчас активна CLI-авторизация, которая ещё не сохранена в приложении."
+            return L10n.tr("cli.detail.external.unsaved")
         case .unreadable:
-            return "Глобальный ~/.codex/auth.json существует, но приложение не смогло прочитать его как корректный auth blob."
+            return L10n.tr("cli.detail.unreadable")
         }
     }
 
@@ -673,7 +673,7 @@ final class AppModel: ObservableObject {
         let status = try claudeAuthStatusService.readStatus()
 
         guard status.loggedIn, let email = status.email else {
-            throw ClaudeAuthStatusServiceError.commandFailed("Claude Code сейчас не авторизован.")
+            throw ClaudeAuthStatusServiceError.commandFailed(L10n.tr("claude.not_logged_in.error"))
         }
 
         try upsertClaudeAccount(
@@ -795,7 +795,7 @@ final class AppModel: ObservableObject {
             updatedAt: Date(),
             lastValidatedAt: Date(),
             status: .ok,
-            statusMessage: "Аккаунт Claude Code готов.",
+            statusMessage: L10n.tr("claude.account.ready"),
             authFingerprint: fingerprint,
             keychainAccount: keychainAccount
         )
@@ -883,7 +883,7 @@ final class AppModel: ObservableObject {
         }
 
         if let primary = rateLimit.primary {
-            return "За 5 часов использовано \(primary.usedPercent)%"
+            return L10n.usedFiveHours(primary.usedPercent)
         }
 
         return nil
@@ -974,7 +974,7 @@ final class AppModel: ObservableObject {
             rows.append(
                 RateLimitDisplayRow(
                     id: "claude.five_hour",
-                    title: "5ч лимит",
+                    title: L10n.tr("limit.five_hour"),
                     usedPercent: normalizeUsedPercent(fiveHour.usedPercentage),
                     resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
                     resetDate: resetDate
@@ -987,7 +987,7 @@ final class AppModel: ObservableObject {
             rows.append(
                 RateLimitDisplayRow(
                     id: "claude.seven_day",
-                    title: "Недельный лимит",
+                    title: L10n.tr("limit.weekly"),
                     usedPercent: normalizeUsedPercent(sevenDay.usedPercentage),
                     resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
                     resetDate: resetDate
@@ -1034,13 +1034,13 @@ final class AppModel: ObservableObject {
     func localizedPlan(_ value: String) -> String {
         switch value.lowercased() {
         case "pro":
-            return "План Pro"
+            return L10n.tr("plan.pro")
         case "plus":
-            return "План Plus"
+            return L10n.tr("plan.plus")
         case "free":
-            return "Бесплатный план"
+            return L10n.tr("plan.free")
         case "unknown":
-            return "План неизвестен"
+            return L10n.tr("plan.unknown")
         default:
             return value
         }
@@ -1059,11 +1059,11 @@ final class AppModel: ObservableObject {
         case "console":
             return "Claude Console"
         case "claude.ai":
-            return "Подписка Claude"
+            return L10n.tr("plan.claude.subscription")
         case "unknown", nil:
-            return "План неизвестен"
+            return L10n.tr("plan.unknown")
         default:
-            return value ?? "План неизвестен"
+            return value ?? L10n.tr("plan.unknown")
         }
     }
 
@@ -1071,7 +1071,7 @@ final class AppModel: ObservableObject {
         if let account {
             return account.label
         }
-        return probe?.email ?? "Сохранённый аккаунт"
+        return probe?.email ?? L10n.tr("account.saved")
     }
 
     private func titleForExternalAuth(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
@@ -1081,7 +1081,7 @@ final class AppModel: ObservableObject {
         if let account {
             return account.label
         }
-        return currentCLIState.accountId ?? "Внешняя авторизация"
+        return currentCLIState.accountId ?? L10n.tr("account.external_auth")
     }
 
     private func claudeSubtitle(account: ClaudeStoredAccount?, status: ClaudeAuthStatus?) -> String? {
@@ -1111,14 +1111,14 @@ final class AppModel: ObservableObject {
 
         if let account {
             if account.status == .needsReauth {
-                return "Этому аккаунту Claude Code нужен повторный вход в терминале."
+                return L10n.tr("claude.reauth_needed")
             }
             if let orgName = account.orgName, !orgName.isEmpty {
-                return "Организация: \(orgName). Лимиты Claude я пока намеренно не рисую, потому что у Anthropic они живут внутри живой сессии и здесь нельзя честно обещать точность."
+                return L10n.tr("claude.org_limits_note", orgName)
             }
         }
 
-        return "Лимиты Claude я пока намеренно не рисую, потому что у Anthropic они живут внутри живой сессии и здесь нельзя честно обещать точность."
+        return L10n.tr("claude.limits_note")
     }
 
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
@@ -1126,19 +1126,19 @@ final class AppModel: ObservableObject {
             return currentCLIProbeNote(for: probeError)
         }
         guard let account else {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Обновляю живые лимиты…" : nil
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : nil
         }
         if account.lastRateLimit == nil {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? "Обновляю живые лимиты…" : "Нажмите «Обновить», чтобы загрузить лимиты."
+            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : L10n.tr("limits.empty.account.subtitle")
         }
         if account.status == .limitReached {
-            return account.statusMessage ?? "Лимит достигнут."
+            return account.statusMessage ?? L10n.tr("account.limit_reached")
         }
         if account.status == .needsReauth {
-            return "Нужна повторная авторизация."
+            return L10n.tr("account.needs_login")
         }
         if account.status == .validationFailed {
-            return "Последняя проверка завершилась ошибкой."
+            return L10n.tr("account.error")
         }
         return nil
     }
@@ -1148,20 +1148,20 @@ final class AppModel: ObservableObject {
             return currentCLIProbeNote(for: probeError)
         }
         if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
-            return "Обновляю живые лимиты…"
+            return L10n.tr("busy.refreshing_live_limits")
         }
         if account != nil {
             return nil
         }
-        return "Импортируйте текущую авторизацию, чтобы она появилась в приложении."
+        return L10n.tr("cli.import_current_note")
     }
 
     private func currentCLIProbeNote(for message: String) -> String {
         let lowered = message.lowercased()
         if lowered.contains("unauthorized") || lowered.contains("401") || lowered.contains("auth") || lowered.contains("login") {
-            return "Текущей авторизации нужен повторный вход."
+            return L10n.tr("cli.current_reauth_needed")
         }
-        return "Не удалось обновить живые лимиты."
+        return L10n.tr("cli.live_update_failed")
     }
 
     private func refreshClaudeStatuslineBridgeState() {
@@ -1219,7 +1219,7 @@ final class AppModel: ObservableObject {
                 stored.updatedAt = Date()
                 stored.lastValidatedAt = Date()
                 stored.status = .ok
-                stored.statusMessage = "Аккаунт Claude Code готов."
+                stored.statusMessage = L10n.tr("claude.account.ready")
             }
         }
     }

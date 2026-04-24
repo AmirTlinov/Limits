@@ -31,6 +31,10 @@ cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 cp "$APP_ICON_SOURCE" "$APP_RESOURCES/$APP_ICON_FILE"
 
+if [[ -d "$ROOT_DIR/Sources/Limits/Resources" ]]; then
+  cp -R "$ROOT_DIR/Sources/Limits/Resources/"*.lproj "$APP_RESOURCES/"
+fi
+
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -42,6 +46,16 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>ru</string>
+    <string>zh-Hans</string>
+    <string>fr</string>
+    <string>es</string>
+  </array>
   <key>CFBundleDisplayName</key>
   <string>$APP_NAME</string>
   <key>CFBundleShortVersionString</key>

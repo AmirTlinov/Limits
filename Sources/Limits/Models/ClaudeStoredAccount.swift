@@ -18,15 +18,15 @@ struct ClaudeStoredAccount: Identifiable, Codable, Hashable {
     var shortStatusText: String {
         switch status {
         case .unknown:
-            return "Неизвестно"
+            return L10n.tr("account.unknown")
         case .ok:
-            return "Готов"
+            return L10n.tr("account.ready")
         case .needsReauth:
-            return "Нужен вход"
+            return L10n.tr("account.needs_login")
         case .limitReached:
-            return "Лимит"
+            return L10n.tr("account.limit")
         case .validationFailed:
-            return "Ошибка"
+            return L10n.tr("account.error")
         }
     }
 }

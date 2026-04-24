@@ -125,7 +125,7 @@ struct AccountsWindowView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .help("Добавить аккаунт")
+                .help(L10n.tr("action.add_account"))
                 .disabled(model.isBusy)
 
                 if model.hasCurrentCLIAuthToImport() {
@@ -134,7 +134,7 @@ struct AccountsWindowView: View {
                     } label: {
                         Image(systemName: "arrow.down.doc")
                     }
-                    .help("Импортировать текущую авторизацию")
+                    .help(L10n.tr("action.import_current_auth"))
                     .disabled(model.isBusy)
                 }
 
@@ -143,7 +143,7 @@ struct AccountsWindowView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("Обновить текущие значения")
+                .help(L10n.tr("action.refresh_current_values"))
                 .disabled(model.isBusy)
             }
         }
@@ -203,7 +203,7 @@ struct AccountsWindowView: View {
                 }
 
                 if sidebarFilter.includesCodex, !model.accounts.isEmpty {
-                    Section("Аккаунты Codex") {
+                    Section(L10n.tr("accounts.codex.section")) {
                         ForEach(model.accounts) { account in
                             SidebarRowView(
                                 icon: sidebarIcon(for: account),
@@ -215,22 +215,22 @@ struct AccountsWindowView: View {
                             .tag(AccountsSidebarSelection.codexAccount(account.id))
                             .contextMenu {
                                 if !model.isCurrentCLIAccount(account) {
-                                    Button("Сделать текущим") {
+                                    Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateAccount(account) }
                                     }
                                 }
 
-                                Button("Обновить значения") {
+                                Button(L10n.tr("action.refresh_values")) {
                                     Task { await model.validateAccount(account) }
                                 }
 
-                                Button("Повторный вход") {
+                                Button(L10n.tr("action.reauthenticate")) {
                                     Task { await model.reauthenticateAccount(account) }
                                 }
 
                                 Divider()
 
-                                Button("Удалить аккаунт", role: .destructive) {
+                                Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     Task { await model.deleteAccount(account) }
                                 }
                             }
@@ -239,7 +239,7 @@ struct AccountsWindowView: View {
                 }
 
                 if sidebarFilter.includesClaude, !model.claudeAccounts.isEmpty {
-                    Section("Аккаунты Claude") {
+                    Section(L10n.tr("accounts.claude.section")) {
                         ForEach(model.claudeAccounts) { account in
                             SidebarRowView(
                                 icon: claudeSidebarIcon(for: account),
@@ -251,18 +251,18 @@ struct AccountsWindowView: View {
                             .tag(AccountsSidebarSelection.claudeAccount(account.id))
                             .contextMenu {
                                 if !model.isCurrentClaudeAccount(account) {
-                                    Button("Сделать текущим") {
+                                    Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateClaudeAccount(account) }
                                     }
                                 } else {
-                                    Button("Обновить") {
+                                    Button(L10n.tr("action.refresh")) {
                                         Task { await model.refreshCurrentClaudeAccount() }
                                     }
                                 }
 
                                 Divider()
 
-                                Button("Удалить аккаунт", role: .destructive) {
+                                Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     Task { await model.deleteClaudeAccount(account) }
                                 }
                             }
@@ -465,20 +465,20 @@ private struct CurrentCLIDetailPane: View {
                 metaLine: currentCLIMetaLine,
                 actions: {
                     if model.hasCurrentCLIAuthToImport() {
-                        Button("Импортировать текущую авторизацию") {
+                        Button(L10n.tr("action.import_current_auth")) {
                             Task { await model.importCurrentCLIAuth() }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isBusy)
                     } else if model.shouldOfferAddAccountAsPrimaryAction() {
-                        Button("Добавить аккаунт") {
+                        Button(L10n.tr("action.add_account")) {
                             Task { await model.addAccount() }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isBusy)
                     }
 
-                    Button("Обновить значения") {
+                    Button(L10n.tr("action.refresh_values")) {
                         Task { await model.refreshCurrentCLIPanel(forceProbe: true) }
                     }
                     .buttonStyle(.bordered)
@@ -494,8 +494,8 @@ private struct CurrentCLIDetailPane: View {
             if sections.isEmpty {
                 MinimalSeparator()
                 EmptyLimitsCard(
-                    title: "Лимиты пока не загружены",
-                    subtitle: overview.note ?? "Проверьте авторизацию или обновите данные."
+                    title: L10n.tr("limits.empty.title"),
+                    subtitle: overview.note ?? L10n.tr("limits.empty.subtitle")
                 )
             } else {
                 MinimalSeparator()
@@ -512,17 +512,17 @@ private struct CurrentCLIDetailPane: View {
 
     private var currentCLIMetaLine: String? {
         if let date = model.currentCLIValidatedAt() {
-            return "Обновлено \(formatted(date: date))"
+            return L10n.updatedAt(formatted(date: date))
         }
         if model.isRefreshingCurrentCLIProbe {
-            return "Обновляю живые лимиты…"
+            return L10n.tr("busy.refreshing_live_limits")
         }
         return nil
     }
 
     private func formatted(date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
@@ -550,7 +550,7 @@ private struct CurrentClaudeDetailPane: View {
                 metaLine: metaLine,
                 actions: {
                     if model.hasCurrentClaudeAuthToImport() {
-                        Button("Сохранить аккаунт") {
+                        Button(L10n.tr("action.save_account")) {
                             Task { await model.importCurrentClaudeAuth() }
                         }
                         .buttonStyle(.borderedProminent)
@@ -558,7 +558,7 @@ private struct CurrentClaudeDetailPane: View {
                     }
 
                     if model.currentClaudeStatus?.loggedIn == true {
-                        Button("Обновить") {
+                        Button(L10n.tr("action.refresh")) {
                             Task { await model.refreshCurrentClaudeAccount() }
                         }
                         .buttonStyle(.bordered)
@@ -566,13 +566,13 @@ private struct CurrentClaudeDetailPane: View {
                     }
 
                     if model.claudeLiveBridgeInstalled() {
-                        Button("Отключить мост") {
+                        Button(L10n.tr("action.disconnect_bridge")) {
                             Task { await model.uninstallClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy)
                     } else if model.currentClaudeStatus?.loggedIn == true {
-                        Button("Подключить живые лимиты") {
+                        Button(L10n.tr("action.connect_live_limits")) {
                             Task { await model.installClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.borderedProminent)
@@ -618,11 +618,11 @@ private struct CurrentClaudeDetailPane: View {
         }
 
         if let date = model.claudeValidatedAt() {
-            parts.append("Проверено \(formatted(date: date))")
+            parts.append(L10n.checkedAt(formatted(date: date)))
         }
 
         if let date = model.claudeLiveBridgeSnapshotUpdatedAt() {
-            parts.append("Лимиты \(formatted(date: date))")
+            parts.append(L10n.limitsAt(formatted(date: date)))
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
@@ -630,35 +630,35 @@ private struct CurrentClaudeDetailPane: View {
 
     private var bridgeCardTitle: String {
         if !model.claudeLiveBridgeInstalled() {
-            return "Живые лимиты Claude выключены"
+            return L10n.tr("claude.live_off")
         }
 
         if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
-            return "Мост подключён"
+            return L10n.tr("claude.bridge_connected")
         }
 
-        return "Claude пока не прислал лимиты"
+        return L10n.tr("claude.no_limits_yet")
     }
 
     private var bridgeCardSubtitle: String {
         if !model.claudeLiveBridgeInstalled() {
-            return "Нажмите «Подключить живые лимиты». Приложение аккуратно обернёт текущий statusLine Claude, сохранит прошлую команду и сможет читать только официальный statusline JSON."
+            return L10n.tr("claude.connect_bridge.long")
         }
 
         if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
-            return "Теперь откройте Claude Code и получите хотя бы один ответ в живой сессии. После этого statusLine начнёт присылать снимок, который приложение сможет прочитать."
+            return L10n.tr("claude.wait_for_session.long")
         }
 
         if model.currentClaudeStatus?.authMethod?.lowercased() == "claude.ai" {
-            return "Снимок уже есть, но поле rate_limits пока пустое. Такое бывает до первого полноценного ответа или когда текущая сессия ещё не успела обновить statusLine."
+            return L10n.tr("claude.snapshot_empty.long")
         }
 
-        return "Для текущего типа входа официальный rate_limits в statusLine может вообще не приходить. Поэтому я не рисую выдуманные проценты."
+        return L10n.tr("claude.no_official_limits.long")
     }
 
     private func formatted(date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
@@ -688,26 +688,26 @@ private struct StoredClaudeDetailPane: View {
                 metaLine: accountMetaLine,
                 actions: {
                     if !isCurrent {
-                        Button("Сделать текущим") {
+                        Button(L10n.tr("action.make_current")) {
                             Task { await model.activateClaudeAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isBusy)
                     } else {
-                        Button("Обновить") {
+                        Button(L10n.tr("action.refresh")) {
                             Task { await model.refreshCurrentClaudeAccount() }
                         }
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy)
 
                         if model.claudeLiveBridgeInstalled() {
-                            Button("Отключить мост") {
+                            Button(L10n.tr("action.disconnect_bridge")) {
                                 Task { await model.uninstallClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.bordered)
                             .disabled(model.isBusy)
                         } else if model.currentClaudeStatus?.loggedIn == true {
-                            Button("Подключить живые лимиты") {
+                            Button(L10n.tr("action.connect_live_limits")) {
                                 Task { await model.installClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.borderedProminent)
@@ -715,7 +715,7 @@ private struct StoredClaudeDetailPane: View {
                         }
                     }
 
-                    Button("Удалить", role: .destructive) {
+                    Button(L10n.tr("action.delete"), role: .destructive) {
                         Task { await model.deleteClaudeAccount(account) }
                     }
                     .buttonStyle(.bordered)
@@ -751,14 +751,14 @@ private struct StoredClaudeDetailPane: View {
         if isCurrent {
             return model.currentClaudeOverview().note
         }
-        return account.statusMessage ?? "Живые лимиты для Claude доступны только у текущей живой сессии."
+        return account.statusMessage ?? L10n.tr("claude.live_current_only")
     }
 
     private var accountMetaLine: String? {
         var parts: [String] = []
 
         if isCurrent {
-            parts.append("Текущий Claude")
+            parts.append(L10n.tr("claude.current"))
 
             if let status = model.currentClaudeStatus {
                 if let authMethod = status.authMethod {
@@ -771,16 +771,16 @@ private struct StoredClaudeDetailPane: View {
         }
 
         let plan = model.localizedClaudePlan(account.subscriptionType)
-        if plan != "Подписка Claude" {
+        if plan != L10n.tr("plan.claude.subscription") {
             parts.append(plan)
         }
 
         if let date = model.claudeValidatedAt(for: account) {
-            parts.append("Проверено \(formatted(date: date))")
+            parts.append(L10n.checkedAt(formatted(date: date)))
         }
 
         if isCurrent, let date = model.claudeLiveBridgeSnapshotUpdatedAt() {
-            parts.append("Лимиты \(formatted(date: date))")
+            parts.append(L10n.limitsAt(formatted(date: date)))
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
@@ -788,43 +788,43 @@ private struct StoredClaudeDetailPane: View {
 
     private var emptyStateTitle: String {
         if !isCurrent {
-            return "Живые лимиты доступны у текущего Claude"
+            return L10n.tr("claude.live_available_current")
         }
 
         if !model.claudeLiveBridgeInstalled() {
-            return "Живые лимиты Claude выключены"
+            return L10n.tr("claude.live_off")
         }
 
         if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
-            return "Мост подключён"
+            return L10n.tr("claude.bridge_connected")
         }
 
-        return "Claude пока не прислал лимиты"
+        return L10n.tr("claude.no_limits_yet")
     }
 
     private var emptyStateSubtitle: String {
         if !isCurrent {
-            return "Сделайте этот аккаунт текущим, если хотите читать официальный snapshot из statusLine."
+            return L10n.tr("claude.make_current_for_snapshot")
         }
 
         if !model.claudeLiveBridgeInstalled() {
-            return "Нажмите «Подключить живые лимиты». Приложение будет читать только официальный statusLine JSON."
+            return L10n.tr("claude.connect_bridge.short")
         }
 
         if !model.currentClaudeLiveBridgeStatus.hasSnapshot {
-            return "Теперь откройте Claude Code и получите хотя бы один ответ в живой сессии. После этого появится snapshot."
+            return L10n.tr("claude.wait_for_session.short")
         }
 
         if model.currentClaudeStatus?.authMethod?.lowercased() == "claude.ai" {
-            return "Snapshot уже есть, но поле rate_limits пока пустое. Такое бывает до первого полноценного ответа."
+            return L10n.tr("claude.snapshot_empty.short")
         }
 
-        return "Для текущего типа входа официальный rate_limits может не приходить. Поэтому приложение не рисует выдуманные проценты."
+        return L10n.tr("claude.no_official_limits.short")
     }
 
     private func formatted(date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
@@ -853,26 +853,26 @@ private struct StoredAccountDetailPane: View {
                 metaLine: accountMetaLine,
                 actions: {
                     if !isCurrent {
-                        Button("Сделать текущим") {
+                        Button(L10n.tr("action.make_current")) {
                             Task { await model.activateAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isBusy)
                     }
 
-                    Button("Обновить") {
+                    Button(L10n.tr("action.refresh")) {
                         Task { await model.validateAccount(account) }
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.isBusy)
 
-                    Button("Повторный вход") {
+                    Button(L10n.tr("action.reauthenticate")) {
                         Task { await model.reauthenticateAccount(account) }
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.isBusy)
 
-                    Button("Удалить", role: .destructive) {
+                    Button(L10n.tr("action.delete"), role: .destructive) {
                         Task { await model.deleteAccount(account) }
                     }
                     .buttonStyle(.bordered)
@@ -883,8 +883,8 @@ private struct StoredAccountDetailPane: View {
             if sections.isEmpty {
                 MinimalSeparator()
                 EmptyLimitsCard(
-                    title: "Лимиты пока не загружены",
-                    subtitle: "Нажмите «Обновить», чтобы получить актуальные данные по этому аккаунту."
+                    title: L10n.tr("limits.empty.title"),
+                    subtitle: L10n.tr("limits.empty.account.subtitle")
                 )
             } else {
                 MinimalSeparator()
@@ -901,7 +901,7 @@ private struct StoredAccountDetailPane: View {
 
     private var accountNote: String? {
         if isCurrent, model.currentCLIProbe != nil {
-            return "Показаны живые лимиты текущего CLI."
+            return L10n.tr("cli.live_limits_loaded")
         }
         return account.statusMessage
     }
@@ -910,17 +910,17 @@ private struct StoredAccountDetailPane: View {
         var parts: [String] = []
 
         if isCurrent {
-            parts.append("Текущий CLI")
+            parts.append(L10n.tr("account.current") + " CLI")
         }
 
         parts.append(model.localizedPlan(account.planType))
 
         if let date = account.lastValidatedAt {
             let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "ru_RU")
+            formatter.locale = L10n.locale
             formatter.dateStyle = .medium
             formatter.timeStyle = .short
-            parts.append("Проверено \(formatter.string(from: date))")
+            parts.append(L10n.checkedAt(formatter.string(from: date)))
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
@@ -1024,7 +1024,7 @@ private struct LimitProgressRowView: View {
                     .frame(maxWidth: .infinity)
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(row.remainingPercent)% осталось")
+                    Text(L10n.percentRemaining(row.remainingPercent))
                         .font(.headline)
                         .monospacedDigit()
 
@@ -1106,15 +1106,15 @@ private struct ClaudeStateBadge: View {
     private var label: String {
         switch model.currentClaudeState.source {
         case .stored:
-            return "Текущий"
+            return L10n.tr("account.current")
         case .external:
-            return "Внешний"
+            return L10n.tr("account.external")
         case .loggedOut:
-            return "Нет входа"
+            return L10n.tr("account.no_login")
         case .notInstalled:
-            return "Не установлен"
+            return L10n.tr("account.not_installed")
         case .unreadable:
-            return "Ошибка"
+            return L10n.tr("account.error")
         }
     }
 
@@ -1148,14 +1148,14 @@ private struct AccountStatusBadge: View {
 
     private var label: String {
         if isCurrent {
-            return "Текущий"
+            return L10n.tr("account.current")
         }
         return switch status {
-        case .ok: "Готов"
-        case .limitReached: "Лимит"
-        case .needsReauth: "Нужен вход"
-        case .validationFailed: "Ошибка"
-        case .unknown: "Неизвестно"
+        case .ok: L10n.tr("account.ready")
+        case .limitReached: L10n.tr("account.limit")
+        case .needsReauth: L10n.tr("account.needs_login")
+        case .validationFailed: L10n.tr("account.error")
+        case .unknown: L10n.tr("account.unknown")
         }
     }
 

@@ -102,7 +102,7 @@ struct CurrentCLIOverviewCard: View {
 
     private var updatedAtText: String? {
         guard let updatedAt else { return nil }
-        return "Обновлено \(Self.updatedAtText(for: updatedAt))"
+        return L10n.updatedAt(Self.updatedAtText(for: updatedAt))
     }
 
     @ViewBuilder
@@ -132,14 +132,14 @@ struct CurrentCLIOverviewCard: View {
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
 
     private static let dayTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateFormat = "d MMM, HH:mm"
         return formatter
     }()
@@ -193,16 +193,18 @@ private struct CompactLimitBarRow: View {
 
     private var compactTitle: String {
         switch row.title {
-        case "5ч лимит":
-            return "5ч"
-        case "Недельный лимит":
-            return "Неделя"
-        case "1ч лимит":
-            return "1ч"
-        case "Суточный лимит":
-            return "Сутки"
+        case L10n.tr("limit.five_hour"):
+            return L10n.windowLabel(minutes: 300, fallback: row.title)
+        case L10n.tr("limit.weekly"):
+            return L10n.tr("duration.week")
+        case L10n.tr("limit.one_hour"):
+            return L10n.windowLabel(minutes: 60, fallback: row.title)
+        case L10n.tr("limit.daily"):
+            return L10n.windowLabel(minutes: 1440, fallback: row.title)
         default:
-            return row.title.replacingOccurrences(of: " лимит", with: "")
+            return row.title
+                .replacingOccurrences(of: L10n.tr("limit.generic"), with: "")
+                .trimmingCharacters(in: .whitespaces)
         }
     }
 

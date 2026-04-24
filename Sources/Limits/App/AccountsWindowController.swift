@@ -25,7 +25,7 @@ final class AccountsWindowController: NSObject, NSWindowDelegate {
 
         let hostingController = NSHostingController(rootView: AccountsWindowView(model: model))
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Лимиты"
+        window.title = L10n.tr("app.title")
         window.setContentSize(NSSize(width: 980, height: 620))
         window.minSize = NSSize(width: 980, height: 620)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]

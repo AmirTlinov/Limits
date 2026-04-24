@@ -9,11 +9,13 @@ import Testing
     let tomorrow = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 25, hour: 4, minute: 15)))
     let stale = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 24, hour: 2, minute: 15)))
 
-    #expect(RateLimitResetFormatter.expandedText(for: laterToday, now: now) == "Сброс в 04:15")
-    #expect(RateLimitResetFormatter.compactText(for: laterToday, now: now) == "Сброс 04:15")
-    #expect(RateLimitResetFormatter.expandedText(for: stale, now: now) == "Сброс прошёл · обновите")
-    #expect(RateLimitResetFormatter.compactText(for: stale, now: now) == "сброс прошёл")
-    #expect(RateLimitResetFormatter.compactText(for: tomorrow, now: now).hasPrefix("Сброс 25"))
+    L10n.withLanguage("ru") {
+        #expect(RateLimitResetFormatter.expandedText(for: laterToday, now: now) == "Сброс в 04:15")
+        #expect(RateLimitResetFormatter.compactText(for: laterToday, now: now) == "Сброс 04:15")
+        #expect(RateLimitResetFormatter.expandedText(for: stale, now: now) == "Сброс прошёл · обновите")
+        #expect(RateLimitResetFormatter.compactText(for: stale, now: now) == "сброс прошёл")
+        #expect(RateLimitResetFormatter.compactText(for: tomorrow, now: now).hasPrefix("Сброс 25"))
+    }
 }
 
 @Test func displayBuilderCarriesResetDateIntoRows() throws {
@@ -36,5 +38,20 @@ import Testing
 
     #expect(row.resetDate == resetDate)
     #expect(row.resetText != nil)
-    #expect(row.compactResetText(now: now) == "Сброс 03:06")
+    L10n.withLanguage("ru") {
+        #expect(row.compactResetText(now: now) == "Сброс 03:06")
+    }
+}
+
+@Test func localizationSwitchesCoreTrayStringsByLanguage() {
+    L10n.withLanguage("en") {
+        #expect(L10n.tr("filter.all") == "All")
+        #expect(L10n.tr("limit.five_hour") == "5h limit")
+        #expect(L10n.percentRemaining(42) == "42% remaining")
+    }
+
+    L10n.withLanguage("zh-Hans") {
+        #expect(L10n.tr("filter.all") == "全部")
+        #expect(L10n.tr("limit.five_hour") == "5小时限额")
+    }
 }

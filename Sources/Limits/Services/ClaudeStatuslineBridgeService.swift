@@ -63,9 +63,9 @@ enum ClaudeStatuslineBridgeServiceError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unsupportedExistingStatusLine:
-            return "У текущего Claude statusLine неподдерживаемый формат. Я не буду молча ломать его."
+            return L10n.tr("claude.statusline.unsupported")
         case .invalidSettingsShape:
-            return "Не удалось разобрать ~/.claude/settings.json."
+            return L10n.tr("claude.settings.parse_failed")
         case .missingSnapshot:
             return "Claude ещё не прислал снимок statusLine."
         }

@@ -115,7 +115,7 @@ enum RateLimitDisplayBuilder {
             result.append(
                 RateLimitDisplayRow(
                     id: "\(snapshot.limitId ?? "limit").primary",
-                    title: rowTitle(minutes: primary.windowDurationMins, fallback: "Лимит"),
+                    title: rowTitle(minutes: primary.windowDurationMins, fallback: L10n.tr("limit.generic")),
                     usedPercent: primary.usedPercent,
                     resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
                     resetDate: resetDate
@@ -128,7 +128,7 @@ enum RateLimitDisplayBuilder {
             result.append(
                 RateLimitDisplayRow(
                     id: "\(snapshot.limitId ?? "limit").secondary",
-                    title: rowTitle(minutes: secondary.windowDurationMins, fallback: "Лимит"),
+                    title: rowTitle(minutes: secondary.windowDurationMins, fallback: L10n.tr("limit.generic")),
                     usedPercent: secondary.usedPercent,
                     resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
                     resetDate: resetDate
@@ -144,15 +144,15 @@ enum RateLimitDisplayBuilder {
 
         switch minutes {
         case 300:
-            return "5ч лимит"
+            return L10n.tr("limit.five_hour")
         case 10080:
-            return "Недельный лимит"
+            return L10n.tr("limit.weekly")
         case 60:
-            return "1ч лимит"
+            return L10n.tr("limit.one_hour")
         case 1440:
-            return "Суточный лимит"
+            return L10n.tr("limit.daily")
         default:
-            return "\(durationLabel(minutes: minutes)) лимит"
+            return L10n.tr("limit.duration", durationLabel(minutes: minutes))
         }
     }
 
@@ -162,61 +162,18 @@ enum RateLimitDisplayBuilder {
     }
 
     private static func durationLabel(minutes: Int64) -> String {
-        if minutes % 1440 == 0 {
-            return "\(minutes / 1440)д"
-        }
-        if minutes % 60 == 0 {
-            return "\(minutes / 60)ч"
-        }
-        return "\(minutes)м"
+        L10n.durationLabel(minutes: minutes)
     }
 }
 
 enum RateLimitResetFormatter {
     static func expandedText(for date: Date, now: Date = .now) -> String {
-        guard date > now else {
-            return "Сброс прошёл · обновите"
-        }
-
-        let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) {
-            return "Сброс в \(timeFormatter.string(from: date))"
-        }
-        return "Сброс в \(timeFormatter.string(from: date)), \(dayMonthFormatter.string(from: date))"
+        L10n.resetExpandedText(for: date, now: now)
     }
 
     static func compactText(for date: Date, now: Date = .now) -> String {
-        guard date > now else {
-            return "сброс прошёл"
-        }
-
-        let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) {
-            return "Сброс \(timeFormatter.string(from: date))"
-        }
-        return "Сброс \(shortDayMonthFormatter.string(from: date))"
+        L10n.resetCompactText(for: date, now: now)
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    private static let dayMonthFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "d MMMM"
-        return formatter
-    }()
-
-    private static let shortDayMonthFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "d MMM"
-        return formatter
-    }()
 }
 
 extension RateLimitSnapshotModel {
@@ -224,11 +181,11 @@ extension RateLimitSnapshotModel {
         var parts: [String] = []
 
         if let primary {
-            parts.append("\(windowLabel(minutes: primary.windowDurationMins, fallback: "Окно")) \(primary.usedPercent)%")
+            parts.append("\(windowLabel(minutes: primary.windowDurationMins, fallback: L10n.tr("limit.window"))) \(primary.usedPercent)%")
         }
 
         if let secondary {
-            parts.append("\(windowLabel(minutes: secondary.windowDurationMins, fallback: "Лимит")) \(secondary.usedPercent)%")
+            parts.append("\(windowLabel(minutes: secondary.windowDurationMins, fallback: L10n.tr("limit.generic"))) \(secondary.usedPercent)%")
         }
 
         if parts.isEmpty, let reached = rateLimitReachedType {
@@ -265,54 +222,14 @@ extension RateLimitSnapshotModel {
     }
 
     private func windowLabel(minutes: Int64?, fallback: String) -> String {
-        guard let minutes else { return fallback }
-
-        switch minutes {
-        case 60:
-            return "1ч"
-        case 300:
-            return "5ч"
-        case 1440:
-            return "24ч"
-        case 10080:
-            return "Неделя"
-        default:
-            return Self.durationLabel(minutes: minutes)
-        }
+        L10n.windowLabel(minutes: minutes, fallback: fallback)
     }
 
     private static func durationLabel(minutes: Int64) -> String {
-        if minutes % 1440 == 0 {
-            return "\(minutes / 1440)д"
-        }
-        if minutes % 60 == 0 {
-            return "\(minutes / 60)ч"
-        }
-        return "\(minutes)м"
+        L10n.durationLabel(minutes: minutes)
     }
 
     private static func countdown(until timestamp: Int64?, now: Date) -> String? {
-        guard let timestamp else { return nil }
-
-        let remaining = max(0, Int(Date(timeIntervalSince1970: TimeInterval(timestamp)).timeIntervalSince(now)))
-        let days = remaining / 86_400
-        let hours = (remaining % 86_400) / 3_600
-        let minutes = (remaining % 3_600) / 60
-
-        if days > 0 {
-            if hours > 0 {
-                return "\(days)д \(hours)ч"
-            }
-            return "\(days)д"
-        }
-
-        if hours > 0 {
-            if minutes > 0 {
-                return "\(hours)ч \(minutes)м"
-            }
-            return "\(hours)ч"
-        }
-
-        return "\(max(minutes, 1))м"
+        L10n.countdown(until: timestamp, now: now)
     }
 }

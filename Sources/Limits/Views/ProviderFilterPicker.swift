@@ -4,8 +4,8 @@ struct ProviderFilterPicker: View {
     @Binding var selection: AccountsSidebarFilter
 
     var body: some View {
-        Picker("Показать аккаунты", selection: $selection) {
-            Text("Все").tag(AccountsSidebarFilter.all)
+        Picker(L10n.tr("filter.show_accounts"), selection: $selection) {
+            Text(L10n.tr("filter.all")).tag(AccountsSidebarFilter.all)
             Text("Codex").tag(AccountsSidebarFilter.codex)
             Text("Claude").tag(AccountsSidebarFilter.claude)
         }
@@ -14,6 +14,6 @@ struct ProviderFilterPicker: View {
         .tint(ProviderAccent.codex)
         .labelsHidden()
         .frame(maxWidth: .infinity)
-        .accessibilityLabel("Показать аккаунты")
+        .accessibilityLabel(L10n.tr("filter.show_accounts"))
     }
 }

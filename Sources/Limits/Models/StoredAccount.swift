@@ -62,15 +62,15 @@ struct StoredAccount: Identifiable, Codable, Hashable {
     var shortStatusText: String {
         switch status {
         case .unknown:
-            return "Неизвестно"
+            return L10n.tr("account.unknown")
         case .ok:
             return "OK"
         case .needsReauth:
-            return "Нужен вход"
+            return L10n.tr("account.needs_login")
         case .limitReached:
-            return "Лимит достигнут"
+            return L10n.tr("account.limit_reached")
         case .validationFailed:
-            return "Ошибка"
+            return L10n.tr("account.error")
         }
     }
 }

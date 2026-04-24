@@ -4,7 +4,7 @@ enum ClaudeExecutableLocatorError: LocalizedError {
     case notFound
 
     var errorDescription: String? {
-        "Не удалось найти `claude`. Установите Claude Code или убедитесь, что `command -v claude` работает в zsh."
+        L10n.tr("claude.cli.not_found")
     }
 }
 

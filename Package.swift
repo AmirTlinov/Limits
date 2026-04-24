@@ -5,12 +5,16 @@ import PackageDescription
 
 let package = Package(
     name: "Limits",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14),
     ],
     targets: [
         .executableTarget(
-            name: "Limits"
+            name: "Limits",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "LimitsTests",

@@ -224,7 +224,7 @@ struct MenuBarContentView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             if model.shouldOfferAddAccountAsPrimaryAction() {
-                panelActionButton("Добавить", primary: true) {
+                panelActionButton(L10n.tr("action.add"), primary: true) {
                     Task { await model.addAccount() }
                 }
                 .disabled(model.isBusy)
@@ -232,49 +232,49 @@ struct MenuBarContentView: View {
 
             Spacer(minLength: 0)
 
-            panelActionButton("Окно…") {
+            panelActionButton(L10n.tr("action.open_window")) {
                 openAccountsWindow()
             }
             .disabled(model.isBusy)
 
             Menu {
-                Button("Добавить аккаунт") {
+                Button(L10n.tr("action.add_account")) {
                     Task { await model.addAccount() }
                 }
 
                 if model.hasCurrentCLIAuthToImport() {
-                    Button("Импортировать текущую авторизацию") {
+                    Button(L10n.tr("action.import_current_auth")) {
                         Task { await model.importCurrentCLIAuth() }
                     }
                 }
 
                 if model.hasCurrentClaudeAuthToImport() {
-                    Button("Импортировать текущий Claude Code") {
+                    Button(L10n.tr("action.import_current_claude")) {
                         Task { await model.importCurrentClaudeAuth() }
                     }
                 }
 
                 if !model.accounts.isEmpty || model.currentClaudeStatus != nil {
-                    Button("Обновить текущие значения") {
+                    Button(L10n.tr("action.refresh_current_values")) {
                         Task { await model.refreshCurrentValues() }
                     }
                 }
 
                 Divider()
 
-                Button("Показать всё") {
+                Button(L10n.tr("action.show_all")) {
                     codexExpanded = true
                     claudeExpanded = true
                 }
 
-                Button("Свернуть всё") {
+                Button(L10n.tr("action.collapse_all")) {
                     codexExpanded = false
                     claudeExpanded = false
                 }
 
                 Divider()
 
-                Button("Выход") {
+                Button(L10n.tr("action.quit")) {
                     NSApplication.shared.terminate(nil)
                 }
             } label: {
@@ -319,14 +319,7 @@ struct MenuBarContentView: View {
     }
 
     private func categoryCountText(_ count: Int) -> String {
-        switch count {
-        case 1:
-            return "1 аккаунт"
-        case 2...4:
-            return "\(count) аккаунта"
-        default:
-            return "\(count) аккаунтов"
-        }
+        L10n.accountCount(count)
     }
 
     private var codexCurrentDetailText: String? {
@@ -358,24 +351,24 @@ struct MenuBarContentView: View {
     private var codexBadgeText: String {
         switch model.currentCLIState.source {
         case .stored, .external:
-            return "Текущий"
+            return L10n.tr("account.current")
         case .missing:
-            return "Нет входа"
+            return L10n.tr("account.no_login")
         case .unreadable:
-            return "Ошибка"
+            return L10n.tr("account.error")
         }
     }
 
     private var claudeBadgeText: String {
         switch model.currentClaudeState.source {
         case .stored, .external:
-            return "Текущий"
+            return L10n.tr("account.current")
         case .loggedOut:
-            return "Нет входа"
+            return L10n.tr("account.no_login")
         case .notInstalled:
-            return "Нет CLI"
+            return L10n.tr("account.no_cli")
         case .unreadable:
-            return "Ошибка"
+            return L10n.tr("account.error")
         }
     }
 
@@ -443,17 +436,17 @@ struct MenuBarContentView: View {
         }
 
         let plan = model.localizedClaudePlan(account.subscriptionType)
-        return plan == "Подписка Claude" ? nil : plan
+        return plan == L10n.tr("plan.claude.subscription") ? nil : plan
     }
 
     private func updatedAtText(for date: Date?) -> String? {
         guard let date else { return nil }
-        return "Обновлено \(Self.updatedAtFormatter.string(from: date))"
+        return L10n.updatedAt(Self.updatedAtFormatter.string(from: date))
     }
 
     private static let updatedAtFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = L10n.locale
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
@@ -654,7 +647,8 @@ private struct TrayAccountRow: View {
     private var backgroundChrome: some View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
 
-        Color.white.opacity(style.fillOpacity)
+        shape
+            .fill(Color.white.opacity(style.fillOpacity))
             .overlay {
                 shape.stroke(.primary.opacity(style.strokeOpacity), lineWidth: 1)
             }
