@@ -54,8 +54,8 @@ private enum AccountsSidebarSelection: Hashable {
 
 struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
-    @SceneStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
-    @SceneStorage("limits.accounts.sidebar.filter") private var sidebarFilterRaw = AccountsSidebarFilter.all.rawValue
+    @AppStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+    @AppStorage("limits.accounts.sidebar.filter") private var sidebarFilterRaw = AccountsSidebarFilter.all.rawValue
 
     private var overview: AppModel.CurrentCLIOverview {
         model.currentCLIOverview()

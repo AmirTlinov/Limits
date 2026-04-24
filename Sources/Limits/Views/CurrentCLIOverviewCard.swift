@@ -174,10 +174,20 @@ private struct CompactLimitBarRow: View {
             CompactLimitBar(progress: row.remainingProgressValue, tint: resolvedTint, height: dense ? 8 : 10)
                 .frame(maxWidth: .infinity)
 
-            Text("\(row.remainingPercent)%")
-                .font(dense ? .caption.weight(.semibold) : .caption.weight(.bold))
-                .monospacedDigit()
-                .frame(width: dense ? 38 : 44, alignment: .trailing)
+            VStack(alignment: .trailing, spacing: dense ? 0 : 1) {
+                Text("\(row.remainingPercent)%")
+                    .font(dense ? .caption.weight(.semibold) : .caption.weight(.bold))
+                    .monospacedDigit()
+
+                if let resetText = row.compactResetText() {
+                    Text(resetText)
+                        .font(.caption2)
+                        .foregroundStyle(row.isResetStale() ? Color.orange : Color.secondary.opacity(0.72))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+            }
+            .frame(width: dense ? 76 : 92, alignment: .trailing)
         }
     }
 

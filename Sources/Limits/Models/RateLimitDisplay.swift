@@ -5,6 +5,21 @@ struct RateLimitDisplayRow: Identifiable, Hashable {
     let title: String
     let usedPercent: Int
     let resetText: String?
+    let resetDate: Date?
+
+    init(
+        id: String,
+        title: String,
+        usedPercent: Int,
+        resetText: String?,
+        resetDate: Date? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.usedPercent = usedPercent
+        self.resetText = resetText
+        self.resetDate = resetDate
+    }
 
     var remainingPercent: Int {
         max(0, 100 - usedPercent)
@@ -16,6 +31,20 @@ struct RateLimitDisplayRow: Identifiable, Hashable {
 
     var remainingProgressValue: Double {
         min(max(Double(remainingPercent) / 100, 0), 1)
+    }
+
+    func compactResetText(now: Date = .now) -> String? {
+        guard let resetDate else {
+            return resetText
+        }
+        return RateLimitResetFormatter.compactText(for: resetDate, now: now)
+    }
+
+    func isResetStale(now: Date = .now) -> Bool {
+        guard let resetDate else {
+            return false
+        }
+        return resetDate <= now
     }
 }
 
@@ -82,23 +111,27 @@ enum RateLimitDisplayBuilder {
         var result: [RateLimitDisplayRow] = []
 
         if let primary = snapshot.primary {
+            let resetDate = resetDate(for: primary.resetsAt)
             result.append(
                 RateLimitDisplayRow(
                     id: "\(snapshot.limitId ?? "limit").primary",
                     title: rowTitle(minutes: primary.windowDurationMins, fallback: "Лимит"),
                     usedPercent: primary.usedPercent,
-                    resetText: resetText(for: primary.resetsAt)
+                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
+                    resetDate: resetDate
                 )
             )
         }
 
         if let secondary = snapshot.secondary {
+            let resetDate = resetDate(for: secondary.resetsAt)
             result.append(
                 RateLimitDisplayRow(
                     id: "\(snapshot.limitId ?? "limit").secondary",
                     title: rowTitle(minutes: secondary.windowDurationMins, fallback: "Лимит"),
                     usedPercent: secondary.usedPercent,
-                    resetText: resetText(for: secondary.resetsAt)
+                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
+                    resetDate: resetDate
                 )
             )
         }
@@ -123,17 +156,9 @@ enum RateLimitDisplayBuilder {
         }
     }
 
-    private static func resetText(for timestamp: Int64?) -> String? {
+    private static func resetDate(for timestamp: Int64?) -> Date? {
         guard let timestamp else { return nil }
-        return "Сброс в \(resetDateText(for: Date(timeIntervalSince1970: TimeInterval(timestamp))))"
-    }
-
-    private static func resetDateText(for date: Date, now: Date = .now) -> String {
-        let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) {
-            return timeFormatter.string(from: date)
-        }
-        return "\(timeFormatter.string(from: date)), \(dayMonthFormatter.string(from: date))"
+        return Date(timeIntervalSince1970: TimeInterval(timestamp))
     }
 
     private static func durationLabel(minutes: Int64) -> String {
@@ -144,6 +169,32 @@ enum RateLimitDisplayBuilder {
             return "\(minutes / 60)ч"
         }
         return "\(minutes)м"
+    }
+}
+
+enum RateLimitResetFormatter {
+    static func expandedText(for date: Date, now: Date = .now) -> String {
+        guard date > now else {
+            return "Сброс прошёл · обновите"
+        }
+
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) {
+            return "Сброс в \(timeFormatter.string(from: date))"
+        }
+        return "Сброс в \(timeFormatter.string(from: date)), \(dayMonthFormatter.string(from: date))"
+    }
+
+    static func compactText(for date: Date, now: Date = .now) -> String {
+        guard date > now else {
+            return "сброс прошёл"
+        }
+
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) {
+            return "Сброс \(timeFormatter.string(from: date))"
+        }
+        return "Сброс \(shortDayMonthFormatter.string(from: date))"
     }
 
     private static let timeFormatter: DateFormatter = {
@@ -157,6 +208,13 @@ enum RateLimitDisplayBuilder {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.dateFormat = "d MMMM"
+        return formatter
+    }()
+
+    private static let shortDayMonthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "d MMM"
         return formatter
     }()
 }

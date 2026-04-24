@@ -76,10 +76,13 @@ final class AppModel: ObservableObject {
     private let globalClaudeCredentialService = GlobalClaudeCredentialService()
     private let claudeAuthStatusService = ClaudeAuthStatusService()
     private let claudeStatuslineBridgeService = ClaudeStatuslineBridgeService()
-    private let currentCLIProbeTTL: TimeInterval = 90
+    private let currentCLIProbeTTL: TimeInterval = 300
+    private let backgroundRefreshInterval: TimeInterval = 300
+    private var backgroundRefreshTask: Task<Void, Never>?
 
     init() {
         Task { await bootstrap() }
+        startBackgroundRefreshLoop()
     }
 
     func bootstrap() async {
@@ -354,6 +357,32 @@ final class AppModel: ObservableObject {
         }
         await refreshCurrentCLIState()
         await refreshCurrentCLIProbe(force: true)
+        await refreshCurrentClaudeState()
+    }
+
+    private func startBackgroundRefreshLoop() {
+        guard backgroundRefreshTask == nil else {
+            return
+        }
+
+        let interval = UInt64(backgroundRefreshInterval * 1_000_000_000)
+        backgroundRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: interval)
+                guard !Task.isCancelled else {
+                    break
+                }
+                await self?.refreshCurrentSurfacesInBackground()
+            }
+        }
+    }
+
+    private func refreshCurrentSurfacesInBackground() async {
+        guard !isBusy else {
+            return
+        }
+
+        await refreshCurrentCLIPanel(forceProbe: false)
         await refreshCurrentClaudeState()
     }
 
@@ -945,23 +974,27 @@ final class AppModel: ObservableObject {
 
         var rows: [RateLimitDisplayRow] = []
         if let fiveHour = payload.snapshot.rateLimits?.fiveHour {
+            let resetDate = resetDate(for: fiveHour.resetsAt)
             rows.append(
                 RateLimitDisplayRow(
                     id: "claude.five_hour",
                     title: "5ч лимит",
                     usedPercent: normalizeUsedPercent(fiveHour.usedPercentage),
-                    resetText: resetText(for: fiveHour.resetsAt)
+                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
+                    resetDate: resetDate
                 )
             )
         }
 
         if let sevenDay = payload.snapshot.rateLimits?.sevenDay {
+            let resetDate = resetDate(for: sevenDay.resetsAt)
             rows.append(
                 RateLimitDisplayRow(
                     id: "claude.seven_day",
                     title: "Недельный лимит",
                     usedPercent: normalizeUsedPercent(sevenDay.usedPercentage),
-                    resetText: resetText(for: sevenDay.resetsAt)
+                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
+                    resetDate: resetDate
                 )
             )
         }
@@ -1165,17 +1198,9 @@ final class AppModel: ObservableObject {
         return min(max(raw, 0), 100)
     }
 
-    private func resetText(for timestamp: Int64?) -> String? {
+    private func resetDate(for timestamp: Int64?) -> Date? {
         guard let timestamp else { return nil }
-        return "Сброс в \(resetDateText(for: Date(timeIntervalSince1970: TimeInterval(timestamp))))"
-    }
-
-    private func resetDateText(for date: Date, now: Date = .now) -> String {
-        let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) {
-            return Self.shortTimeFormatter.string(from: date)
-        }
-        return "\(Self.shortTimeFormatter.string(from: date)), \(Self.dayMonthFormatter.string(from: date))"
+        return Date(timeIntervalSince1970: TimeInterval(timestamp))
     }
 
     private func refreshStoredClaudeMetadataIfNeeded() throws {
@@ -1202,18 +1227,4 @@ final class AppModel: ObservableObject {
             }
         }
     }
-
-    private static let shortTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    private static let dayMonthFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "d MMMM"
-        return formatter
-    }()
 }

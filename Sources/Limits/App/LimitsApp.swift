@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class LimitsAppDelegate: NSObject, NSApplicationDelegate {
+final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = AppModel()
     private var statusItemController: StatusItemController?
     private var accountsWindowController: NSWindowController?
@@ -19,6 +19,7 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate {
         }
         statusItemController = controller
         controller.install()
+        openAccountsWindow()
     }
 
     func openAccountsWindow() {
@@ -37,12 +38,24 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
+        window.delegate = self
         window.center()
 
         let controller = NSWindowController(window: window)
         accountsWindowController = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard
+            let closedWindow = notification.object as? NSWindow,
+            closedWindow === accountsWindowController?.window
+        else {
+            return
+        }
+
+        accountsWindowController = nil
     }
 }
 
@@ -51,8 +64,8 @@ struct LimitsApp: App {
     @NSApplicationDelegateAdaptor(LimitsAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("Лимиты", id: "accounts") {
-            AccountsWindowView(model: appDelegate.model)
+        Settings {
+            EmptyView()
         }
     }
 }
