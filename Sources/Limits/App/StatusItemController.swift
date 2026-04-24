@@ -121,7 +121,12 @@ final class StatusItemController: NSObject {
         let provider = currentTrayStatusProvider()
         let snapshot = currentFiveHourLimitSnapshot(for: provider)
 
-        progressPillView?.title = provider.displayTitle
+        if let button = statusItem?.button {
+            syncStatusButtonTitle(provider.displayTitle, on: button)
+        } else {
+            progressPillView?.title = provider.displayTitle
+        }
+
         progressPillView?.progress = snapshot.remainingProgress ?? 1
         progressPillView?.isProgressKnown = snapshot.remainingProgress != nil
         progressPillView?.remainingPercent = snapshot.remainingPercent
@@ -141,6 +146,22 @@ final class StatusItemController: NSObject {
             button.toolTip = "\(provider.displayTitle) · 5ч лимит пока без данных"
             button.setAccessibilityLabel("\(provider.displayTitle), 5-часовой лимит пока без данных")
         }
+    }
+
+    private func syncStatusButtonTitle(_ title: String, on button: NSStatusBarButton) {
+        progressPillView?.frame = button.bounds
+        progressPillView?.title = title
+
+        button.title = title
+        button.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 12.2, weight: .semibold),
+                .foregroundColor: NSColor.clear,
+            ]
+        )
+        button.setAccessibilityTitle(title)
+        button.needsDisplay = true
     }
 
     private func currentTrayStatusProvider() -> TrayStatusProvider {
