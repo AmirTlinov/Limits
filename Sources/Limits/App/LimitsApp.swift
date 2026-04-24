@@ -19,6 +19,9 @@ final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
         }
         statusItemController = controller
         controller.install()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            self?.openAccountsWindow()
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
