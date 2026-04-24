@@ -10,6 +10,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
+    private var progressPillView: StatusProgressPillView?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void) {
         self.model = model
@@ -33,13 +34,21 @@ final class StatusItemController: NSObject {
             button.layer?.backgroundColor = NSColor.clear.cgColor
             button.image = nil
             button.imagePosition = .noImage
-            button.title = TrayStatusProvider.codex.displayTitle
-            button.attributedTitle = statusTitle(TrayStatusProvider.codex.displayTitle)
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
+
+            let progressView = StatusProgressPillView(frame: button.bounds)
+            progressView.autoresizingMask = [.width, .height]
+            button.subviews
+                .filter { $0 is StatusProgressPillView }
+                .forEach { $0.removeFromSuperview() }
+            button.addSubview(progressView)
+            progressPillView = progressView
 
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.toolTip = "Limits"
-            button.setAccessibilityLabel("Лимиты")
+            button.setAccessibilityLabel(TrayStatusProvider.codex.displayTitle)
         }
 
         popover.behavior = .transient
@@ -113,7 +122,7 @@ final class StatusItemController: NSObject {
         let snapshot = currentFiveHourLimitSnapshot(for: provider)
 
         if let button = statusItem?.button {
-            syncStatusButton(provider: provider, on: button)
+            syncStatusButton(provider: provider, snapshot: snapshot, on: button)
         }
 
         guard let button = statusItem?.button else {
@@ -133,24 +142,22 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func syncStatusButton(provider: TrayStatusProvider, on button: NSStatusBarButton) {
+    private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, on button: NSStatusBarButton) {
         let title = provider.displayTitle
         button.image = nil
         button.imagePosition = .noImage
-        button.title = title
-        button.attributedTitle = statusTitle(title)
+        button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+
+        progressPillView?.frame = button.bounds
+        progressPillView?.title = title
+        progressPillView?.progress = snapshot.remainingProgress ?? 1
+        progressPillView?.isProgressKnown = snapshot.remainingProgress != nil
+        progressPillView?.remainingPercent = snapshot.remainingPercent
+
+        button.setAccessibilityLabel(title)
         button.setAccessibilityTitle(title)
         button.needsDisplay = true
-    }
-
-    private func statusTitle(_ title: String) -> NSAttributedString {
-        NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.menuBarFont(ofSize: 0),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
     }
 
     private func currentTrayStatusProvider() -> TrayStatusProvider {
@@ -191,4 +198,142 @@ private struct FiveHourLimitSnapshot {
     let remainingProgress: Double?
     let remainingPercent: Int?
     let resetText: String?
+}
+
+private final class StatusProgressPillView: NSView {
+    private var storedProgress: Double = 1
+
+    var title = "Codex" {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    var progress: Double {
+        get { storedProgress }
+        set {
+            storedProgress = min(max(newValue, 0), 1)
+            needsDisplay = true
+        }
+    }
+
+    var isProgressKnown = false {
+        didSet { needsDisplay = true }
+    }
+
+    var remainingPercent: Int? {
+        didSet { needsDisplay = true }
+    }
+
+    override var isFlipped: Bool {
+        true
+    }
+
+    override var isOpaque: Bool {
+        false
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        guard bounds.width > 0, bounds.height > 0 else {
+            return
+        }
+
+        let pillHeight = min(bounds.height - 2, 20)
+        let pillRect = NSRect(
+            x: bounds.minX,
+            y: bounds.midY - pillHeight / 2,
+            width: bounds.width,
+            height: pillHeight
+        )
+        let radius = pillHeight / 2
+        let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: radius, yRadius: radius)
+
+        trackColor.setFill()
+        pillPath.fill()
+
+        let fillWidth = pillRect.width * progress
+        if fillWidth > 0 {
+            NSGraphicsContext.saveGraphicsState()
+            pillPath.addClip()
+            fillColor.setFill()
+            NSRect(
+                x: pillRect.minX,
+                y: pillRect.minY,
+                width: fillWidth,
+                height: pillRect.height
+            ).fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        borderColor.setStroke()
+        pillPath.lineWidth = 1
+        pillPath.stroke()
+
+        drawTitle(in: pillRect)
+    }
+
+    private var trackColor: NSColor {
+        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        let alpha: CGFloat = if reduceTransparency {
+            increaseContrast ? 0.34 : 0.26
+        } else {
+            increaseContrast ? 0.26 : 0.16
+        }
+        return NSColor.labelColor.withAlphaComponent(alpha)
+    }
+
+    private var fillColor: NSColor {
+        guard isProgressKnown, let remainingPercent else {
+            return NSColor.systemBlue.withAlphaComponent(0.72)
+        }
+
+        switch remainingPercent {
+        case ...9:
+            return NSColor.systemRed.withAlphaComponent(0.94)
+        case 10...24:
+            return NSColor.systemOrange.withAlphaComponent(0.94)
+        default:
+            return NSColor.systemBlue.withAlphaComponent(0.94)
+        }
+    }
+
+    private var borderColor: NSColor {
+        let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        return NSColor.labelColor.withAlphaComponent(increaseContrast ? 0.38 : 0.24)
+    }
+
+    private func drawTitle(in rect: NSRect) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
+        shadow.shadowBlurRadius = 1
+        shadow.shadowOffset = NSSize(width: 0, height: 0)
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12.2, weight: .semibold),
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: paragraphStyle,
+            .shadow: shadow,
+        ]
+
+        let text = title as NSString
+        let textSize = text.size(withAttributes: attributes)
+        let textRect = NSRect(
+            x: rect.minX,
+            y: rect.midY - textSize.height / 2 - 0.5,
+            width: rect.width,
+            height: textSize.height + 1
+        )
+
+        text.draw(in: textRect, withAttributes: attributes)
+    }
 }
