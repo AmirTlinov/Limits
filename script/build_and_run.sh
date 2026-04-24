@@ -57,6 +57,9 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
+codesign --force --sign - "$APP_BUNDLE" >/dev/null
+xattr -cr "$APP_BUNDLE" 2>/dev/null || true
+
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
@@ -78,8 +81,7 @@ case "$MODE" in
     ;;
   --verify|verify)
     open_app
-    sleep 1
-    pgrep -x "$APP_NAME" >/dev/null
+    "$ROOT_DIR/script/verify_runtime.sh" "$APP_BUNDLE"
     ;;
   *)
     echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2

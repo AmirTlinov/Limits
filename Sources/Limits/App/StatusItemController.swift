@@ -2,6 +2,15 @@ import AppKit
 import Combine
 import SwiftUI
 
+struct StatusItemInstallSnapshot: Equatable {
+    let isNewInstall: Bool
+    let hasStatusItem: Bool
+    let hasButton: Bool
+    let hasImage: Bool
+    let length: CGFloat
+    let visibleLabel: String
+}
+
 @MainActor
 final class StatusItemController: NSObject {
     private let model: AppModel
@@ -10,7 +19,6 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
-    private var progressPillView: StatusProgressPillView?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void) {
         self.model = model
@@ -18,37 +26,21 @@ final class StatusItemController: NSObject {
         super.init()
     }
 
-    func install() {
-        guard statusItem == nil else {
-            return
+    @discardableResult
+    func install() -> StatusItemInstallSnapshot {
+        if let item = statusItem {
+            RuntimeLog.tray.info("status item install skipped because it already exists")
+            return installSnapshot(for: item, isNewInstall: false)
         }
 
-        let item = NSStatusBar.system.statusItem(withLength: 76)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.isVisible = true
         statusItem = item
 
         if let button = item.button {
-            button.isBordered = false
-            button.focusRingType = .none
-            button.wantsLayer = true
-            button.layer?.backgroundColor = NSColor.clear.cgColor
-            button.image = nil
-            button.imagePosition = .noImage
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
-
-            let progressView = StatusProgressPillView(frame: button.bounds)
-            progressView.autoresizingMask = [.width, .height]
-            button.subviews
-                .filter { $0 is StatusProgressPillView }
-                .forEach { $0.removeFromSuperview() }
-            button.addSubview(progressView)
-            progressPillView = progressView
-
-            button.target = self
-            button.action = #selector(togglePopover(_:))
-            button.toolTip = "Limits"
-            button.setAccessibilityLabel(TrayStatusProvider.codex.displayTitle)
+            configure(button: button)
+        } else {
+            RuntimeLog.tray.error("status item button missing after creation")
         }
 
         popover.behavior = .transient
@@ -56,11 +48,30 @@ final class StatusItemController: NSObject {
         rebuildPopoverContent()
         startObservingModel()
         refreshStatusItemAppearance()
+
+        let snapshot = installSnapshot(for: item, isNewInstall: true)
+        RuntimeLog.tray.info("status item installed hasButton=\(snapshot.hasButton, privacy: .public) hasImage=\(snapshot.hasImage, privacy: .public) length=\(Double(snapshot.length), privacy: .public) label=\(snapshot.visibleLabel, privacy: .public)")
+        return snapshot
     }
 
     func openAccountsWindowFromTray() {
         closePopover()
+        RuntimeLog.tray.info("open accounts window requested from tray")
         openAccountsWindow()
+    }
+
+    private func configure(button: NSStatusBarButton) {
+        button.isBordered = false
+        button.focusRingType = .none
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+        button.target = self
+        button.action = #selector(togglePopover(_:))
+        button.toolTip = "Limits"
+        button.setAccessibilityLabel(TrayStatusProvider.codex.displayTitle)
+        button.setAccessibilityTitle(TrayStatusProvider.codex.displayTitle)
     }
 
     private func rebuildPopoverContent() {
@@ -91,6 +102,7 @@ final class StatusItemController: NSObject {
     }
 
     private func showPopover(relativeTo button: NSStatusBarButton) {
+        RuntimeLog.tray.info("tray popover opened")
         refreshStatusItemAppearance()
         rebuildPopoverContent()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -98,6 +110,9 @@ final class StatusItemController: NSObject {
     }
 
     private func closePopover() {
+        if popover.isShown {
+            RuntimeLog.tray.info("tray popover closed")
+        }
         popover.performClose(nil)
     }
 
@@ -120,44 +135,68 @@ final class StatusItemController: NSObject {
     private func refreshStatusItemAppearance() {
         let provider = currentTrayStatusProvider()
         let snapshot = currentFiveHourLimitSnapshot(for: provider)
-
-        if let button = statusItem?.button {
-            syncStatusButton(provider: provider, snapshot: snapshot, on: button)
-        }
+        let tooltip = tooltipText(provider: provider, snapshot: snapshot)
 
         guard let button = statusItem?.button else {
+            RuntimeLog.tray.error("cannot refresh status item because button is missing")
             return
         }
 
+        syncStatusButton(provider: provider, snapshot: snapshot, tooltip: tooltip, on: button)
+        RuntimeLog.tray.debug("status item refreshed provider=\(provider.displayTitle, privacy: .public) known=\(snapshot.remainingPercent != nil, privacy: .public)")
+    }
+
+    private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, tooltip: String, on button: NSStatusBarButton) {
+        let title = provider.displayTitle
+        let image = StatusItemPillRenderer.render(
+            title: title,
+            progress: snapshot.remainingProgress ?? 1,
+            isProgressKnown: snapshot.remainingProgress != nil,
+            remainingPercent: snapshot.remainingPercent
+        )
+
+        statusItem?.length = image.size.width + 8
+        button.image = image
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+        button.toolTip = tooltip
+        button.setAccessibilityLabel(accessibilityLabel(provider: provider, snapshot: snapshot))
+        button.setAccessibilityTitle(title)
+        button.needsDisplay = true
+    }
+
+    private func tooltipText(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
         if let remainingPercent = snapshot.remainingPercent {
             var tooltip = "\(provider.displayTitle) · 5ч лимит: \(remainingPercent)% осталось"
             if let resetText = snapshot.resetText {
                 tooltip += " · \(resetText)"
             }
-            button.toolTip = tooltip
-            button.setAccessibilityLabel("\(provider.displayTitle), 5 часов, \(remainingPercent)% осталось")
-        } else {
-            button.toolTip = "\(provider.displayTitle) · 5ч лимит пока без данных"
-            button.setAccessibilityLabel("\(provider.displayTitle), 5-часовой лимит пока без данных")
+            return tooltip
         }
+
+        return "\(provider.displayTitle) · 5ч лимит пока без данных"
     }
 
-    private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, on button: NSStatusBarButton) {
-        let title = provider.displayTitle
-        button.image = nil
-        button.imagePosition = .noImage
-        button.title = ""
-        button.attributedTitle = NSAttributedString(string: "")
+    private func accessibilityLabel(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
+        if let remainingPercent = snapshot.remainingPercent {
+            return "\(provider.displayTitle), 5 часов, \(remainingPercent)% осталось"
+        }
 
-        progressPillView?.frame = button.bounds
-        progressPillView?.title = title
-        progressPillView?.progress = snapshot.remainingProgress ?? 1
-        progressPillView?.isProgressKnown = snapshot.remainingProgress != nil
-        progressPillView?.remainingPercent = snapshot.remainingPercent
+        return "\(provider.displayTitle), 5-часовой лимит пока без данных"
+    }
 
-        button.setAccessibilityLabel(title)
-        button.setAccessibilityTitle(title)
-        button.needsDisplay = true
+    private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
+        let button = item.button
+        return StatusItemInstallSnapshot(
+            isNewInstall: isNewInstall,
+            hasStatusItem: true,
+            hasButton: button != nil,
+            hasImage: button?.image != nil,
+            length: item.length,
+            visibleLabel: button?.toolTip ?? button?.title ?? ""
+        )
     }
 
     private func currentTrayStatusProvider() -> TrayStatusProvider {
@@ -200,85 +239,45 @@ private struct FiveHourLimitSnapshot {
     let resetText: String?
 }
 
-private final class StatusProgressPillView: NSView {
-    private var storedProgress: Double = 1
+private enum StatusItemPillRenderer {
+    static func render(title: String, progress: Double, isProgressKnown: Bool, remainingPercent: Int?) -> NSImage {
+        let font = NSFont.systemFont(ofSize: 12.2, weight: .semibold)
+        let textSize = (title as NSString).size(withAttributes: [.font: font])
+        let width = max(64, min(96, ceil(textSize.width + 28)))
+        let height: CGFloat = 22
+        let size = NSSize(width: width, height: height)
+        let image = NSImage(size: size)
+        image.isTemplate = false
 
-    var title = "Codex" {
-        didSet {
-            needsDisplay = true
-        }
-    }
+        image.lockFocus()
+        defer { image.unlockFocus() }
 
-    var progress: Double {
-        get { storedProgress }
-        set {
-            storedProgress = min(max(newValue, 0), 1)
-            needsDisplay = true
-        }
-    }
-
-    var isProgressKnown = false {
-        didSet { needsDisplay = true }
-    }
-
-    var remainingPercent: Int? {
-        didSet { needsDisplay = true }
-    }
-
-    override var isFlipped: Bool {
-        true
-    }
-
-    override var isOpaque: Bool {
-        false
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        nil
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        guard bounds.width > 0, bounds.height > 0 else {
-            return
-        }
-
-        let pillHeight = min(bounds.height - 2, 20)
-        let pillRect = NSRect(
-            x: bounds.minX,
-            y: bounds.midY - pillHeight / 2,
-            width: bounds.width,
-            height: pillHeight
-        )
-        let radius = pillHeight / 2
+        let pillRect = NSRect(x: 1, y: 1, width: width - 2, height: height - 2)
+        let radius = pillRect.height / 2
         let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: radius, yRadius: radius)
 
         trackColor.setFill()
         pillPath.fill()
 
-        let fillWidth = pillRect.width * progress
+        let clampedProgress = min(max(progress, 0), 1)
+        let fillWidth = pillRect.width * clampedProgress
         if fillWidth > 0 {
             NSGraphicsContext.saveGraphicsState()
             pillPath.addClip()
-            fillColor.setFill()
-            NSRect(
-                x: pillRect.minX,
-                y: pillRect.minY,
-                width: fillWidth,
-                height: pillRect.height
-            ).fill()
+            fillColor(isProgressKnown: isProgressKnown, remainingPercent: remainingPercent).setFill()
+            NSRect(x: pillRect.minX, y: pillRect.minY, width: fillWidth, height: pillRect.height).fill()
             NSGraphicsContext.restoreGraphicsState()
         }
 
         borderColor.setStroke()
         pillPath.lineWidth = 1
         pillPath.stroke()
+        draw(title: title, font: font, in: pillRect)
 
-        drawTitle(in: pillRect)
+        return image
     }
 
-    private var trackColor: NSColor {
+    private static var trackColor: NSColor {
         let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let alpha: CGFloat = if reduceTransparency {
@@ -289,7 +288,7 @@ private final class StatusProgressPillView: NSView {
         return NSColor.labelColor.withAlphaComponent(alpha)
     }
 
-    private var fillColor: NSColor {
+    private static func fillColor(isProgressKnown: Bool, remainingPercent: Int?) -> NSColor {
         guard isProgressKnown, let remainingPercent else {
             return NSColor.systemBlue.withAlphaComponent(0.72)
         }
@@ -304,12 +303,12 @@ private final class StatusProgressPillView: NSView {
         }
     }
 
-    private var borderColor: NSColor {
+    private static var borderColor: NSColor {
         let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         return NSColor.labelColor.withAlphaComponent(increaseContrast ? 0.38 : 0.24)
     }
 
-    private func drawTitle(in rect: NSRect) {
+    private static func draw(title: String, font: NSFont, in rect: NSRect) {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
@@ -319,7 +318,7 @@ private final class StatusProgressPillView: NSView {
         shadow.shadowOffset = NSSize(width: 0, height: 0)
 
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12.2, weight: .semibold),
+            .font: font,
             .foregroundColor: NSColor.white,
             .paragraphStyle: paragraphStyle,
             .shadow: shadow,

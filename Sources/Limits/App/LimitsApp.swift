@@ -1,94 +1,52 @@
 import AppKit
-import SwiftUI
 
 @MainActor
-final class LimitsAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    let model = AppModel()
-    private var statusItemController: StatusItemController?
-    private var accountsWindowController: NSWindowController?
+final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
+    private var coordinator: AppRuntimeCoordinator?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        RuntimeLog.lifecycle.info("application did finish launching bundle=\(Bundle.main.bundlePath, privacy: .public)")
         NSApp.setActivationPolicy(.accessory)
-        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
-            NSApp.applicationIconImage = icon
-        }
+        RuntimeLog.lifecycle.info("activation policy set to accessory")
+        installApplicationIcon()
 
-        let controller = StatusItemController(model: model) { [weak self] in
-            self?.openAccountsWindow()
-        }
-        statusItemController = controller
-        controller.install()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            self?.openAccountsWindow()
-        }
+        let coordinator = AppRuntimeCoordinator()
+        self.coordinator = coordinator
+        coordinator.start()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            openAccountsWindow()
-        }
-        return true
+        coordinator?.handleReopen(hasVisibleWindows: flag) ?? true
     }
 
-    func openAccountsWindow() {
-        if let existingWindow = existingAccountsWindow() {
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        if let window = accountsWindowController?.window {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        let hostingController = NSHostingController(rootView: AccountsWindowView(model: model))
-        let window = NSWindow(contentViewController: hostingController)
-        window.title = "Лимиты"
-        window.setContentSize(NSSize(width: 980, height: 620))
-        window.minSize = NSSize(width: 980, height: 620)
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.delegate = self
-        window.center()
-
-        let controller = NSWindowController(window: window)
-        accountsWindowController = controller
-        controller.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
-    func windowWillClose(_ notification: Notification) {
+    private func installApplicationIcon() {
         guard
-            let closedWindow = notification.object as? NSWindow,
-            closedWindow === accountsWindowController?.window
+            let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+            let icon = NSImage(contentsOf: iconURL)
         else {
+            RuntimeLog.lifecycle.warning("application icon not found in bundle resources")
             return
         }
 
-        accountsWindowController = nil
-    }
-
-    private func existingAccountsWindow() -> NSWindow? {
-        NSApp.windows.first { window in
-            window.title == "Лимиты" && window !== accountsWindowController?.window
-        }
+        NSApp.applicationIconImage = icon
+        RuntimeLog.lifecycle.info("application icon installed")
     }
 }
 
 @main
-struct LimitsApp: App {
-    @NSApplicationDelegateAdaptor(LimitsAppDelegate.self) private var appDelegate
-
-    var body: some Scene {
-        // The account window is owned by LimitsAppDelegate.
-        // A WindowGroup here creates a second launch window.
-        Settings {
-            EmptyView()
-        }
+enum LimitsApp {
+    @MainActor
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = LimitsApplicationDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        RuntimeLog.lifecycle.info("application run loop starting")
+        app.run()
+        withExtendedLifetime(delegate) {}
     }
 }
