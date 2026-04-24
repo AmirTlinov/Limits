@@ -85,8 +85,10 @@ struct LimitsApp: App {
     @NSApplicationDelegateAdaptor(LimitsAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("Лимиты", id: "accounts") {
-            AccountsWindowView(model: appDelegate.model)
+        // The account window is owned by LimitsAppDelegate.
+        // A WindowGroup here creates a second launch window.
+        Settings {
+            EmptyView()
         }
     }
 }
