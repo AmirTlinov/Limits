@@ -29,6 +29,7 @@
 "action.import_current_claude" = "导入当前 Claude Code";
 "action.make_current" = "设为当前";
 "action.open_window" = "窗口…";
+"action.settings" = "设置…";
 "action.quit" = "退出";
 "action.reauthenticate" = "重新登录";
 "action.refresh" = "刷新";
@@ -37,6 +38,11 @@
 "action.save_account" = "保存账户";
 "action.show_all" = "全部展开";
 "app.title" = "Limits";
+"settings.title" = "设置";
+"settings.subtitle" = "为这台 Mac 调整 Limits。";
+"settings.language.title" = "语言";
+"settings.language.description" = "选择菜单栏、窗口和消息使用的语言。";
+"settings.language.system" = "使用系统语言";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";

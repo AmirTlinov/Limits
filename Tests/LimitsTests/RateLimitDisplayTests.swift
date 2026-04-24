@@ -48,12 +48,20 @@ import Testing
         #expect(L10n.tr("filter.all") == "All")
         #expect(L10n.tr("limit.five_hour") == "5h limit")
         #expect(L10n.percentRemaining(42) == "42% remaining")
+        #expect(L10n.tr("settings.language.title") == "Language")
     }
 
     L10n.withLanguage("zh-Hans") {
         #expect(L10n.tr("filter.all") == "全部")
         #expect(L10n.tr("limit.five_hour") == "5小时限额")
+        #expect(L10n.tr("settings.language.title") == "语言")
     }
+}
+
+@Test func supportedLanguageDisplayNamesStayReadable() {
+    #expect(L10n.displayName(for: "en") == "English")
+    #expect(L10n.displayName(for: "ru") == "Русский")
+    #expect(L10n.displayName(for: "zh-Hans") == "简体中文")
 }
 
 @Test func trayReadyAccountCountUsesLocalizedPluralRules() {

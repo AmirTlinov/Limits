@@ -4,21 +4,24 @@ import SwiftUI
 @MainActor
 final class AccountsWindowController: NSObject, NSWindowDelegate {
     private let model: AppModel
+    private let windowVisibilityDidChange: () -> Void
     private var windowController: NSWindowController?
 
-    init(model: AppModel) {
+    init(model: AppModel, windowVisibilityDidChange: @escaping () -> Void) {
         self.model = model
+        self.windowVisibilityDidChange = windowVisibilityDidChange
         super.init()
     }
 
     var hasVisibleWindow: Bool {
-        windowController?.window?.isVisible == true
+        windowController?.window != nil
     }
 
     func show() {
         if let window = windowController?.window {
             RuntimeLog.window.info("accounts window reused visible=\(window.isVisible, privacy: .public)")
             window.makeKeyAndOrderFront(nil)
+            windowVisibilityDidChange()
             NSApp.activate(ignoringOtherApps: true)
             return
         }
@@ -39,8 +42,17 @@ final class AccountsWindowController: NSObject, NSWindowDelegate {
         let controller = NSWindowController(window: window)
         windowController = controller
         controller.showWindow(nil)
+        windowVisibilityDidChange()
         NSApp.activate(ignoringOtherApps: true)
         RuntimeLog.window.info("accounts window opened")
+    }
+
+    func refreshLocalizedText() {
+        guard let window = windowController?.window else { return }
+        window.title = L10n.tr("app.title")
+        if let hostingController = window.contentViewController as? NSHostingController<AccountsWindowView> {
+            hostingController.rootView = AccountsWindowView(model: model)
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -53,5 +65,6 @@ final class AccountsWindowController: NSObject, NSWindowDelegate {
 
         windowController = nil
         RuntimeLog.window.info("accounts window closed")
+        windowVisibilityDidChange()
     }
 }

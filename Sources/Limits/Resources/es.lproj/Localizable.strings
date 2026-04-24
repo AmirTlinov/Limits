@@ -29,6 +29,7 @@
 "action.import_current_claude" = "Importar Claude Code actual";
 "action.make_current" = "Hacer actual";
 "action.open_window" = "Ventana…";
+"action.settings" = "Ajustes…";
 "action.quit" = "Salir";
 "action.reauthenticate" = "Iniciar sesión otra vez";
 "action.refresh" = "Actualizar";
@@ -37,6 +38,11 @@
 "action.save_account" = "Guardar cuenta";
 "action.show_all" = "Mostrar todo";
 "app.title" = "Limits";
+"settings.title" = "Ajustes";
+"settings.subtitle" = "Configura Limits para este Mac.";
+"settings.language.title" = "Idioma";
+"settings.language.description" = "Elige el idioma de la barra de menús, las ventanas y los mensajes.";
+"settings.language.system" = "Usar idioma del sistema";
 "busy.connecting_claude_live" = "Conectando límites en vivo de Claude…";
 "busy.deleting" = "Eliminando %@…";
 "busy.disconnecting_claude_bridge" = "Desconectando puente de Claude…";

@@ -2,21 +2,34 @@ import AppKit
 
 @MainActor
 final class AppRuntimeCoordinator {
-    let model: AppModel
-    private let statusItemController: StatusItemController
-    private let accountsWindowController: AccountsWindowController
+    let model = AppModel()
     private var didStart = false
 
-    init() {
-        let model = AppModel()
-        let accountsWindowController = AccountsWindowController(model: model)
-
-        self.model = model
-        self.accountsWindowController = accountsWindowController
-        self.statusItemController = StatusItemController(model: model) { [weak accountsWindowController] in
-            accountsWindowController?.show()
+    private lazy var accountsWindowController = AccountsWindowController(
+        model: model,
+        windowVisibilityDidChange: { [weak self] in
+            self?.syncActivationPolicyWithVisibleWindows()
         }
-    }
+    )
+
+    private lazy var settingsWindowController = SettingsWindowController(
+        languageDidChange: { [weak self] in
+            self?.handleLanguageDidChange()
+        },
+        windowVisibilityDidChange: { [weak self] in
+            self?.syncActivationPolicyWithVisibleWindows()
+        }
+    )
+
+    private lazy var statusItemController = StatusItemController(
+        model: model,
+        openAccountsWindow: { [weak self] in
+            self?.openAccountsWindow()
+        },
+        openSettingsWindow: { [weak self] in
+            self?.openSettingsWindow()
+        }
+    )
 
     func start() {
         guard !didStart else {
@@ -38,11 +51,33 @@ final class AppRuntimeCoordinator {
         accountsWindowController.show()
     }
 
+    func openSettingsWindow() {
+        settingsWindowController.show()
+    }
+
     func handleReopen(hasVisibleWindows: Bool) -> Bool {
         RuntimeLog.lifecycle.info("application reopen hasVisibleWindows=\(hasVisibleWindows, privacy: .public) trackedWindowVisible=\(self.accountsWindowController.hasVisibleWindow, privacy: .public)")
         if !hasVisibleWindows || !accountsWindowController.hasVisibleWindow {
             openAccountsWindow()
         }
         return true
+    }
+
+    private func handleLanguageDidChange() {
+        model.invalidateLocalizedText()
+        accountsWindowController.refreshLocalizedText()
+        settingsWindowController.refreshLocalizedText()
+        statusItemController.refreshLocalizedText()
+    }
+
+    private func syncActivationPolicyWithVisibleWindows() {
+        let shouldShowInDock = accountsWindowController.hasVisibleWindow || settingsWindowController.hasVisibleWindow
+        if shouldShowInDock {
+            NSApp.setActivationPolicy(.regular)
+            RuntimeLog.lifecycle.info("activation policy set to regular because a GUI window is visible")
+        } else {
+            NSApp.setActivationPolicy(.accessory)
+            RuntimeLog.lifecycle.info("activation policy set to accessory because no GUI windows are visible")
+        }
     }
 }

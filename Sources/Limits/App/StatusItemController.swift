@@ -15,15 +15,18 @@ struct StatusItemInstallSnapshot: Equatable {
 final class StatusItemController: NSObject {
     private let model: AppModel
     private let openAccountsWindow: () -> Void
+    private let openSettingsWindow: () -> Void
     private let statusItemLength: CGFloat = 28
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
+    private var languageCancellable: AnyCancellable?
 
-    init(model: AppModel, openAccountsWindow: @escaping () -> Void) {
+    init(model: AppModel, openAccountsWindow: @escaping () -> Void, openSettingsWindow: @escaping () -> Void) {
         self.model = model
         self.openAccountsWindow = openAccountsWindow
+        self.openSettingsWindow = openSettingsWindow
         super.init()
     }
 
@@ -61,6 +64,17 @@ final class StatusItemController: NSObject {
         openAccountsWindow()
     }
 
+    func openSettingsWindowFromTray() {
+        closePopover()
+        RuntimeLog.tray.info("open settings window requested from tray")
+        openSettingsWindow()
+    }
+
+    func refreshLocalizedText() {
+        rebuildPopoverContent()
+        refreshStatusItemAppearance()
+    }
+
     private func configure(button: NSStatusBarButton) {
         button.isBordered = false
         button.focusRingType = .none
@@ -80,6 +94,9 @@ final class StatusItemController: NSObject {
             model: model,
             openAccountsWindow: { [weak self] in
                 self?.openAccountsWindowFromTray()
+            },
+            openSettingsWindow: { [weak self] in
+                self?.openSettingsWindowFromTray()
             },
             providerFilterDidChange: { [weak self] _ in
                 self?.refreshStatusItemAppearance()
@@ -165,6 +182,13 @@ final class StatusItemController: NSObject {
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.refreshStatusItemAppearance()
+                }
+            }
+
+        languageCancellable = NotificationCenter.default.publisher(for: L10n.languageDidChangeNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refreshLocalizedText()
                 }
             }
     }

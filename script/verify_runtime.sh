@@ -38,8 +38,8 @@ fi
 
 if [[ -n "$EXPECTED_BUNDLE" ]]; then
   LSUIELEMENT="$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$EXPECTED_BUNDLE/Contents/Info.plist" 2>/dev/null || true)"
-  [[ "$LSUIELEMENT" == "true" ]] || fail "LSUIElement is not true for $EXPECTED_BUNDLE"
-  echo "bundle: LSUIElement=true"
+  [[ -z "$LSUIELEMENT" ]] || fail "LSUIElement should be absent for GUI Dock visibility in $EXPECTED_BUNDLE"
+  echo "bundle: LSUIElement=absent"
 fi
 
 count_windows() {
@@ -71,6 +71,31 @@ for _ in {1..40}; do
 done
 [[ "$WINDOW_COUNT" == "1" ]] || fail "expected exactly one Limits window, got $WINDOW_COUNT"
 echo "window: count=1"
+
+find_dock_item() {
+  osascript <<'OSA' 2>/dev/null || true
+tell application "System Events"
+  tell application process "Dock"
+    set dockNames to name of UI elements of list 1
+    if dockNames contains "Limits" then
+      return "Limits"
+    end if
+  end tell
+end tell
+return ""
+OSA
+}
+
+DOCK_ITEM=""
+for _ in {1..40}; do
+  DOCK_ITEM="$(find_dock_item)"
+  if [[ -n "$DOCK_ITEM" ]]; then
+    break
+  fi
+  sleep 0.25
+done
+[[ -n "$DOCK_ITEM" ]] || fail "Dock item was not visible while the GUI window was open"
+echo "dock: $DOCK_ITEM visible"
 
 find_tray_item() {
   osascript <<'OSA' 2>/dev/null || true

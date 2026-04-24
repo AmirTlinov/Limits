@@ -29,6 +29,7 @@
 "action.import_current_claude" = "Импортировать текущий Claude Code";
 "action.make_current" = "Сделать текущим";
 "action.open_window" = "Окно…";
+"action.settings" = "Настройки…";
 "action.quit" = "Выход";
 "action.reauthenticate" = "Повторный вход";
 "action.refresh" = "Обновить";
@@ -37,6 +38,11 @@
 "action.save_account" = "Сохранить аккаунт";
 "action.show_all" = "Показать всё";
 "app.title" = "Лимиты";
+"settings.title" = "Настройки";
+"settings.subtitle" = "Настройте Limits для этого Mac.";
+"settings.language.title" = "Язык";
+"settings.language.description" = "Выберите язык трея, окон и сообщений.";
+"settings.language.system" = "Как в системе";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";

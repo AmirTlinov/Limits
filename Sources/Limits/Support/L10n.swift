@@ -2,6 +2,8 @@ import Foundation
 
 enum L10n {
     static let supportedLocalizations = ["en", "ru", "zh-Hans", "fr", "es"]
+    static let languageOverrideStorageKey = "limits.language.override"
+    static let languageDidChangeNotification = Notification.Name("LimitsLanguageDidChange")
 
     #if DEBUG
     @TaskLocal static var languageOverride: String?
@@ -24,11 +26,42 @@ enum L10n {
         }
         #endif
 
+        if let languageOverride = UserDefaults.standard.string(forKey: languageOverrideStorageKey),
+           !languageOverride.isEmpty {
+            return canonicalLanguage(languageOverride)
+        }
+
         let preferred = Bundle.preferredLocalizations(
             from: supportedLocalizations,
             forPreferences: Locale.preferredLanguages
         )
         return canonicalLanguage(preferred.first ?? "en")
+    }
+
+    static var selectedLanguageOverride: String? {
+        let value = UserDefaults.standard.string(forKey: languageOverrideStorageKey)
+        return value?.isEmpty == false ? value : nil
+    }
+
+    static func setLanguageOverride(_ language: String?) {
+        let normalized = language.flatMap { $0.isEmpty ? nil : canonicalLanguage($0) }
+        if let normalized {
+            UserDefaults.standard.set(normalized, forKey: languageOverrideStorageKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: languageOverrideStorageKey)
+        }
+        NotificationCenter.default.post(name: languageDidChangeNotification, object: nil)
+    }
+
+    static func displayName(for language: String) -> String {
+        switch canonicalLanguage(language) {
+        case "en": return "English"
+        case "ru": return "Русский"
+        case "zh-Hans": return "简体中文"
+        case "fr": return "Français"
+        case "es": return "Español"
+        default: return language
+        }
     }
 
     static func tr(_ key: String, _ arguments: CVarArg...) -> String {

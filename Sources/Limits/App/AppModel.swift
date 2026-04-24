@@ -80,6 +80,10 @@ final class AppModel: ObservableObject {
     private let backgroundRefreshInterval: TimeInterval = 300
     private var backgroundRefreshTask: Task<Void, Never>?
 
+    func invalidateLocalizedText() {
+        objectWillChange.send()
+    }
+
     init() {
         Task { await bootstrap() }
         startBackgroundRefreshLoop()

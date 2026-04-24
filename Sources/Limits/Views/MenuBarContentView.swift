@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarContentView: View {
     @ObservedObject var model: AppModel
     let openAccountsWindow: () -> Void
+    let openSettingsWindow: () -> Void
     let providerFilterDidChange: (AccountsSidebarFilter) -> Void
 
     @AppStorage("limits.tray.codex.expanded") private var codexExpanded = true
@@ -13,10 +14,12 @@ struct MenuBarContentView: View {
     init(
         model: AppModel,
         openAccountsWindow: @escaping () -> Void,
+        openSettingsWindow: @escaping () -> Void,
         providerFilterDidChange: @escaping (AccountsSidebarFilter) -> Void = { _ in }
     ) {
         self.model = model
         self.openAccountsWindow = openAccountsWindow
+        self.openSettingsWindow = openSettingsWindow
         self.providerFilterDidChange = providerFilterDidChange
     }
 
@@ -270,6 +273,12 @@ struct MenuBarContentView: View {
                 Button(L10n.tr("action.collapse_all")) {
                     codexExpanded = false
                     claudeExpanded = false
+                }
+
+                Divider()
+
+                Button(L10n.tr("action.settings")) {
+                    openSettingsWindow()
                 }
 
                 Divider()
