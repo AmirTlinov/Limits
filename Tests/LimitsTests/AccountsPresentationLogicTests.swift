@@ -128,3 +128,11 @@ import Testing
     #expect(!AccountsSidebarFilter.claude.includesCodex)
     #expect(AccountsSidebarFilter.claude.includesClaude)
 }
+
+@Test func trayStatusProviderFollowsSelectedProvider() {
+    #expect(AccountsSidebarFilter.all.trayStatusProvider == .codex)
+    #expect(AccountsSidebarFilter.codex.trayStatusProvider == .codex)
+    #expect(AccountsSidebarFilter.claude.trayStatusProvider == .claude)
+    #expect(TrayStatusProvider.codex.displayTitle == "Codex")
+    #expect(TrayStatusProvider.claude.displayTitle == "Claude")
+}

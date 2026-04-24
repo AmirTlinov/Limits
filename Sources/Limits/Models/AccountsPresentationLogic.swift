@@ -13,7 +13,23 @@ enum AccountsSidebarFilter: String, CaseIterable {
     case claude
 }
 
+enum TrayStatusProvider: Equatable {
+    case codex
+    case claude
+
+    var displayTitle: String {
+        switch self {
+        case .codex:
+            return "Codex"
+        case .claude:
+            return "Claude"
+        }
+    }
+}
+
 extension AccountsSidebarFilter {
+    static let trayFilterStorageKey = "limits.tray.provider.filter"
+
     var includesCodex: Bool {
         switch self {
         case .all, .codex:
@@ -29,6 +45,15 @@ extension AccountsSidebarFilter {
             return true
         case .codex:
             return false
+        }
+    }
+
+    var trayStatusProvider: TrayStatusProvider {
+        switch self {
+        case .claude:
+            return .claude
+        case .all, .codex:
+            return .codex
         }
     }
 }

@@ -9,6 +9,7 @@ final class StatusItemController: NSObject {
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
+    private var defaultsCancellable: AnyCancellable?
     private var progressPillView: StatusProgressPillView?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void) {
@@ -63,9 +64,15 @@ final class StatusItemController: NSObject {
     }
 
     private func rebuildPopoverContent() {
-        let content = MenuBarContentView(model: model) { [weak self] in
-            self?.openAccountsWindowFromTray()
-        }
+        let content = MenuBarContentView(
+            model: model,
+            openAccountsWindow: { [weak self] in
+                self?.openAccountsWindowFromTray()
+            },
+            providerFilterDidChange: { [weak self] _ in
+                self?.refreshStatusItemAppearance()
+            }
+        )
 
         let hostingController = NSHostingController(rootView: content)
         let visibleHeight = NSScreen.main?.visibleFrame.height ?? 900
@@ -101,11 +108,20 @@ final class StatusItemController: NSObject {
                 self?.refreshStatusItemAppearance()
             }
         }
+
+        defaultsCancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refreshStatusItemAppearance()
+                }
+            }
     }
 
     private func refreshStatusItemAppearance() {
-        let snapshot = currentFiveHourLimitSnapshot()
+        let provider = currentTrayStatusProvider()
+        let snapshot = currentFiveHourLimitSnapshot(for: provider)
 
+        progressPillView?.title = provider.displayTitle
         progressPillView?.progress = snapshot.remainingProgress ?? 1
         progressPillView?.isProgressKnown = snapshot.remainingProgress != nil
         progressPillView?.remainingPercent = snapshot.remainingPercent
@@ -115,20 +131,33 @@ final class StatusItemController: NSObject {
         }
 
         if let remainingPercent = snapshot.remainingPercent {
-            var tooltip = "5ч лимит: \(remainingPercent)% осталось"
+            var tooltip = "\(provider.displayTitle) · 5ч лимит: \(remainingPercent)% осталось"
             if let resetText = snapshot.resetText {
                 tooltip += " · \(resetText)"
             }
             button.toolTip = tooltip
-            button.setAccessibilityLabel("Лимиты, 5 часов, \(remainingPercent)% осталось")
+            button.setAccessibilityLabel("\(provider.displayTitle), 5 часов, \(remainingPercent)% осталось")
         } else {
-            button.toolTip = "Limits · 5ч лимит пока без данных"
-            button.setAccessibilityLabel("Лимиты, 5-часовой лимит пока без данных")
+            button.toolTip = "\(provider.displayTitle) · 5ч лимит пока без данных"
+            button.setAccessibilityLabel("\(provider.displayTitle), 5-часовой лимит пока без данных")
         }
     }
 
-    private func currentFiveHourLimitSnapshot() -> FiveHourLimitSnapshot {
-        let row = model.currentCLIRateLimitSections()
+    private func currentTrayStatusProvider() -> TrayStatusProvider {
+        let rawFilter = UserDefaults.standard.string(forKey: AccountsSidebarFilter.trayFilterStorageKey)
+        let filter = rawFilter.flatMap(AccountsSidebarFilter.init(rawValue:)) ?? .all
+        return filter.trayStatusProvider
+    }
+
+    private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
+        let sections: [RateLimitDisplaySection] = switch provider {
+        case .codex:
+            model.currentCLIRateLimitSections()
+        case .claude:
+            model.currentClaudeLiveRateLimitSections()
+        }
+
+        let row = sections
             .flatMap(\.rows)
             .first(where: isFiveHourLimitRow)
 
@@ -155,8 +184,13 @@ private struct FiveHourLimitSnapshot {
 }
 
 private final class StatusProgressPillView: NSView {
-    private let title = "Limits"
     private var storedProgress: Double = 1
+
+    var title = "Codex" {
+        didSet {
+            needsDisplay = true
+        }
+    }
 
     var progress: Double {
         get { storedProgress }

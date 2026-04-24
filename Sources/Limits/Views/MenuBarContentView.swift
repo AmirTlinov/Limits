@@ -4,10 +4,21 @@ import SwiftUI
 struct MenuBarContentView: View {
     @ObservedObject var model: AppModel
     let openAccountsWindow: () -> Void
+    let providerFilterDidChange: (AccountsSidebarFilter) -> Void
 
     @AppStorage("limits.tray.codex.expanded") private var codexExpanded = true
     @AppStorage("limits.tray.claude.expanded") private var claudeExpanded = true
-    @AppStorage("limits.tray.provider.filter") private var providerFilterRaw = AccountsSidebarFilter.all.rawValue
+    @AppStorage(AccountsSidebarFilter.trayFilterStorageKey) private var providerFilterRaw = AccountsSidebarFilter.all.rawValue
+
+    init(
+        model: AppModel,
+        openAccountsWindow: @escaping () -> Void,
+        providerFilterDidChange: @escaping (AccountsSidebarFilter) -> Void = { _ in }
+    ) {
+        self.model = model
+        self.openAccountsWindow = openAccountsWindow
+        self.providerFilterDidChange = providerFilterDidChange
+    }
 
     private var codexOverview: AppModel.CurrentCLIOverview {
         model.currentCLIOverview()
@@ -77,7 +88,10 @@ struct MenuBarContentView: View {
     private var providerFilterBinding: Binding<AccountsSidebarFilter> {
         Binding(
             get: { providerFilter },
-            set: { providerFilterRaw = $0.rawValue }
+            set: { newFilter in
+                providerFilterRaw = newFilter.rawValue
+                providerFilterDidChange(newFilter)
+            }
         )
     }
 
