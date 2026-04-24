@@ -159,26 +159,31 @@ final class CodexAppServerTransport: @unchecked Sendable {
 
     private func configureIO() {
         stdoutHandle.readabilityHandler = { [weak self] handle in
+            guard let self else { return }
+
             let data = handle.availableData
             guard !data.isEmpty else {
-                self?.handleEOF()
+                self.handleEOF()
                 return
             }
-            self?.queue.async {
-                self?.buffer.append(data)
-                self?.drainBufferedLines()
+
+            self.queue.async { [self] in
+                buffer.append(data)
+                drainBufferedLines()
             }
         }
 
         stderrHandle.readabilityHandler = { [weak self] handle in
+            guard let self else { return }
+
             let data = handle.availableData
             guard
                 !data.isEmpty,
                 let string = String(data: data, encoding: .utf8)
             else { return }
 
-            self?.queue.async {
-                self?.stderrLines.append(string.trimmingCharacters(in: .whitespacesAndNewlines))
+            self.queue.async { [self] in
+                stderrLines.append(string.trimmingCharacters(in: .whitespacesAndNewlines))
             }
         }
 
@@ -315,14 +320,12 @@ final class CodexAppServerTransport: @unchecked Sendable {
     }
 
     private func notify(method: String, params: Any?) async throws {
+        let paramsData = try encodeParams(params)
+
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {
-                    var payload: [String: Any] = ["method": method]
-                    if let params {
-                        payload["params"] = params
-                    }
-                    try self.sendEnvelope(payload)
+                    try self.sendEnvelope(method: method, paramsData: paramsData)
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -332,6 +335,8 @@ final class CodexAppServerTransport: @unchecked Sendable {
     }
 
     private func request<Response: Decodable>(method: String, params: Any?, responseType: Response.Type) async throws -> Response {
+        let paramsData = try encodeParams(params)
+
         let data = try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 let requestID = self.nextRequestID
@@ -349,14 +354,7 @@ final class CodexAppServerTransport: @unchecked Sendable {
                 }
 
                 do {
-                    var payload: [String: Any] = [
-                        "id": requestID,
-                        "method": method,
-                    ]
-                    if let params {
-                        payload["params"] = params
-                    }
-                    try self.sendEnvelope(payload)
+                    try self.sendEnvelope(id: requestID, method: method, paramsData: paramsData)
                 } catch {
                     let resolver = self.pendingResponses.removeValue(forKey: requestID)
                     resolver?(.failure(error))
@@ -365,6 +363,22 @@ final class CodexAppServerTransport: @unchecked Sendable {
         }
 
         return try JSONDecoder.limits.decode(Response.self, from: data)
+    }
+
+    private func encodeParams(_ params: Any?) throws -> Data? {
+        guard let params else { return nil }
+        return try JSONSerialization.data(withJSONObject: params, options: [])
+    }
+
+    private func sendEnvelope(id: Int? = nil, method: String, paramsData: Data?) throws {
+        var object: [String: Any] = ["method": method]
+        if let id {
+            object["id"] = id
+        }
+        if let paramsData {
+            object["params"] = try JSONSerialization.jsonObject(with: paramsData)
+        }
+        try sendEnvelope(object)
     }
 
     private func sendEnvelope(_ object: [String: Any]) throws {
