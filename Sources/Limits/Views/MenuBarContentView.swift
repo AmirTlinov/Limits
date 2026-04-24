@@ -240,9 +240,9 @@ struct MenuBarContentView: View {
                     }
                 }
 
-                if !model.accounts.isEmpty {
-                    Button("Обновить значения") {
-                        Task { await model.validateAll() }
+                if !model.accounts.isEmpty || model.currentClaudeStatus != nil {
+                    Button("Обновить текущие значения") {
+                        Task { await model.refreshCurrentValues() }
                     }
                 }
 

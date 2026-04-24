@@ -139,11 +139,11 @@ struct AccountsWindowView: View {
                 }
 
                 Button {
-                    Task { await model.validateAll() }
+                    Task { await model.refreshCurrentValues() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("Обновить значения")
+                .help("Обновить текущие значения")
                 .disabled(model.isBusy)
             }
         }

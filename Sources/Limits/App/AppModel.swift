@@ -92,12 +92,12 @@ final class AppModel: ObservableObject {
             claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
             await refreshCurrentCLIState()
             await refreshCurrentClaudeState()
-            await adoptCurrentClaudeAccountIfNeeded()
 
             if accounts.isEmpty, globalAuthService.hasGlobalAuth() {
                 try await importCurrentCLIAuthNow()
+                await refreshCurrentCLIState()
             }
-            await validateAll()
+            await refreshCurrentCLIProbe(force: false)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -215,12 +215,10 @@ final class AppModel: ObservableObject {
                 return
             }
 
-            let credential = try globalClaudeCredentialService.readGlobalCredential()
-            let fingerprint = CodexAuthBlob.fingerprint(for: credential)
-            if let matched = claudeAccounts.first(where: { $0.authFingerprint == fingerprint }) {
-                currentClaudeState = CurrentClaudeState(source: .stored(matched.id), authFingerprint: fingerprint)
+            if let matched = resolveCurrentClaudeAccount(status: status) {
+                currentClaudeState = CurrentClaudeState(source: .stored(matched.id), authFingerprint: matched.authFingerprint)
             } else {
-                currentClaudeState = CurrentClaudeState(source: .external(status.email), authFingerprint: fingerprint)
+                currentClaudeState = CurrentClaudeState(source: .external(status.email), authFingerprint: nil)
             }
 
             currentClaudeStatus = status
@@ -244,7 +242,7 @@ final class AppModel: ObservableObject {
             }
             try self.upsertAccount(from: result, preferredLabel: result.email)
             await self.refreshCurrentCLIState()
-            await self.validateAll()
+            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
@@ -252,7 +250,7 @@ final class AppModel: ObservableObject {
         await runBusy("Импортирую текущую CLI-авторизацию…") { [self] in
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
-            await self.validateAll()
+            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
@@ -279,7 +277,7 @@ final class AppModel: ObservableObject {
             }
             try self.upsertAccount(from: result, preferredLabel: account.label, existingID: account.id)
             await self.refreshCurrentCLIState()
-            await self.validateAll()
+            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
@@ -360,6 +358,11 @@ final class AppModel: ObservableObject {
         await refreshCurrentClaudeState()
     }
 
+    func refreshCurrentValues(forceProbe: Bool = true) async {
+        await refreshCurrentCLIPanel(forceProbe: forceProbe)
+        await refreshCurrentClaudeState()
+    }
+
     private func startBackgroundRefreshLoop() {
         guard backgroundRefreshTask == nil else {
             return
@@ -382,8 +385,7 @@ final class AppModel: ObservableObject {
             return
         }
 
-        await refreshCurrentCLIPanel(forceProbe: false)
-        await refreshCurrentClaudeState()
+        await refreshCurrentValues(forceProbe: false)
     }
 
     func validateAccount(_ account: StoredAccount) async {
@@ -640,23 +642,6 @@ final class AppModel: ObservableObject {
         return false
     }
 
-    private func adoptCurrentClaudeAccountIfNeeded() async {
-        guard claudeAccounts.isEmpty else {
-            return
-        }
-
-        guard case .external = currentClaudeState.source else {
-            return
-        }
-
-        do {
-            try importCurrentClaudeAuthNow()
-            await refreshCurrentClaudeState()
-        } catch {
-            currentClaudeError = error.localizedDescription
-        }
-    }
-
     private func importCurrentCLIAuthNow() async throws {
         let currentAuth = try globalAuthService.readGlobalAuth()
         let result = try await codexAccountService.validate(authData: currentAuth)
@@ -670,6 +655,17 @@ final class AppModel: ObservableObject {
             email: currentCLIProbe?.email,
             accounts: accounts
         )
+    }
+
+    private func resolveCurrentClaudeAccount(status: ClaudeAuthStatus) -> ClaudeStoredAccount? {
+        guard let email = status.email, !email.isEmpty else {
+            return nil
+        }
+
+        return claudeAccounts.first {
+            $0.email.caseInsensitiveCompare(email) == .orderedSame ||
+            $0.label.caseInsensitiveCompare(email) == .orderedSame
+        }
     }
 
     private func importCurrentClaudeAuthNow() throws {
