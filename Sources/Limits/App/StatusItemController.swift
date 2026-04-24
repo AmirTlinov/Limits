@@ -10,7 +10,6 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
-    private var progressPillView: StatusProgressPillView?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void) {
         self.model = model
@@ -33,17 +32,10 @@ final class StatusItemController: NSObject {
             button.wantsLayer = true
             button.layer?.backgroundColor = NSColor.clear.cgColor
             button.image = nil
-            button.imagePosition = .noImage
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
-
-            let progressView = StatusProgressPillView(frame: button.bounds)
-            progressView.autoresizingMask = [.width, .height]
-            button.subviews
-                .filter { $0 is StatusProgressPillView }
-                .forEach { $0.removeFromSuperview() }
-            button.addSubview(progressView)
-            progressPillView = progressView
+            button.imagePosition = .imageOnly
+            button.imageScaling = .scaleNone
+            button.title = TrayStatusProvider.codex.displayTitle
+            button.attributedTitle = NSAttributedString(string: TrayStatusProvider.codex.displayTitle)
 
             button.target = self
             button.action = #selector(togglePopover(_:))
@@ -122,14 +114,8 @@ final class StatusItemController: NSObject {
         let snapshot = currentFiveHourLimitSnapshot(for: provider)
 
         if let button = statusItem?.button {
-            syncStatusButtonTitle(provider.displayTitle, on: button)
-        } else {
-            progressPillView?.title = provider.displayTitle
+            syncStatusButton(provider: provider, snapshot: snapshot, on: button)
         }
-
-        progressPillView?.progress = snapshot.remainingProgress ?? 1
-        progressPillView?.isProgressKnown = snapshot.remainingProgress != nil
-        progressPillView?.remainingPercent = snapshot.remainingPercent
 
         guard let button = statusItem?.button else {
             return
@@ -148,19 +134,19 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func syncStatusButtonTitle(_ title: String, on button: NSStatusBarButton) {
-        progressPillView?.frame = button.bounds
-        progressPillView?.title = title
-
+    private func syncStatusButton(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, on button: NSStatusBarButton) {
+        let title = provider.displayTitle
         button.title = title
-        button.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 12.2, weight: .semibold),
-                .foregroundColor: NSColor.clear,
-            ]
+        button.attributedTitle = NSAttributedString(string: title)
+        button.image = StatusProgressPillImageRenderer.makeImage(
+            title: title,
+            progress: snapshot.remainingProgress ?? 1,
+            isProgressKnown: snapshot.remainingProgress != nil,
+            remainingPercent: snapshot.remainingPercent
         )
         button.setAccessibilityTitle(title)
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleNone
         button.needsDisplay = true
     }
 
@@ -204,68 +190,36 @@ private struct FiveHourLimitSnapshot {
     let resetText: String?
 }
 
-private final class StatusProgressPillView: NSView {
-    private var storedProgress: Double = 1
+private enum StatusProgressPillImageRenderer {
+    static func makeImage(
+        title: String,
+        progress: Double,
+        isProgressKnown: Bool,
+        remainingPercent: Int?
+    ) -> NSImage {
+        let size = NSSize(width: 76, height: 22)
+        let image = NSImage(size: size)
+        image.lockFocus()
 
-    var title = "Codex" {
-        didSet {
-            needsDisplay = true
-        }
-    }
-
-    var progress: Double {
-        get { storedProgress }
-        set {
-            storedProgress = min(max(newValue, 0), 1)
-            needsDisplay = true
-        }
-    }
-
-    var isProgressKnown = false {
-        didSet { needsDisplay = true }
-    }
-
-    var remainingPercent: Int? {
-        didSet { needsDisplay = true }
-    }
-
-    override var isFlipped: Bool {
-        true
-    }
-
-    override var isOpaque: Bool {
-        false
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        nil
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        guard bounds.width > 0, bounds.height > 0 else {
-            return
-        }
-
-        let pillHeight = min(bounds.height - 2, 20)
+        let clampedProgress = min(max(progress, 0), 1)
+        let pillHeight = min(size.height - 2, 20)
         let pillRect = NSRect(
-            x: bounds.minX,
-            y: bounds.midY - pillHeight / 2,
-            width: bounds.width,
+            x: 0,
+            y: (size.height - pillHeight) / 2,
+            width: size.width,
             height: pillHeight
         )
         let radius = pillHeight / 2
         let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: radius, yRadius: radius)
 
-        trackColor.setFill()
+        trackColor().setFill()
         pillPath.fill()
 
-        let fillWidth = pillRect.width * progress
+        let fillWidth = pillRect.width * clampedProgress
         if fillWidth > 0 {
             NSGraphicsContext.saveGraphicsState()
             pillPath.addClip()
-            fillColor.setFill()
+            fillColor(isProgressKnown: isProgressKnown, remainingPercent: remainingPercent).setFill()
             NSRect(
                 x: pillRect.minX,
                 y: pillRect.minY,
@@ -275,14 +229,17 @@ private final class StatusProgressPillView: NSView {
             NSGraphicsContext.restoreGraphicsState()
         }
 
-        borderColor.setStroke()
+        borderColor().setStroke()
         pillPath.lineWidth = 1
         pillPath.stroke()
 
-        drawTitle(in: pillRect)
+        drawTitle(title, in: pillRect)
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 
-    private var trackColor: NSColor {
+    private static func trackColor() -> NSColor {
         let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let alpha: CGFloat = if reduceTransparency {
@@ -293,7 +250,7 @@ private final class StatusProgressPillView: NSView {
         return NSColor.labelColor.withAlphaComponent(alpha)
     }
 
-    private var fillColor: NSColor {
+    private static func fillColor(isProgressKnown: Bool, remainingPercent: Int?) -> NSColor {
         guard isProgressKnown, let remainingPercent else {
             return NSColor.systemBlue.withAlphaComponent(0.72)
         }
@@ -308,12 +265,12 @@ private final class StatusProgressPillView: NSView {
         }
     }
 
-    private var borderColor: NSColor {
+    private static func borderColor() -> NSColor {
         let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         return NSColor.labelColor.withAlphaComponent(increaseContrast ? 0.38 : 0.24)
     }
 
-    private func drawTitle(in rect: NSRect) {
+    private static func drawTitle(_ title: String, in rect: NSRect) {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
 
