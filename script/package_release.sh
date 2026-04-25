@@ -82,7 +82,10 @@ mkdir -p "$DIST_DIR"
   cd "$DIST_DIR"
   COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$(basename "$ZIP_PATH")"
 )
-shasum -a 256 "$ZIP_PATH" > "$CHECKSUM_PATH"
+(
+  cd "$DIST_DIR"
+  shasum -a 256 "$(basename "$ZIP_PATH")" > "$(basename "$CHECKSUM_PATH")"
+)
 
 codesign --verify --deep --strict "$APP_BUNDLE"
 
