@@ -47,7 +47,7 @@ final class CodexAppServerTransport: @unchecked Sendable {
     private var stderrLines: [String] = []
     private var isClosed = false
 
-    init(executableURL: URL, codexHome: URL) throws {
+    init(executableURL: URL, codexHome: URL, environment: [String: String]) throws {
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -58,9 +58,9 @@ final class CodexAppServerTransport: @unchecked Sendable {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
-        var environment = ProcessInfo.processInfo.environment
-        environment["CODEX_HOME"] = codexHome.path
-        process.environment = environment
+        var processEnvironment = environment
+        processEnvironment["CODEX_HOME"] = codexHome.path
+        process.environment = processEnvironment
 
         stdinHandle = stdinPipe.fileHandleForWriting
         stdoutHandle = stdoutPipe.fileHandleForReading

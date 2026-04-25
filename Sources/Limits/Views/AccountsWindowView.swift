@@ -491,6 +491,11 @@ private struct CurrentCLIDetailPane: View {
                 InlineWarningCard(text: errorMessage)
             }
 
+            if let probeError = model.currentCLIProbeError {
+                MinimalSeparator()
+                InlineWarningCard(text: probeError)
+            }
+
             if sections.isEmpty {
                 MinimalSeparator()
                 EmptyLimitsCard(

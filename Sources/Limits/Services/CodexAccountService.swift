@@ -23,11 +23,15 @@ struct CodexAccountService: @unchecked Sendable {
     private let authService = GlobalCodexAuthService()
 
     func loginNewAccount(openURL: @MainActor @escaping (URL) -> Void) async throws -> AccountValidationResult {
-        let executableURL = try CodexExecutableLocator.locate()
+        let executable = try CodexExecutableLocator.locate()
         let tempHome = try makeTemporaryCodexHome()
         defer { try? fileManager.removeItem(at: tempHome) }
 
-        let transport = try CodexAppServerTransport(executableURL: executableURL, codexHome: tempHome)
+        let transport = try CodexAppServerTransport(
+            executableURL: executable.executableURL,
+            codexHome: tempHome,
+            environment: executable.environment
+        )
         defer { transport.close() }
 
         try await transport.initialize()
@@ -50,13 +54,17 @@ struct CodexAccountService: @unchecked Sendable {
     }
 
     func validate(authData: Data) async throws -> AccountValidationResult {
-        let executableURL = try CodexExecutableLocator.locate()
+        let executable = try CodexExecutableLocator.locate()
         let tempHome = try makeTemporaryCodexHome()
         defer { try? fileManager.removeItem(at: tempHome) }
 
         try authService.materializeAuth(authData, in: tempHome)
 
-        let transport = try CodexAppServerTransport(executableURL: executableURL, codexHome: tempHome)
+        let transport = try CodexAppServerTransport(
+            executableURL: executable.executableURL,
+            codexHome: tempHome,
+            environment: executable.environment
+        )
         defer { transport.close() }
 
         try await transport.initialize()

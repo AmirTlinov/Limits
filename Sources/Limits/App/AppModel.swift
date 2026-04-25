@@ -499,8 +499,7 @@ final class AppModel: ObservableObject {
 
     func currentCLIOverview() -> CurrentCLIOverview {
         let account = currentCLIReferenceAccount()
-        let liveLimits = currentCLIProbe?.rateLimit?.panelSummary()
-        let fallbackLimits = account?.lastRateLimit?.panelSummary()
+        let liveLimits = Self.liveCurrentCLIPanelSummary(probe: currentCLIProbe)
         let probeBackedSubtitle = subtitle(for: account, probe: currentCLIProbe)
 
         switch currentCLIState.source {
@@ -508,14 +507,14 @@ final class AppModel: ObservableObject {
             return CurrentCLIOverview(
                 title: titleForStoredAccount(account, probe: currentCLIProbe),
                 subtitle: probeBackedSubtitle,
-                limits: liveLimits ?? fallbackLimits,
+                limits: liveLimits,
                 note: noteForStoredAccount(account)
             )
         case .external:
             return CurrentCLIOverview(
                 title: titleForExternalAuth(account, probe: currentCLIProbe),
                 subtitle: probeBackedSubtitle,
-                limits: liveLimits ?? fallbackLimits,
+                limits: liveLimits,
                 note: noteForExternalAuth(account)
             )
         case .missing:
@@ -961,9 +960,17 @@ final class AppModel: ObservableObject {
     }
 
     func currentCLIRateLimitSections() -> [RateLimitDisplaySection] {
+        Self.liveCurrentCLIRateLimitSections(probe: currentCLIProbe)
+    }
+
+    static func liveCurrentCLIPanelSummary(probe: CurrentCLIProbe?) -> String? {
+        probe?.rateLimit?.panelSummary()
+    }
+
+    static func liveCurrentCLIRateLimitSections(probe: CurrentCLIProbe?) -> [RateLimitDisplaySection] {
         RateLimitDisplayBuilder.makeSections(
-            primary: currentCLIProbe?.rateLimit ?? currentCLIReferenceAccount()?.lastRateLimit,
-            byLimitId: currentCLIProbe?.rateLimitsByLimitId ?? currentCLIReferenceAccount()?.lastRateLimitsByLimitId
+            primary: probe?.rateLimit,
+            byLimitId: probe?.rateLimitsByLimitId
         )
     }
 
@@ -1129,11 +1136,14 @@ final class AppModel: ObservableObject {
         if let probeError = currentCLIProbeError {
             return currentCLIProbeNote(for: probeError)
         }
+        if currentCLIProbe == nil {
+            return isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : L10n.tr("limits.empty.account.subtitle")
+        }
         guard let account else {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : nil
+            return nil
         }
         if account.lastRateLimit == nil {
-            return currentCLIProbe == nil && isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : L10n.tr("limits.empty.account.subtitle")
+            return L10n.tr("limits.empty.account.subtitle")
         }
         if account.status == .limitReached {
             return account.statusMessage ?? L10n.tr("account.limit_reached")
@@ -1153,6 +1163,9 @@ final class AppModel: ObservableObject {
         }
         if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
             return L10n.tr("busy.refreshing_live_limits")
+        }
+        if currentCLIProbe == nil {
+            return L10n.tr("limits.empty.account.subtitle")
         }
         if account != nil {
             return nil
