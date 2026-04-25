@@ -73,7 +73,9 @@ enum CodexExecutableLocator {
         let directSegments = pathSegments(shellPath) + pathSegments(basePath) + fallbackSegments
         let expandedSegments = directSegments.flatMap { segment -> [String] in
             if segment.hasSuffix("/.local/state/fnm_multishells") {
-                return latestExecutableChildDirectories(in: URL(fileURLWithPath: segment)) + [segment]
+                let childDirectories = latestExecutableChildDirectories(in: URL(fileURLWithPath: segment))
+                let childBinDirectories = childDirectories.map { URL(fileURLWithPath: $0).appending(path: "bin").path }
+                return childBinDirectories + childDirectories + [segment]
             }
             return [segment]
         }

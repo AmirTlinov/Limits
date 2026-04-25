@@ -70,3 +70,28 @@ import Testing
     #expect(row.remainingPercent == 88)
     #expect(AppModel.liveCurrentCLIPanelSummary(probe: probe) != nil)
 }
+
+@MainActor
+@Test func currentCLILiveSectionsIgnoreStaleProbeWhenProbeErrorExists() {
+    let staleLiveSnapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "stale-live",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: nil, usedPercent: 12, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let staleProbe = AppModel.CurrentCLIProbe(
+        fingerprint: "fingerprint",
+        email: "stale@example.com",
+        planType: "pro",
+        rateLimit: staleLiveSnapshot,
+        rateLimitsByLimitId: nil,
+        validatedAt: .distantPast
+    )
+
+    #expect(AppModel.liveCurrentCLIRateLimitSections(probe: staleProbe, probeError: "validation failed").isEmpty)
+    #expect(AppModel.liveCurrentCLIPanelSummary(probe: staleProbe, probeError: "validation failed") == nil)
+    #expect(AppModel.liveCurrentCLIRateLimitSections(probe: staleProbe).isEmpty == false)
+}

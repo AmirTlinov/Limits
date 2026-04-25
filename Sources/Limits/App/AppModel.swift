@@ -186,6 +186,7 @@ final class AppModel: ObservableObject {
             )
             currentCLIProbeError = nil
         } catch {
+            currentCLIProbe = nil
             currentCLIProbeError = error.localizedDescription
         }
     }
@@ -499,7 +500,7 @@ final class AppModel: ObservableObject {
 
     func currentCLIOverview() -> CurrentCLIOverview {
         let account = currentCLIReferenceAccount()
-        let liveLimits = Self.liveCurrentCLIPanelSummary(probe: currentCLIProbe)
+        let liveLimits = Self.liveCurrentCLIPanelSummary(probe: currentCLIProbe, probeError: currentCLIProbeError)
         let probeBackedSubtitle = subtitle(for: account, probe: currentCLIProbe)
 
         switch currentCLIState.source {
@@ -960,15 +961,17 @@ final class AppModel: ObservableObject {
     }
 
     func currentCLIRateLimitSections() -> [RateLimitDisplaySection] {
-        Self.liveCurrentCLIRateLimitSections(probe: currentCLIProbe)
+        Self.liveCurrentCLIRateLimitSections(probe: currentCLIProbe, probeError: currentCLIProbeError)
     }
 
-    static func liveCurrentCLIPanelSummary(probe: CurrentCLIProbe?) -> String? {
-        probe?.rateLimit?.panelSummary()
+    static func liveCurrentCLIPanelSummary(probe: CurrentCLIProbe?, probeError: String? = nil) -> String? {
+        guard probeError == nil else { return nil }
+        return probe?.rateLimit?.panelSummary()
     }
 
-    static func liveCurrentCLIRateLimitSections(probe: CurrentCLIProbe?) -> [RateLimitDisplaySection] {
-        RateLimitDisplayBuilder.makeSections(
+    static func liveCurrentCLIRateLimitSections(probe: CurrentCLIProbe?, probeError: String? = nil) -> [RateLimitDisplaySection] {
+        guard probeError == nil else { return [] }
+        return RateLimitDisplayBuilder.makeSections(
             primary: probe?.rateLimit,
             byLimitId: probe?.rateLimitsByLimitId
         )
