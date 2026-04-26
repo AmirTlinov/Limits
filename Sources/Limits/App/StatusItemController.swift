@@ -491,7 +491,7 @@ private enum StatusItemIconRenderer {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 8.6, weight: .bold),
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.98),
             .paragraphStyle: paragraphStyle,
             .shadow: shadow,
         ]
