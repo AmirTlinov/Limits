@@ -7,6 +7,7 @@ BUNDLE_ID="com.amir.Limits"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/script/lib/codesign.sh"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
@@ -69,7 +70,7 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - "$APP_BUNDLE" >/dev/null
+limits_sign_app "$APP_BUNDLE"
 xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 
 open_app() {

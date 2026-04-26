@@ -15,7 +15,45 @@ enum KeychainAuthVaultError: LocalizedError {
     }
 }
 
-struct KeychainAuthVault {
+protocol KeychainAuthDataStore {
+    func save(_ data: Data, account: String, label: String) throws
+    func read(account: String) throws -> Data
+    func delete(account: String) throws
+}
+
+final class KeychainAuthVault {
+    private let store: KeychainAuthDataStore
+    /// Process-local only. The durable secret stays in Keychain.
+    /// This prevents repeated macOS consent dialogs for the same saved account
+    /// after the user has already approved one access in the current app run.
+    private var cachedDataByAccount: [String: Data] = [:]
+
+    init(store: KeychainAuthDataStore = SystemKeychainAuthDataStore()) {
+        self.store = store
+    }
+
+    func save(_ data: Data, account: String, label: String) throws {
+        try store.save(data, account: account, label: label)
+        cachedDataByAccount[account] = data
+    }
+
+    func read(account: String) throws -> Data {
+        if let cachedData = cachedDataByAccount[account] {
+            return cachedData
+        }
+
+        let data = try store.read(account: account)
+        cachedDataByAccount[account] = data
+        return data
+    }
+
+    func delete(account: String) throws {
+        try store.delete(account: account)
+        cachedDataByAccount.removeValue(forKey: account)
+    }
+}
+
+private struct SystemKeychainAuthDataStore: KeychainAuthDataStore {
     let service = "com.amir.Limits.authblob"
 
     func save(_ data: Data, account: String, label: String) throws {
@@ -85,4 +123,3 @@ struct KeychainAuthVault {
         }
     }
 }
-
