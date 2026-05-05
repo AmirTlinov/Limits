@@ -119,15 +119,17 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 9) {
                     TrayLegendRow(
+                        provider: .codex,
                         color: .blue,
-                        sample: "C 90% 2/8",
+                        sample: "90% 2/8",
                         title: L10n.tr("settings.tray_legend.codex.title"),
                         subtitle: L10n.tr("settings.tray_legend.codex.subtitle")
                     )
 
                     TrayLegendRow(
+                        provider: .claude,
                         color: Color(red: 0.86, green: 0.39, blue: 0.24),
-                        sample: "Cl 95% 1/2",
+                        sample: "95% 1/2",
                         title: L10n.tr("settings.tray_legend.claude.title"),
                         subtitle: L10n.tr("settings.tray_legend.claude.subtitle")
                     )
@@ -155,6 +157,7 @@ struct SettingsView: View {
 }
 
 private struct TrayLegendRow: View {
+    let provider: TrayStatusProvider
     let color: Color
     let sample: String
     let title: String
@@ -162,9 +165,13 @@ private struct TrayLegendRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(sample)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(color)
+            HStack(spacing: 5) {
+                TrayLegendProviderIcon(provider: provider, color: color)
+                    .frame(width: 13, height: 13)
+                Text(sample)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(color)
+            }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(color.opacity(0.10), in: Capsule())
@@ -177,6 +184,24 @@ private struct TrayLegendRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+}
+
+private struct TrayLegendProviderIcon: View {
+    let provider: TrayStatusProvider
+    let color: Color
+
+    var body: some View {
+        if let image = TrayStatusIconAsset.image(for: provider) {
+            Image(nsImage: image)
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .foregroundStyle(color)
+        } else {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(color.opacity(0.9))
         }
     }
 }

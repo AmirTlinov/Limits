@@ -19,6 +19,7 @@ final class StatusItemController: NSObject {
     private let statusItemLength: CGFloat = NSStatusItem.variableLength
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
+    private let trayIconRenderer = TrayStatusIconRenderer()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
     private var languageCancellable: AnyCancellable?
@@ -78,8 +79,8 @@ final class StatusItemController: NSObject {
     private func configure(button: NSStatusBarButton) {
         button.isBordered = false
         button.focusRingType = .none
-        button.imagePosition = .noImage
-        button.imageScaling = .scaleProportionallyDown
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleNone
         button.image = nil
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
@@ -200,6 +201,7 @@ final class StatusItemController: NSObject {
         let claudeSnapshot = currentFiveHourLimitSnapshot(for: .claude)
         let codexAvailability = providerAvailability(for: .codex, snapshot: codexSnapshot)
         let claudeAvailability = providerAvailability(for: .claude, snapshot: claudeSnapshot)
+        let segments = TrayStatusPresentation.segments(filter: filter, codex: codexAvailability, claude: claudeAvailability)
         let title = TrayStatusPresentation.title(filter: filter, codex: codexAvailability, claude: claudeAvailability)
         let tooltip = tooltipText(
             codexSnapshot: codexSnapshot,
@@ -214,6 +216,7 @@ final class StatusItemController: NSObject {
         }
 
         syncStatusButton(
+            segments: segments,
             title: title,
             codexSnapshot: codexSnapshot,
             claudeSnapshot: claudeSnapshot,
@@ -222,10 +225,11 @@ final class StatusItemController: NSObject {
             tooltip: tooltip,
             on: button
         )
-        RuntimeLog.tray.debug("status item refreshed filter=\(filter.rawValue, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public) title=\(title, privacy: .public)")
+        RuntimeLog.tray.debug("status item refreshed filter=\(filter.rawValue, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public) label=\(title, privacy: .public)")
     }
 
     private func syncStatusButton(
+        segments: [TrayStatusPresentationSegment],
         title: String,
         codexSnapshot: FiveHourLimitSnapshot,
         claudeSnapshot: FiveHourLimitSnapshot,
@@ -234,18 +238,27 @@ final class StatusItemController: NSObject {
         tooltip: String,
         on button: NSStatusBarButton
     ) {
-        statusItem?.length = statusItemLength
-        button.image = nil
-        button.imagePosition = .noImage
-        button.imageScaling = .scaleProportionallyDown
-        button.title = title
-        button.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
+        if let image = trayIconRenderer.image(for: segments) {
+            statusItem?.length = ceil(image.size.width + 10)
+            button.image = image
+            button.imagePosition = .imageOnly
+            button.imageScaling = .scaleNone
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
+        } else {
+            statusItem?.length = statusItemLength
+            button.image = nil
+            button.imagePosition = .noImage
+            button.imageScaling = .scaleProportionallyDown
+            button.title = title
+            button.attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
+                    .foregroundColor: NSColor.labelColor,
+                ]
+            )
+        }
         button.toolTip = tooltip
         button.setAccessibilityLabel(accessibilityLabel(
             codexSnapshot: codexSnapshot,

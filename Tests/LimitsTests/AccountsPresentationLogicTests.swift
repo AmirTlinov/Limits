@@ -251,14 +251,29 @@ import Testing
     #expect(selected == candidate.id)
 }
 
-@Test func trayStatusTitleUsesPercentagesAndAvailabilityCounts() {
+@Test func trayStatusSegmentsUseProviderIconsWithCompactMetrics() {
     let codex = TrayProviderAvailability(remainingPercent: 96, availableAccounts: 1, totalAccounts: 8)
     let claude = TrayProviderAvailability(remainingPercent: 95, availableAccounts: 1, totalAccounts: 2)
     let noData = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 8)
 
-    #expect(TrayStatusPresentation.title(filter: .all, codex: codex, claude: claude) == "C 96% 1/8 · Cl 95% 1/2")
+    #expect(TrayStatusPresentation.segments(filter: .all, codex: codex, claude: claude) == [
+        TrayStatusPresentationSegment(provider: .codex, metricText: "96% 1/8"),
+        TrayStatusPresentationSegment(provider: .claude, metricText: "95% 1/2"),
+    ])
+    #expect(TrayStatusPresentation.title(filter: .all, codex: codex, claude: claude) == "Codex 96% 1/8 · Claude 95% 1/2")
     #expect(TrayStatusPresentation.title(filter: .codex, codex: codex, claude: claude) == "Codex 96% 1/8")
     #expect(TrayStatusPresentation.title(filter: .codex, codex: noData, claude: claude) == "Codex — 0/8")
+}
+
+@Test func trayProviderIconsAreRealSvgResources() throws {
+    for provider in [TrayStatusProvider.codex, .claude] {
+        let url = try #require(TrayStatusIconAsset.resourceURL(for: provider))
+        let svg = try String(contentsOf: url, encoding: .utf8)
+
+        #expect(svg.contains("<svg"))
+        #expect(!svg.contains("<image"))
+        #expect(!svg.localizedCaseInsensitiveContains("data:image"))
+    }
 }
 
 @Test func codexSidebarLimitSummaryCompactsFiveHourAndWeeklyWithoutExtraRows() {

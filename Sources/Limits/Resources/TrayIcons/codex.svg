@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Codex">
+  <title>Codex</title>
+  <desc>Monochrome vector adapted from homarr-labs dashboard-icons codex.svg for the Limits menu bar.</desc>
+  <!-- Source: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/codex.svg -->
+  <g fill="#ffffff" fill-rule="evenodd">
+    <path d="M256 139c-93.648 0-173.75 47.591-206.182 114.803l-1.3 2.697 1.3 2.668C82.249 326.38 162.352 374 256 374s173.786-47.62 206.217-114.832l1.3-2.668-1.3-2.697C430.278 186.582 350.14 138.99 256.492 138.99Zm0 18.688c84.825 0 154.891 38.584 185.566 98.783-30.668 60.211-100.73 98.841-185.566 98.841s-154.862-38.63-185.53-98.84c30.675-60.2 100.705-98.784 185.53-98.784"/>
+  </g>
+  <circle cx="256" cy="256" r="69" fill="none" stroke="#ffffff" stroke-width="58.5486"/>
+</svg>

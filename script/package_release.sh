@@ -33,7 +33,7 @@ chmod +x "$APP_BINARY"
 cp "$APP_ICON_SOURCE" "$APP_RESOURCES/$APP_ICON_FILE"
 
 if [[ -d "$ROOT_DIR/Sources/Limits/Resources" ]]; then
-  cp -R "$ROOT_DIR/Sources/Limits/Resources/"*.lproj "$APP_RESOURCES/"
+  cp -R "$ROOT_DIR/Sources/Limits/Resources/." "$APP_RESOURCES/"
 fi
 
 cat >"$INFO_PLIST" <<PLIST

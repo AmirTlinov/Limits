@@ -10,27 +10,49 @@ struct TrayProviderAvailability: Equatable {
     }
 }
 
+struct TrayStatusPresentationSegment: Equatable {
+    let provider: TrayStatusProvider
+    let metricText: String
+}
+
 enum TrayStatusPresentation {
+    static func segments(
+        filter: AccountsSidebarFilter,
+        codex: TrayProviderAvailability,
+        claude: TrayProviderAvailability
+    ) -> [TrayStatusPresentationSegment] {
+        switch filter {
+        case .codex:
+            return [providerSegment(provider: .codex, availability: codex)]
+        case .claude:
+            return [providerSegment(provider: .claude, availability: claude)]
+        case .all:
+            return [
+                providerSegment(provider: .codex, availability: codex),
+                providerSegment(provider: .claude, availability: claude),
+            ]
+        }
+    }
+
     static func title(
         filter: AccountsSidebarFilter,
         codex: TrayProviderAvailability,
         claude: TrayProviderAvailability
     ) -> String {
-        switch filter {
-        case .codex:
-            return providerTitle(name: "Codex", availability: codex)
-        case .claude:
-            return providerTitle(name: "Claude", availability: claude)
-        case .all:
-            return [
-                providerTitle(name: "C", availability: codex),
-                providerTitle(name: "Cl", availability: claude),
-            ].joined(separator: " · ")
-        }
+        segments(filter: filter, codex: codex, claude: claude)
+            .map { "\($0.provider.displayTitle) \($0.metricText)" }
+            .joined(separator: " · ")
     }
 
-    static func providerTitle(name: String, availability: TrayProviderAvailability) -> String {
+    static func metricText(availability: TrayProviderAvailability) -> String {
         let percent = availability.remainingPercent.map { "\($0)%" } ?? "—"
-        return "\(name) \(percent) \(availability.availableAccounts)/\(availability.totalAccounts)"
+        return "\(percent) \(availability.availableAccounts)/\(availability.totalAccounts)"
+    }
+
+    private static func providerSegment(provider: TrayStatusProvider, availability: TrayProviderAvailability) -> TrayStatusPresentationSegment {
+        TrayStatusPresentationSegment(
+            provider: provider,
+            metricText: metricText(availability: availability)
+        )
     }
 }

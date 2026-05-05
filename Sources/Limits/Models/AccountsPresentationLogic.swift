@@ -13,7 +13,7 @@ enum AccountsSidebarFilter: String, CaseIterable {
     case claude
 }
 
-enum TrayStatusProvider: Equatable {
+enum TrayStatusProvider: Equatable, Hashable {
     case codex
     case claude
 
