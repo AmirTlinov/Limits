@@ -886,7 +886,7 @@ private struct StoredAccountDetailPane: View {
                 MinimalSeparator()
                 EmptyLimitsCard(
                     title: L10n.tr("limits.empty.title"),
-                    subtitle: L10n.tr("limits.empty.account.subtitle")
+                    subtitle: accountNote ?? L10n.tr("limits.empty.account.subtitle")
                 )
             } else {
                 MinimalSeparator()

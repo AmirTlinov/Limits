@@ -76,7 +76,7 @@ struct CodexAccountService: @unchecked Sendable {
 
     private func captureValidationResult(from codexHome: URL, transport: CodexAppServerTransport) async throws -> AccountValidationResult {
         let accountResponse = try? await transport.readAccount(refreshToken: true)
-        let rateLimitsResponse = try? await transport.readRateLimits()
+        let rateLimitsResponse = try await transport.readRateLimits()
         let authURL = codexHome.appending(path: "auth.json")
         guard fileManager.fileExists(atPath: authURL.path) else {
             throw CodexAccountServiceError.missingAuthFile
@@ -84,9 +84,6 @@ struct CodexAccountService: @unchecked Sendable {
 
         let authData = try Data(contentsOf: authURL)
         let identity = try CodexAuthBlob.identity(from: authData)
-        guard let rateLimitsResponse else {
-            throw CodexAccountServiceError.missingRateLimits
-        }
 
         let resolved = try Self.resolveValidatedIdentity(
             account: accountResponse?.account,

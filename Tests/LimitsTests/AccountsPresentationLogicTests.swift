@@ -228,6 +228,14 @@ import Testing
     #expect(AppModel.canAttemptExpiredResetRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
 }
 
+@Test func authTokenFailuresRequireReauthInsteadOfGenericValidationFailure() {
+    #expect(AppModel.validationStatus(forErrorMessage: "401 Unauthorized") == .needsReauth)
+    #expect(AppModel.validationStatus(forErrorMessage: "token_expired") == .needsReauth)
+    #expect(AppModel.validationStatus(forErrorMessage: "token_invalidated") == .needsReauth)
+    #expect(AppModel.validationStatus(forErrorMessage: "refresh token was already used") == .needsReauth)
+    #expect(AppModel.validationStatus(forErrorMessage: "temporary backend outage") == .validationFailed)
+}
+
 @Test func storedCodexAutoRefreshPicksStaleAccountWithoutRetryHammering() throws {
     let calendar = Calendar.current
     let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
@@ -249,6 +257,24 @@ import Testing
     )
 
     #expect(selected == candidate.id)
+}
+
+@Test func storedCodexAutoRefreshAlsoRetriesEmptyFailedAccountsWithBackoff() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let emptyFailed = makeStoredAccount(label: "empty@example.com", status: .validationFailed)
+    let emptyNeedsReauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth)
+    let throttledEmpty = makeStoredAccount(label: "throttled@example.com", status: .validationFailed)
+
+    let selected = AppModel.nextStoredCodexAccountIDForAutoRefresh(
+        accounts: [emptyNeedsReauth, throttledEmpty, emptyFailed],
+        currentAccountID: nil,
+        lastAttempts: [throttledEmpty.id: now.addingTimeInterval(-120)],
+        now: now,
+        retryInterval: 1_800
+    )
+
+    #expect(selected == emptyFailed.id)
 }
 
 @Test func trayStatusSegmentsUseProviderIconsWithCompactMetrics() {

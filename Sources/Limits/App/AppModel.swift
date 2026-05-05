@@ -565,7 +565,7 @@ final class AppModel: ObservableObject {
                     stored.lastValidatedAt = Date()
                     stored.updatedAt = Date()
                     stored.status = classifyValidationError(error)
-                    stored.statusMessage = error.localizedDescription
+                    stored.statusMessage = validationStatusMessage(for: error)
                 }
             } catch {
                 errorMessage = error.localizedDescription
@@ -1089,11 +1089,27 @@ final class AppModel: ObservableObject {
     }
 
     private func classifyValidationError(_ error: Error) -> AccountStatus {
-        let message = error.localizedDescription.lowercased()
+        Self.validationStatus(forErrorMessage: error.localizedDescription)
+    }
+
+    nonisolated static func validationStatus(forErrorMessage message: String) -> AccountStatus {
+        let message = message.lowercased()
         if message.contains("unauthorized") || message.contains("401") || message.contains("auth") || message.contains("login") {
             return .needsReauth
         }
+        if message.contains("token_expired") || message.contains("token_invalidated") || message.contains("refresh token") || message.contains("signing in again") {
+            return .needsReauth
+        }
         return .validationFailed
+    }
+
+    private func validationStatusMessage(for error: Error) -> String {
+        switch classifyValidationError(error) {
+        case .needsReauth:
+            return L10n.tr("account.needs_login")
+        case .validationFailed, .unknown, .ok, .limitReached:
+            return error.localizedDescription
+        }
     }
 
     private static func matches(identity: AuthIdentity, fingerprint: String, account: StoredAccount) -> Bool {
@@ -1469,7 +1485,12 @@ final class AppModel: ObservableObject {
     }
 
     nonisolated static func storedCodexAccountNeedsAutoRefresh(_ account: StoredAccount, now: Date = .now) -> Bool {
-        storedSnapshotIsStale(
+        let hasAnyLimitSnapshot = account.lastRateLimit != nil || account.lastRateLimitsByLimitId?.isEmpty == false
+        if !hasAnyLimitSnapshot {
+            return true
+        }
+
+        return storedSnapshotIsStale(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
             now: now
