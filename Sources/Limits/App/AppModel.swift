@@ -177,7 +177,7 @@ final class AppModel: ObservableObject {
             let authData = try globalAuthService.readGlobalAuth()
             let result = try await codexAccountService.validate(authData: authData)
             currentCLIProbe = CurrentCLIProbe(
-                fingerprint: fingerprint,
+                fingerprint: result.authFingerprint,
                 email: result.email,
                 planType: result.planType,
                 rateLimit: result.rateLimit,
@@ -185,6 +185,18 @@ final class AppModel: ObservableObject {
                 validatedAt: Date()
             )
             currentCLIProbeError = nil
+
+            do {
+                if result.authFingerprint != fingerprint {
+                    try globalAuthService.writeGlobalAuth(result.authData)
+                }
+                try persistValidatedCurrentCLIAccountIfKnown(result)
+                if result.authFingerprint != fingerprint {
+                    await refreshCurrentCLIState()
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         } catch {
             currentCLIProbe = nil
             currentCLIProbeError = error.localizedDescription
@@ -397,18 +409,7 @@ final class AppModel: ObservableObject {
         do {
             let authData = try vault.read(account: account.keychainAccount)
             let result = try await codexAccountService.validate(authData: authData)
-            try updateAccount(account.id) { stored in
-                stored.email = result.email
-                stored.planType = result.planType
-                stored.accountId = result.identity.accountId
-                stored.authFingerprint = result.authFingerprint
-                stored.lastValidatedAt = Date()
-                stored.updatedAt = Date()
-                stored.lastRateLimit = result.rateLimit
-                stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
-                stored.status = resolveStatus(from: result.rateLimit)
-                stored.statusMessage = statusMessage(for: result.rateLimit)
-            }
+            try persistValidatedAccount(result, forAccountID: account.id)
         } catch {
             do {
                 try updateAccount(account.id) { stored in
@@ -752,6 +753,51 @@ final class AppModel: ObservableObject {
         try saveAccounts()
     }
 
+    private func persistValidatedCurrentCLIAccountIfKnown(_ result: AccountValidationResult) throws {
+        guard let accountID = knownAccountID(for: result) else {
+            return
+        }
+
+        try persistValidatedAccount(result, forAccountID: accountID)
+    }
+
+    private func persistValidatedAccount(_ result: AccountValidationResult, forAccountID id: UUID) throws {
+        guard let account = accounts.first(where: { $0.id == id }) else {
+            return
+        }
+
+        try vault.save(result.authData, account: account.keychainAccount, label: account.label)
+        try updateAccount(id) { stored in
+            stored.email = result.email
+            stored.planType = result.planType
+            stored.accountId = result.identity.accountId
+            stored.authFingerprint = result.authFingerprint
+            stored.lastValidatedAt = Date()
+            stored.updatedAt = Date()
+            stored.lastRateLimit = result.rateLimit
+            stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
+            stored.status = resolveStatus(from: result.rateLimit)
+            stored.statusMessage = statusMessage(for: result.rateLimit)
+        }
+    }
+
+    private func knownAccountID(for result: AccountValidationResult) -> UUID? {
+        if case .stored(let id) = currentCLIState.source {
+            return id
+        }
+
+        if let matched = Self.resolveImportedAccount(
+            fingerprint: result.authFingerprint,
+            accountId: result.identity.accountId,
+            email: result.email,
+            accounts: accounts
+        ) {
+            return matched.id
+        }
+
+        return nil
+    }
+
     private func upsertClaudeAccount(
         credential: Data,
         status: ClaudeAuthStatus,
@@ -1024,14 +1070,99 @@ final class AppModel: ObservableObject {
 
     func rateLimitSections(for account: StoredAccount) -> [RateLimitDisplaySection] {
         let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
+        if useLiveProbe {
+            return RateLimitDisplayBuilder.makeSections(
+                primary: currentCLIProbe?.rateLimit,
+                byLimitId: currentCLIProbe?.rateLimitsByLimitId
+            )
+        }
+
+        return Self.storedRateLimitSections(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId
+        )
+    }
+
+    nonisolated static func storedRateLimitSections(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date = .now
+    ) -> [RateLimitDisplaySection] {
+        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
+            return []
+        }
+
         return RateLimitDisplayBuilder.makeSections(
-            primary: useLiveProbe ? currentCLIProbe?.rateLimit : account.lastRateLimit,
-            byLimitId: useLiveProbe ? currentCLIProbe?.rateLimitsByLimitId : account.lastRateLimitsByLimitId
+            primary: primary,
+            byLimitId: byLimitId
+        )
+    }
+
+    nonisolated static func storedRateLimitSummary(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date = .now
+    ) -> String? {
+        if storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) {
+            return L10n.tr("reset.stale.expanded")
+        }
+
+        return primary?.compactUsageSummary()
+    }
+
+    nonisolated static func storedRemainingPercent(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date = .now
+    ) -> Int? {
+        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
+            return nil
+        }
+
+        guard let usedPercent = primary?.primary?.usedPercent else {
+            return nil
+        }
+
+        return max(0, 100 - usedPercent)
+    }
+
+    private nonisolated static func storedSnapshotIsStale(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date
+    ) -> Bool {
+        if let codex = byLimitId?["codex"], codex.fiveHourHasReset(now: now) {
+            return true
+        }
+
+        if let primary, primary.fiveHourHasReset(now: now) {
+            return true
+        }
+
+        return false
+    }
+
+    func storedRateLimitSummary(for account: StoredAccount) -> String? {
+        Self.storedRateLimitSummary(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId
+        )
+    }
+
+    func remainingPercent(for account: StoredAccount) -> Int? {
+        let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
+        if useLiveProbe, let usedPercent = currentCLIProbe?.rateLimit?.primary?.usedPercent {
+            return max(0, 100 - usedPercent)
+        }
+
+        return Self.storedRemainingPercent(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId
         )
     }
 
     func sidebarSecondaryText(for account: StoredAccount) -> String {
-        account.lastRateLimit?.compactUsageSummary() ?? account.email
+        storedRateLimitSummary(for: account) ?? account.email
     }
 
     func currentCLIValidatedAt() -> Date? {

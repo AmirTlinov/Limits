@@ -18,6 +18,32 @@ import Testing
     #expect(identity.accountId == "acct_123")
 }
 
+@Test func readsEmailFromChatGPTIDTokenWhenAccountSurfaceOmitsAccountPayload() throws {
+    let header = base64URLJSON(["alg": "none"])
+    let payload = base64URLJSON(["email": "user@example.com"])
+    let data = """
+    {
+      "auth_mode": "chatgpt",
+      "tokens": {
+        "account_id": "acct_123",
+        "id_token": "\(header).\(payload).signature"
+      }
+    }
+    """.data(using: .utf8)!
+
+    let identity = try CodexAuthBlob.identity(from: data)
+
+    #expect(identity.email == "user@example.com")
+}
+
+private func base64URLJSON(_ object: [String: String]) -> String {
+    let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    return data.base64EncodedString()
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+        .replacingOccurrences(of: "=", with: "")
+}
+
 @Test func rateLimitReachedWhenPrimaryWindowHitsHundredPercent() {
     let snapshot = RateLimitSnapshotModel(
         credits: nil,
@@ -81,6 +107,42 @@ import Testing
     #expect(sections.last?.title == "GPT-5.3-Codex-Spark")
 }
 
+@Test func codexValidationAcceptsRateLimitsWhenAccountReadReturnsNoPayload() throws {
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: nil, usedPercent: 0, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    let resolved = try CodexAccountService.resolveValidatedIdentity(
+        account: nil,
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+        rateLimitsResponse: AppServerRateLimitsResponse(rateLimits: snapshot, rateLimitsByLimitId: ["codex": snapshot])
+    )
+
+    #expect(resolved.email == "user@example.com")
+    #expect(resolved.planType == "pro")
+}
+
+@Test func codexValidationRejectsAccountOnlySuccessWithoutLiveRateLimits() {
+    do {
+        _ = try CodexAccountService.resolveValidatedIdentity(
+            account: AppServerAccountPayload(type: "chatgpt", email: "user@example.com", planType: "pro"),
+            identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+            rateLimitsResponse: nil
+        )
+        #expect(Bool(false), "Validation should fail when live rate limits are unavailable.")
+    } catch CodexAccountServiceError.missingRateLimits {
+        #expect(Bool(true))
+    } catch {
+        #expect(Bool(false), "Unexpected error: \(error)")
+    }
+}
+
 @MainActor
 @Test func storedAccountMatchRequiresSameFingerprintWhenAccountIdMatches() {
     let id = UUID()
@@ -102,7 +164,7 @@ import Testing
     )
 
     let match = AppModel.resolveStoredAccountMatch(
-        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123"),
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "different-fingerprint",
         accounts: [stored]
     )
@@ -131,7 +193,7 @@ import Testing
     )
 
     let match = AppModel.resolveStoredAccountMatch(
-        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123"),
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "same-fingerprint",
         accounts: [stored]
     )

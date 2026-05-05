@@ -99,6 +99,7 @@ struct PersistedState: Codable {
 struct AuthIdentity: Hashable {
     let authMode: String?
     let accountId: String?
+    let email: String?
 }
 
 struct AccountValidationResult {

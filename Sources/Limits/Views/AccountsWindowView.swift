@@ -299,9 +299,6 @@ struct AccountsWindowView: View {
         if let used = model.currentCLIProbe?.rateLimit?.primary?.usedPercent {
             return "\(max(0, 100 - used))%"
         }
-        if let used = model.currentCLIReferenceAccount()?.lastRateLimit?.primary?.usedPercent {
-            return "\(max(0, 100 - used))%"
-        }
         return nil
     }
 
@@ -314,8 +311,8 @@ struct AccountsWindowView: View {
     }
 
     private func sidebarTrailing(for account: StoredAccount) -> String? {
-        if let used = account.lastRateLimit?.primary?.usedPercent {
-            return "\(max(0, 100 - used))%"
+        if let remainingPercent = model.remainingPercent(for: account) {
+            return "\(remainingPercent)%"
         }
         return nil
     }

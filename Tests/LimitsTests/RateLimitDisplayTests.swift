@@ -115,3 +115,52 @@ import Testing
     #expect(!pending.fiveHourHasReset(now: now))
     #expect(!weekly.fiveHourHasReset(now: now))
 }
+
+@Test func storedLimitDisplayDoesNotRenderExpiredFiveHourSnapshotAsCurrentData() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let resetAlreadyPassed = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
+    let staleSnapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(resetAlreadyPassed.timeIntervalSince1970), usedPercent: 95, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    L10n.withLanguage("ru") {
+        #expect(AppModel.storedRateLimitSections(primary: staleSnapshot, byLimitId: nil, now: now).isEmpty)
+        #expect(AppModel.storedRateLimitSummary(primary: staleSnapshot, byLimitId: nil, now: now) == "Сброс прошёл · обновите")
+        #expect(AppModel.storedRemainingPercent(primary: staleSnapshot, byLimitId: nil, now: now) == nil)
+    }
+}
+
+@Test func storedLimitDisplayTreatsExpiredCodexByLimitSnapshotAsStale() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 17)))
+    let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
+    let primary = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "aggregate",
+        limitName: "Aggregate",
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(futureReset.timeIntervalSince1970), usedPercent: 5, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let expiredCodex = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(pastReset.timeIntervalSince1970), usedPercent: 95, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    #expect(AppModel.storedRateLimitSections(primary: primary, byLimitId: ["codex": expiredCodex], now: now).isEmpty)
+    #expect(AppModel.storedRemainingPercent(primary: primary, byLimitId: ["codex": expiredCodex], now: now) == nil)
+}

@@ -434,7 +434,7 @@ struct MenuBarContentView: View {
 
     private func storedCodexDetail(for account: StoredAccount) -> String? {
         if compactRows(from: model.rateLimitSections(for: account)).isEmpty {
-            return account.lastRateLimit?.compactUsageSummary() ?? account.shortStatusText
+            return model.storedRateLimitSummary(for: account) ?? account.shortStatusText
         }
         return nil
     }
