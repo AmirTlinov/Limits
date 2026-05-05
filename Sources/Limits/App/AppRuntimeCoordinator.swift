@@ -55,6 +55,28 @@ final class AppRuntimeCoordinator {
         settingsWindowController.show()
     }
 
+    var hasVisibleWindow: Bool {
+        accountsWindowController.hasVisibleWindow || settingsWindowController.hasVisibleWindow
+    }
+
+    func closeFrontmostWindow() {
+        if let window = NSApp.orderedWindows.first(where: { window in
+            window.isVisible && window.styleMask.contains(.closable)
+        }) {
+            window.close()
+            return
+        }
+
+        if settingsWindowController.hasVisibleWindow {
+            settingsWindowController.close()
+            return
+        }
+
+        if accountsWindowController.hasVisibleWindow {
+            accountsWindowController.close()
+        }
+    }
+
     func handleReopen(hasVisibleWindows: Bool) -> Bool {
         RuntimeLog.lifecycle.info("application reopen hasVisibleWindows=\(hasVisibleWindows, privacy: .public) trackedWindowVisible=\(self.accountsWindowController.hasVisibleWindow, privacy: .public)")
         if !hasVisibleWindows || !accountsWindowController.hasVisibleWindow {

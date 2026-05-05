@@ -22,6 +22,7 @@
 "action.add_account" = "Añadir cuenta";
 "action.collapse_all" = "Contraer todo";
 "action.connect_live_limits" = "Conectar límites en vivo";
+"action.close_window" = "Cerrar ventana";
 "action.delete" = "Eliminar";
 "action.delete_account" = "Eliminar cuenta";
 "action.disconnect_bridge" = "Desconectar puente";

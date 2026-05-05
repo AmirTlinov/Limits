@@ -22,6 +22,7 @@
 "action.add_account" = "Add account";
 "action.collapse_all" = "Collapse all";
 "action.connect_live_limits" = "Connect live limits";
+"action.close_window" = "Close Window";
 "action.delete" = "Delete";
 "action.delete_account" = "Delete account";
 "action.disconnect_bridge" = "Disconnect bridge";

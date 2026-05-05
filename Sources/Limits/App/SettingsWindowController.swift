@@ -28,7 +28,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
 
         let hostingController = NSHostingController(rootView: makeRootView())
-        let window = NSWindow(contentViewController: hostingController)
+        let window = CommandClosableWindow(contentViewController: hostingController)
         window.title = L10n.tr("settings.title")
         window.setContentSize(NSSize(width: 560, height: 420))
         window.minSize = NSSize(width: 560, height: 420)
@@ -52,6 +52,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if let hostingController = window.contentViewController as? NSHostingController<SettingsView> {
             hostingController.rootView = makeRootView()
         }
+    }
+
+    func close() {
+        windowController?.window?.close()
     }
 
     func windowWillClose(_ notification: Notification) {

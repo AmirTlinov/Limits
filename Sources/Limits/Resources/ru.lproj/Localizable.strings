@@ -22,6 +22,7 @@
 "action.add_account" = "Добавить аккаунт";
 "action.collapse_all" = "Свернуть всё";
 "action.connect_live_limits" = "Подключить живые лимиты";
+"action.close_window" = "Закрыть окно";
 "action.delete" = "Удалить";
 "action.delete_account" = "Удалить аккаунт";
 "action.disconnect_bridge" = "Отключить мост";

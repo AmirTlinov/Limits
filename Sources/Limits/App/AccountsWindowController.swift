@@ -27,7 +27,7 @@ final class AccountsWindowController: NSObject, NSWindowDelegate {
         }
 
         let hostingController = NSHostingController(rootView: AccountsWindowView(model: model))
-        let window = NSWindow(contentViewController: hostingController)
+        let window = CommandClosableWindow(contentViewController: hostingController)
         window.title = L10n.tr("app.title")
         window.setContentSize(NSSize(width: 980, height: 620))
         window.minSize = NSSize(width: 980, height: 620)
@@ -53,6 +53,10 @@ final class AccountsWindowController: NSObject, NSWindowDelegate {
         if let hostingController = window.contentViewController as? NSHostingController<AccountsWindowView> {
             hostingController.rootView = AccountsWindowView(model: model)
         }
+    }
+
+    func close() {
+        windowController?.window?.close()
     }
 
     func windowWillClose(_ notification: Notification) {

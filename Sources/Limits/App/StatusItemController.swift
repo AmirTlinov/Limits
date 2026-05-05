@@ -181,12 +181,16 @@ final class StatusItemController: NSObject {
         else { return }
 
         let screen = buttonWindow.screen ?? panel.screen
+        let stablePanelX = panel.frame.minX
         button.layoutSubtreeIfNeeded()
 
         guard let hostingController = panel.contentViewController as? NSHostingController<TrayPanelChromeView<MenuBarContentView>> else {
             rebuildTrayPanelContent(screen: screen)
             guard let rebuiltPanel = trayPanel else { return }
-            rebuiltPanel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow), display: true)
+            rebuiltPanel.setFrame(
+                trayPanelFrame(relativeTo: button, in: buttonWindow, preservingX: stablePanelX),
+                display: true
+            )
             return
         }
 
@@ -194,7 +198,10 @@ final class StatusItemController: NSObject {
         hostingController.view.layoutSubtreeIfNeeded()
         let size = trayPanelSize(for: hostingController, screen: screen)
         hostingController.view.frame = NSRect(origin: .zero, size: size)
-        panel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow, size: size), display: true)
+        panel.setFrame(
+            trayPanelFrame(relativeTo: button, in: buttonWindow, size: size, preservingX: stablePanelX),
+            display: true
+        )
     }
 
     @objc private func toggleTrayPanel(_ sender: NSStatusBarButton) {
@@ -221,17 +228,29 @@ final class StatusItemController: NSObject {
         startEventMonitoring()
     }
 
-    private func trayPanelFrame(relativeTo button: NSStatusBarButton, in buttonWindow: NSWindow, size explicitSize: NSSize? = nil) -> NSRect {
+    private func trayPanelFrame(
+        relativeTo button: NSStatusBarButton,
+        in buttonWindow: NSWindow,
+        size explicitSize: NSSize? = nil,
+        preservingX preservedX: CGFloat? = nil
+    ) -> NSRect {
         let anchorInWindow = button.convert(button.bounds, to: nil)
         let anchor = buttonWindow.convertToScreen(anchorInWindow)
         let screenFrame = buttonWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? anchor
         let size = explicitSize ?? trayPanel?.frame.size ?? NSSize(width: 350, height: 420)
-        let x = min(
-            max(anchor.midX - size.width / 2, screenFrame.minX + 8),
-            screenFrame.maxX - size.width - 8
-        )
+        let naturalX = anchor.midX - size.width / 2
+        let x = clampedPanelX(preservedX ?? naturalX, width: size.width, screenFrame: screenFrame)
         let y = max(anchor.minY - size.height - 8, screenFrame.minY + 8)
         return NSRect(x: x, y: y, width: size.width, height: size.height)
+    }
+
+    private func clampedPanelX(_ x: CGFloat, width: CGFloat, screenFrame: NSRect) -> CGFloat {
+        let minX = screenFrame.minX + 8
+        let maxX = screenFrame.maxX - width - 8
+        guard minX <= maxX else {
+            return screenFrame.minX
+        }
+        return min(max(x, minX), maxX)
     }
 
     private func closeTrayPanel() {

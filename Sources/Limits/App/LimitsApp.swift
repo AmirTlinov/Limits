@@ -4,6 +4,7 @@ import AppKit
 final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: AppRuntimeCoordinator?
     private var languageObserver: NSObjectProtocol?
+    private var keyboardShortcutMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         RuntimeLog.lifecycle.info("application did finish launching bundle=\(Bundle.main.bundlePath, privacy: .public)")
@@ -14,6 +15,7 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
         let coordinator = AppRuntimeCoordinator()
         self.coordinator = coordinator
         installApplicationMenu()
+        installKeyboardShortcuts()
         languageObserver = NotificationCenter.default.addObserver(forName: L10n.languageDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.installApplicationMenu()
@@ -36,6 +38,31 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettingsFromMenu() {
         coordinator?.openSettingsWindow()
+    }
+
+    @objc private func closeWindowFromMenu(_: Any?) {
+        coordinator?.closeFrontmostWindow()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(closeWindowFromMenu(_:)) {
+            return coordinator?.hasVisibleWindow == true
+        }
+
+        return true
+    }
+
+    private func installKeyboardShortcuts() {
+        keyboardShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let shortcutFlags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            let isCloseWindowKey = event.charactersIgnoringModifiers?.lowercased() == "w" || event.keyCode == 13
+            guard shortcutFlags == .command, isCloseWindowKey, self?.coordinator?.hasVisibleWindow == true else {
+                return event
+            }
+
+            self?.coordinator?.closeFrontmostWindow()
+            return nil
+        }
     }
 
     private func installApplicationIcon() {
@@ -82,6 +109,15 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
 
         let windowMenu = NSMenu(title: L10n.tr("action.open_window"))
         windowMenuItem.submenu = windowMenu
+
+        let closeWindowItem = NSMenuItem(
+            title: L10n.tr("action.close_window"),
+            action: #selector(closeWindowFromMenu(_:)),
+            keyEquivalent: "w"
+        )
+        closeWindowItem.target = self
+        windowMenu.addItem(closeWindowItem)
+        windowMenu.addItem(.separator())
 
         let accountsItem = NSMenuItem(
             title: L10n.tr("action.open_window"),

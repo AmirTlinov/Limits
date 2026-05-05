@@ -22,6 +22,7 @@
 "action.add_account" = "添加账户";
 "action.collapse_all" = "全部折叠";
 "action.connect_live_limits" = "连接实时限额";
+"action.close_window" = "关闭窗口";
 "action.delete" = "删除";
 "action.delete_account" = "删除账户";
 "action.disconnect_bridge" = "断开桥接";
