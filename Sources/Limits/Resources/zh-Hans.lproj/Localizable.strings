@@ -28,7 +28,7 @@
 "action.import_current_auth" = "导入当前授权";
 "action.import_current_claude" = "导入当前 Claude Code";
 "action.make_current" = "设为当前";
-"action.open_window" = "窗口…";
+"action.open_window" = "账户…";
 "action.settings" = "设置…";
 "action.quit" = "退出";
 "action.reauthenticate" = "重新登录";

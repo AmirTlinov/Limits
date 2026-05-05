@@ -28,7 +28,7 @@
 "action.import_current_auth" = "Импортировать текущую авторизацию";
 "action.import_current_claude" = "Импортировать текущий Claude Code";
 "action.make_current" = "Сделать текущим";
-"action.open_window" = "Окно…";
+"action.open_window" = "Аккаунты…";
 "action.settings" = "Настройки…";
 "action.quit" = "Выход";
 "action.reauthenticate" = "Повторный вход";

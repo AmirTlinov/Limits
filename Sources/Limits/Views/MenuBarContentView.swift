@@ -64,6 +64,17 @@ struct MenuBarContentView: View {
         }
     }
 
+    private var header: some View {
+        HStack(spacing: 8) {
+            panelActionButton(L10n.tr("action.open_window")) {
+                openAccountsWindow()
+            }
+            .disabled(model.isBusy)
+
+            Spacer(minLength: 0)
+        }
+    }
+
     private var currentClaudeCountsAsAccount: Bool {
         switch model.currentClaudeState.source {
         case .stored, .external:
@@ -100,6 +111,8 @@ struct MenuBarContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            header
+
             ProviderFilterPicker(selection: providerFilterBinding)
                 .padding(.bottom, 1)
 
@@ -121,7 +134,7 @@ struct MenuBarContentView: View {
                 }
                 .padding(.vertical, 1)
             }
-            .scrollIndicators(.automatic)
+            .scrollIndicators(.hidden)
             .frame(maxHeight: Self.contentMaxHeight)
 
             footer
@@ -240,11 +253,6 @@ struct MenuBarContentView: View {
             }
 
             Spacer(minLength: 0)
-
-            panelActionButton(L10n.tr("action.open_window")) {
-                openAccountsWindow()
-            }
-            .disabled(model.isBusy)
 
             Menu {
                 Button(L10n.tr("action.add_account")) {

@@ -28,7 +28,7 @@
 "action.import_current_auth" = "Import current authorization";
 "action.import_current_claude" = "Import current Claude Code";
 "action.make_current" = "Make current";
-"action.open_window" = "Window…";
+"action.open_window" = "Accounts…";
 "action.settings" = "Settings…";
 "action.quit" = "Quit";
 "action.reauthenticate" = "Sign in again";

@@ -271,6 +271,7 @@ struct AccountsWindowView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollIndicators(.hidden)
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
     }
@@ -292,6 +293,7 @@ struct AccountsWindowView: View {
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .scrollIndicators(.hidden)
         .background(Color.clear)
     }
 
