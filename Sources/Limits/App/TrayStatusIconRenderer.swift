@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 final class TrayStatusIconRenderer {
     private let height: CGFloat = 22
-    private let iconSize: CGFloat = 15
+    private let iconSize: CGFloat = 16.5
     private let iconTextSpacing: CGFloat = 4
     private let providerSpacing: CGFloat = 8
     private let horizontalInset: CGFloat = 1
