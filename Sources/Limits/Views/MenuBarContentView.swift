@@ -99,30 +99,36 @@ struct MenuBarContentView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             ProviderFilterPicker(selection: providerFilterBinding)
-                .padding(.bottom, 2)
+                .padding(.bottom, 1)
 
-            if providerFilter.includesCodex {
-                codexSection
-            }
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if providerFilter.includesCodex {
+                        codexSection
+                    }
 
-            if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
-                MinimalSeparator()
-                    .opacity(0.38)
-                    .padding(.horizontal, 2)
-            }
+                    if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
+                        MinimalSeparator()
+                            .opacity(0.30)
+                            .padding(.horizontal, 2)
+                    }
 
-            if providerFilter.includesClaude, shouldShowClaudeSection {
-                claudeSection
+                    if providerFilter.includesClaude, shouldShowClaudeSection {
+                        claudeSection
+                    }
+                }
+                .padding(.vertical, 1)
             }
+            .scrollIndicators(.automatic)
+            .frame(maxHeight: Self.contentMaxHeight)
 
             footer
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: 326)
-        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             Task {
                 await model.refreshCurrentCLIPanel(forceProbe: false)
@@ -460,6 +466,11 @@ struct MenuBarContentView: View {
         return formatter
     }()
 
+    private static var contentMaxHeight: CGFloat {
+        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 900
+        return min(540, max(420, visibleHeight * 0.58))
+    }
+
 }
 
 private struct TrayProviderSection<Content: View>: View {
@@ -538,8 +549,8 @@ private enum TrayAccountRowStyle {
 
     var verticalPadding: CGFloat {
         switch self {
-        case .current: 12
-        case .stored: 10
+        case .current: 10
+        case .stored: 8
         }
     }
 
@@ -593,8 +604,8 @@ private struct TrayAccountRow: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: style == .current ? 8 : 7) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: style == .current ? 7 : 6) {
+            HStack(spacing: 9) {
                 Image(systemName: symbolName)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(accent.opacity(style == .current ? 0.95 : 0.80))
