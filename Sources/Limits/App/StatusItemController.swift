@@ -18,11 +18,13 @@ final class StatusItemController: NSObject {
     private let openSettingsWindow: () -> Void
     private let statusItemLength: CGFloat = NSStatusItem.variableLength
     private var statusItem: NSStatusItem?
-    private let popover = NSPopover()
+    private var trayPanel: NSPanel?
     private let trayIconRenderer = TrayStatusIconRenderer()
     private var modelCancellable: AnyCancellable?
     private var defaultsCancellable: AnyCancellable?
     private var languageCancellable: AnyCancellable?
+    private var localEventMonitor: Any?
+    private var globalEventMonitor: Any?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void, openSettingsWindow: @escaping () -> Void) {
         self.model = model
@@ -48,9 +50,7 @@ final class StatusItemController: NSObject {
             RuntimeLog.tray.error("status item button missing after creation")
         }
 
-        popover.behavior = .transient
-        popover.animates = false
-        rebuildPopoverContent()
+        rebuildTrayPanelContent()
         startObservingModel()
         refreshStatusItemAppearance()
 
@@ -60,19 +60,19 @@ final class StatusItemController: NSObject {
     }
 
     func openAccountsWindowFromTray() {
-        closePopover()
+        closeTrayPanel()
         RuntimeLog.tray.info("open accounts window requested from tray")
         openAccountsWindow()
     }
 
     func openSettingsWindowFromTray() {
-        closePopover()
+        closeTrayPanel()
         RuntimeLog.tray.info("open settings window requested from tray")
         openSettingsWindow()
     }
 
     func refreshLocalizedText() {
-        rebuildPopoverContent()
+        rebuildTrayPanelContent(screen: trayPanel?.screen)
         refreshStatusItemAppearance()
     }
 
@@ -85,13 +85,13 @@ final class StatusItemController: NSObject {
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.target = self
-        button.action = #selector(togglePopover(_:))
+        button.action = #selector(toggleTrayPanel(_:))
         button.toolTip = "Limits"
         button.setAccessibilityLabel(TrayStatusProvider.codex.displayTitle)
         button.setAccessibilityTitle(TrayStatusProvider.codex.displayTitle)
     }
 
-    private func rebuildPopoverContent(screen: NSScreen? = nil) {
+    private func rebuildTrayPanelContent(screen: NSScreen? = nil) {
         let content = MenuBarContentView(
             model: model,
             openAccountsWindow: { [weak self] in
@@ -105,17 +105,42 @@ final class StatusItemController: NSObject {
                 self?.refreshStatusItemAppearance()
             }
         )
+        let rootView = TrayPanelChromeView {
+            content
+        }
+        let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.wantsLayer = true
+        hostingController.view.layer?.backgroundColor = NSColor.clear.cgColor
 
-        let hostingController = NSHostingController(rootView: content)
-        let size = trayPopoverSize(for: hostingController, screen: screen)
+        let size = trayPanelSize(for: hostingController, screen: screen)
         hostingController.view.frame = NSRect(origin: .zero, size: size)
-        popover.contentViewController = hostingController
-        popover.contentSize = size
+
+        let panel = trayPanel ?? makeTrayPanel(size: size)
+        panel.contentViewController = hostingController
+        panel.setContentSize(size)
+        trayPanel = panel
     }
 
-    private func trayPopoverSize(for hostingController: NSHostingController<MenuBarContentView>, screen: NSScreen?) -> NSSize {
+    private func makeTrayPanel(size: NSSize) -> NSPanel {
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.level = .statusBar
+        panel.collectionBehavior = [.transient, .moveToActiveSpace, .fullScreenAuxiliary]
+        return panel
+    }
+
+    private func trayPanelSize(for hostingController: NSHostingController<TrayPanelChromeView<MenuBarContentView>>, screen: NSScreen?) -> NSSize {
         let width: CGFloat = 350
-        let maxHeight = trayPopoverMaxHeight(for: screen)
+        let maxHeight = trayPanelMaxHeight(for: screen)
         let fittingSize = hostingController.sizeThatFits(in: NSSize(width: width, height: maxHeight))
         let height = min(maxHeight, max(1, fittingSize.height))
         return NSSize(width: width, height: height)
@@ -126,48 +151,84 @@ final class StatusItemController: NSObject {
         return min(500, max(320, visibleHeight * 0.50))
     }
 
-    private func trayPopoverMaxHeight(for screen: NSScreen?) -> CGFloat {
+    private func trayPanelMaxHeight(for screen: NSScreen?) -> CGFloat {
         let visibleHeight = screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 900
         return min(640, max(360, visibleHeight - 120))
     }
 
-    @objc private func togglePopover(_ sender: NSStatusBarButton) {
-        if popover.isShown {
-            closePopover()
+    @objc private func toggleTrayPanel(_ sender: NSStatusBarButton) {
+        if trayPanel?.isVisible == true {
+            closeTrayPanel()
         } else {
-            showPopover(relativeTo: sender)
+            showTrayPanel(relativeTo: sender)
         }
     }
 
-    private func showPopover(relativeTo sender: NSStatusBarButton) {
+    private func showTrayPanel(relativeTo sender: NSStatusBarButton) {
         let button = statusItem?.button ?? sender
-        guard button.window != nil else {
-            RuntimeLog.tray.error("cannot show tray popover because status button is detached")
+        guard let buttonWindow = button.window else {
+            RuntimeLog.tray.error("cannot show tray panel because status button is detached")
             return
         }
 
-        RuntimeLog.tray.info("tray popover opened")
-        rebuildPopoverContent(screen: button.window?.screen)
+        RuntimeLog.tray.info("tray panel opened")
+        rebuildTrayPanelContent(screen: buttonWindow.screen)
+        guard let panel = trayPanel else { return }
         button.layoutSubtreeIfNeeded()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        configurePopoverWindowForCurrentSpace()
+        panel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow), display: false)
+        panel.orderFrontRegardless()
+        startEventMonitoring()
     }
 
-    private func configurePopoverWindowForCurrentSpace() {
-        guard let popoverWindow = popover.contentViewController?.view.window else {
-            RuntimeLog.tray.error("cannot configure tray popover window because it is missing")
-            return
-        }
-
-        popoverWindow.collectionBehavior.insert(.moveToActiveSpace)
-        popoverWindow.collectionBehavior.insert(.fullScreenAuxiliary)
+    private func trayPanelFrame(relativeTo button: NSStatusBarButton, in buttonWindow: NSWindow) -> NSRect {
+        let anchorInWindow = button.convert(button.bounds, to: nil)
+        let anchor = buttonWindow.convertToScreen(anchorInWindow)
+        let screenFrame = buttonWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? anchor
+        let size = trayPanel?.frame.size ?? NSSize(width: 350, height: 420)
+        let x = min(
+            max(anchor.midX - size.width / 2, screenFrame.minX + 8),
+            screenFrame.maxX - size.width - 8
+        )
+        let y = max(anchor.minY - size.height - 8, screenFrame.minY + 8)
+        return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 
-    private func closePopover() {
-        if popover.isShown {
-            RuntimeLog.tray.info("tray popover closed")
+    private func closeTrayPanel() {
+        if trayPanel?.isVisible == true {
+            RuntimeLog.tray.info("tray panel closed")
         }
-        popover.performClose(nil)
+        trayPanel?.orderOut(nil)
+        stopEventMonitoring()
+    }
+
+    private func startEventMonitoring() {
+        stopEventMonitoring()
+
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self else { return event }
+            if event.window === self.trayPanel || event.window === self.statusItem?.button?.window {
+                return event
+            }
+            self.closeTrayPanel()
+            return event
+        }
+
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.closeTrayPanel()
+            }
+        }
+    }
+
+    private func stopEventMonitoring() {
+        if let localEventMonitor {
+            NSEvent.removeMonitor(localEventMonitor)
+            self.localEventMonitor = nil
+        }
+        if let globalEventMonitor {
+            NSEvent.removeMonitor(globalEventMonitor)
+            self.globalEventMonitor = nil
+        }
     }
 
     private func startObservingModel() {
@@ -337,7 +398,7 @@ final class StatusItemController: NSObject {
     }
 
     private func visibleCodexAccountCount() -> Int {
-        let currentCountsAsAccount: Bool = switch model.currentCLIState.source {
+        let currentCountsAsAccount = switch model.currentCLIState.source {
         case .stored, .external:
             true
         case .missing, .unreadable:
@@ -349,7 +410,7 @@ final class StatusItemController: NSObject {
     }
 
     private func visibleClaudeAccountCount() -> Int {
-        let currentCountsAsAccount: Bool = switch model.currentClaudeState.source {
+        let currentCountsAsAccount = switch model.currentClaudeState.source {
         case .stored, .external:
             true
         case .loggedOut, .notInstalled, .unreadable:
@@ -431,4 +492,17 @@ private struct FiveHourLimitSnapshot {
     let remainingProgress: Double?
     let remainingPercent: Int?
     let resetText: String?
+}
+
+private struct TrayPanelChromeView<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.primary.opacity(0.08), lineWidth: 1)
+            }
+    }
 }
