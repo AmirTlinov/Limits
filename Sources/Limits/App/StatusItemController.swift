@@ -49,7 +49,7 @@ final class StatusItemController: NSObject {
         }
 
         popover.behavior = .transient
-        popover.animates = true
+        popover.animates = false
         rebuildPopoverContent()
         startObservingModel()
         refreshStatusItemAppearance()
@@ -100,17 +100,35 @@ final class StatusItemController: NSObject {
             openSettingsWindow: { [weak self] in
                 self?.openSettingsWindowFromTray()
             },
+            maxScrollableContentHeight: trayScrollableContentHeight(for: screen),
             providerFilterDidChange: { [weak self] _ in
                 self?.refreshStatusItemAppearance()
             }
         )
 
         let hostingController = NSHostingController(rootView: content)
-        let visibleHeight = screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 900
-        let height = min(760, max(420, visibleHeight - 96))
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 350, height: height)
+        let size = trayPopoverSize(for: hostingController, screen: screen)
+        hostingController.view.frame = NSRect(origin: .zero, size: size)
         popover.contentViewController = hostingController
-        popover.contentSize = NSSize(width: 350, height: height)
+        popover.contentSize = size
+    }
+
+    private func trayPopoverSize(for hostingController: NSHostingController<MenuBarContentView>, screen: NSScreen?) -> NSSize {
+        let width: CGFloat = 350
+        let maxHeight = trayPopoverMaxHeight(for: screen)
+        let fittingSize = hostingController.sizeThatFits(in: NSSize(width: width, height: maxHeight))
+        let height = min(maxHeight, max(1, fittingSize.height))
+        return NSSize(width: width, height: height)
+    }
+
+    private func trayScrollableContentHeight(for screen: NSScreen?) -> CGFloat {
+        let visibleHeight = screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 900
+        return min(500, max(320, visibleHeight * 0.50))
+    }
+
+    private func trayPopoverMaxHeight(for screen: NSScreen?) -> CGFloat {
+        let visibleHeight = screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 900
+        return min(640, max(360, visibleHeight - 120))
     }
 
     @objc private func togglePopover(_ sender: NSStatusBarButton) {

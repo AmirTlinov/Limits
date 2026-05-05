@@ -6,6 +6,7 @@ struct MenuBarContentView: View {
     let openAccountsWindow: () -> Void
     let openSettingsWindow: () -> Void
     let providerFilterDidChange: (AccountsSidebarFilter) -> Void
+    let maxScrollableContentHeight: CGFloat
 
     @AppStorage("limits.tray.codex.expanded") private var codexExpanded = true
     @AppStorage("limits.tray.claude.expanded") private var claudeExpanded = true
@@ -15,11 +16,13 @@ struct MenuBarContentView: View {
         model: AppModel,
         openAccountsWindow: @escaping () -> Void,
         openSettingsWindow: @escaping () -> Void,
+        maxScrollableContentHeight: CGFloat = 420,
         providerFilterDidChange: @escaping (AccountsSidebarFilter) -> Void = { _ in }
     ) {
         self.model = model
         self.openAccountsWindow = openAccountsWindow
         self.openSettingsWindow = openSettingsWindow
+        self.maxScrollableContentHeight = maxScrollableContentHeight
         self.providerFilterDidChange = providerFilterDidChange
     }
 
@@ -95,6 +98,13 @@ struct MenuBarContentView: View {
         shouldShowClaudeRow || !storedClaudeAccounts.isEmpty
     }
 
+    private var shouldScrollAccountContent: Bool {
+        AccountsPresentationLogic.needsStoredAccountsScroll(
+            storedCodexCount: providerFilter.includesCodex ? storedCodexAccounts.count : 0,
+            storedClaudeCount: providerFilter.includesClaude ? storedClaudeAccounts.count : 0
+        )
+    }
+
     private var providerFilter: AccountsSidebarFilter {
         AccountsSidebarFilter(rawValue: providerFilterRaw) ?? .all
     }
@@ -116,38 +126,51 @@ struct MenuBarContentView: View {
             ProviderFilterPicker(selection: providerFilterBinding)
                 .padding(.bottom, 1)
 
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 10) {
-                    if providerFilter.includesCodex {
-                        codexSection
-                    }
-
-                    if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
-                        MinimalSeparator()
-                            .opacity(0.30)
-                            .padding(.horizontal, 2)
-                    }
-
-                    if providerFilter.includesClaude, shouldShowClaudeSection {
-                        claudeSection
-                    }
-                }
-                .padding(.vertical, 1)
-            }
-            .scrollIndicators(.hidden)
-            .frame(maxHeight: Self.contentMaxHeight)
+            accountContent
 
             footer
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: 326)
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.98))
         .onAppear {
             Task {
                 await model.refreshCurrentCLIPanel(forceProbe: false)
                 await model.refreshCurrentClaudeState()
             }
         }
+    }
+
+    @ViewBuilder
+    private var accountContent: some View {
+        if shouldScrollAccountContent {
+            TrayScrollView {
+                accountSections
+            }
+            .frame(maxHeight: maxScrollableContentHeight)
+        } else {
+            accountSections
+        }
+    }
+
+    private var accountSections: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if providerFilter.includesCodex {
+                codexSection
+            }
+
+            if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
+                MinimalSeparator()
+                    .opacity(0.30)
+                    .padding(.horizontal, 2)
+            }
+
+            if providerFilter.includesClaude, shouldShowClaudeSection {
+                claudeSection
+            }
+        }
+        .padding(.vertical, 1)
     }
 
     private var codexSection: some View {
@@ -474,11 +497,62 @@ struct MenuBarContentView: View {
         return formatter
     }()
 
-    private static var contentMaxHeight: CGFloat {
-        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 900
-        return min(540, max(420, visibleHeight * 0.58))
+}
+
+private struct TrayScrollView<Content: View>: NSViewRepresentable {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
     }
 
+    func makeNSView(context: Context) -> TrayScrollContainer<Content> {
+        TrayScrollContainer(rootView: content)
+    }
+
+    func updateNSView(_ scrollView: TrayScrollContainer<Content>, context: Context) {
+        scrollView.update(rootView: content)
+    }
+}
+
+private final class TrayScrollContainer<Content: View>: NSScrollView {
+    private let hostingView: NSHostingView<Content>
+
+    init(rootView: Content) {
+        self.hostingView = NSHostingView(rootView: rootView)
+        super.init(frame: .zero)
+        drawsBackground = false
+        borderType = .noBorder
+        hasVerticalScroller = false
+        hasHorizontalScroller = false
+        autohidesScrollers = true
+        scrollerStyle = .overlay
+        verticalScrollElasticity = .allowed
+        horizontalScrollElasticity = .none
+        documentView = hostingView
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    func update(rootView: Content) {
+        hostingView.rootView = rootView
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        updateDocumentFrame()
+    }
+
+    private func updateDocumentFrame() {
+        let width = max(1, contentView.bounds.width)
+        hostingView.frame.size.width = width
+        let fittingHeight = max(contentView.bounds.height, hostingView.fittingSize.height)
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: fittingHeight)
+    }
 }
 
 private struct TrayProviderSection<Content: View>: View {
