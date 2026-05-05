@@ -283,8 +283,11 @@ import Testing
     let noData = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 8)
 
     #expect(TrayStatusPresentation.segments(filter: .all, codex: codex, claude: claude) == [
-        TrayStatusPresentationSegment(provider: .codex, metricText: "96% 1/8"),
-        TrayStatusPresentationSegment(provider: .claude, metricText: "95% 1/2"),
+        TrayStatusPresentationSegment(provider: .codex, metricText: "96% 1/8", remainingPercent: 96),
+        TrayStatusPresentationSegment(provider: .claude, metricText: "95% 1/2", remainingPercent: 95),
+    ])
+    #expect(TrayStatusPresentation.segments(filter: .codex, codex: noData, claude: claude) == [
+        TrayStatusPresentationSegment(provider: .codex, metricText: "— 0/8", remainingPercent: nil),
     ])
     #expect(TrayStatusPresentation.title(filter: .all, codex: codex, claude: claude) == "Codex 96% 1/8 · Claude 95% 1/2")
     #expect(TrayStatusPresentation.title(filter: .codex, codex: codex, claude: claude) == "Codex 96% 1/8")

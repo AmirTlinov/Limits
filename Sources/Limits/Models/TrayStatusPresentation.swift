@@ -13,6 +13,7 @@ struct TrayProviderAvailability: Equatable {
 struct TrayStatusPresentationSegment: Equatable {
     let provider: TrayStatusProvider
     let metricText: String
+    let remainingPercent: Int?
 }
 
 enum TrayStatusPresentation {
@@ -52,7 +53,8 @@ enum TrayStatusPresentation {
     private static func providerSegment(provider: TrayStatusProvider, availability: TrayProviderAvailability) -> TrayStatusPresentationSegment {
         TrayStatusPresentationSegment(
             provider: provider,
-            metricText: metricText(availability: availability)
+            metricText: metricText(availability: availability),
+            remainingPercent: availability.remainingPercent
         )
     }
 }
