@@ -296,7 +296,7 @@ struct AccountsWindowView: View {
     }
 
     private var currentCLITrailingText: String? {
-        model.currentCLISidebarLimitSummary()?.compactLimitText()
+        model.currentCLIDisplaySidebarLimitSummary()?.compactLimitText()
     }
 
     private var currentClaudeTrailingText: String? {
@@ -449,7 +449,15 @@ private struct CurrentCLIDetailPane: View {
     }
 
     private var sections: [RateLimitDisplaySection] {
-        model.currentCLIRateLimitSections()
+        model.currentCLIDisplayRateLimitSections()
+    }
+
+    private var probeWarningText: String? {
+        guard let warning = model.currentCLIProbeWarningText() else {
+            return nil
+        }
+
+        return warning == overview.note ? nil : warning
     }
 
     var body: some View {
@@ -488,9 +496,9 @@ private struct CurrentCLIDetailPane: View {
                 InlineWarningCard(text: errorMessage)
             }
 
-            if let probeError = model.currentCLIProbeError {
+            if let probeWarningText {
                 MinimalSeparator()
-                InlineWarningCard(text: probeError)
+                InlineWarningCard(text: probeWarningText)
             }
 
             if sections.isEmpty {

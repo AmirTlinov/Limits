@@ -236,6 +236,13 @@ import Testing
     #expect(AppModel.validationStatus(forErrorMessage: "temporary backend outage") == .validationFailed)
 }
 
+@Test func currentCLIProbeNoteCollapsesRawAuthErrorsIntoUserStatus() {
+    L10n.withLanguage("ru") {
+        #expect(AppModel.currentCLIProbeNote(for: "401 Unauthorized token_invalidated") == "Текущей авторизации нужен повторный вход.")
+        #expect(AppModel.currentCLIProbeNote(for: "temporary backend outage") == "Не удалось обновить живые лимиты.")
+    }
+}
+
 @Test func storedCodexAutoRefreshPicksStaleAccountWithoutRetryHammering() throws {
     let calendar = Calendar.current
     let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))

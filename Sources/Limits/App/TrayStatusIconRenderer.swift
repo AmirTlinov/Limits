@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 final class TrayStatusIconRenderer {
     private let height: CGFloat = 22
-    private let iconSize: CGFloat = 16.5
+    private let iconSlotSize: CGFloat = 20
     private let iconTextSpacing: CGFloat = 4
     private let providerSpacing: CGFloat = 8
     private let horizontalInset: CGFloat = 1
@@ -26,11 +26,11 @@ final class TrayStatusIconRenderer {
             )
         }
         let textWidth = measuredSegments.reduce(CGFloat.zero) { $0 + $1.textSize.width }
-        let iconWidth = CGFloat(measuredSegments.count) * iconSize
+        let iconWidth = CGFloat(measuredSegments.count) * iconSlotSize
         let internalSpacing = CGFloat(measuredSegments.count) * iconTextSpacing
         let providerGaps = CGFloat(max(0, measuredSegments.count - 1)) * providerSpacing
         let width = ceil(horizontalInset * 2 + textWidth + iconWidth + internalSpacing + providerGaps)
-        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { [height, iconSize, iconTextSpacing, providerSpacing, horizontalInset, textTop, barTop, barHeight] _ in
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { [height, iconSlotSize, iconTextSpacing, providerSpacing, horizontalInset, textTop, barTop, barHeight] _ in
             NSGraphicsContext.current?.imageInterpolation = .high
             var x = horizontalInset
 
@@ -40,19 +40,20 @@ final class TrayStatusIconRenderer {
                 }
 
                 if let icon = measured.icon {
+                    let iconMetrics = Self.iconMetrics(for: measured.segment.provider)
                     icon.draw(
                         in: NSRect(
-                            x: x,
-                            y: floor((height - iconSize) / 2) - 1,
-                            width: iconSize,
-                            height: iconSize
+                            x: x + floor((iconSlotSize - iconMetrics.drawSize) / 2),
+                            y: floor((height - iconMetrics.drawSize) / 2) + iconMetrics.yOffset,
+                            width: iconMetrics.drawSize,
+                            height: iconMetrics.drawSize
                         ),
                         from: .zero,
                         operation: .sourceOver,
                         fraction: 1
                     )
                 }
-                x += iconSize + iconTextSpacing
+                x += iconSlotSize + iconTextSpacing
 
                 measured.segment.metricText.draw(
                     with: NSRect(
@@ -80,6 +81,17 @@ final class TrayStatusIconRenderer {
         }
         image.isTemplate = true
         return image
+    }
+
+    private static func iconMetrics(for provider: TrayStatusProvider) -> (drawSize: CGFloat, yOffset: CGFloat) {
+        switch provider {
+        case .codex:
+            // The official Codex sprite has internal whitespace inside its 20x20 viewBox.
+            // Draw it larger than the slot so its visible cloud matches Claude optically.
+            return (drawSize: 23, yOffset: -1)
+        case .claude:
+            return (drawSize: 20, yOffset: 0)
+        }
     }
 
     private var textAttributes: [NSAttributedString.Key: Any] {

@@ -56,6 +56,22 @@ struct RateLimitDisplaySection: Identifiable, Hashable {
 
 enum RateLimitDisplayBuilder {
     static func makeSections(primary: RateLimitSnapshotModel?, byLimitId: [String: RateLimitSnapshotModel]?) -> [RateLimitDisplaySection] {
+        makeSections(primary: primary, byLimitId: byLimitId, filteringExpiredRowsAt: nil)
+    }
+
+    static func makeSections(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        excludingExpiredRowsAt now: Date
+    ) -> [RateLimitDisplaySection] {
+        makeSections(primary: primary, byLimitId: byLimitId, filteringExpiredRowsAt: now)
+    }
+
+    private static func makeSections(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        filteringExpiredRowsAt now: Date?
+    ) -> [RateLimitDisplaySection] {
         var snapshots = byLimitId ?? [:]
 
         if let primary {
@@ -64,7 +80,7 @@ enum RateLimitDisplayBuilder {
 
         return snapshots.values
             .sorted(by: compare)
-            .compactMap(makeSection)
+            .compactMap { makeSection(from: $0, excludingExpiredRowsAt: now) }
     }
 
     private static func compare(lhs: RateLimitSnapshotModel, rhs: RateLimitSnapshotModel) -> Bool {
@@ -87,8 +103,8 @@ enum RateLimitDisplayBuilder {
         return 1
     }
 
-    private static func makeSection(from snapshot: RateLimitSnapshotModel) -> RateLimitDisplaySection? {
-        let rows = rows(for: snapshot)
+    private static func makeSection(from snapshot: RateLimitSnapshotModel, excludingExpiredRowsAt now: Date?) -> RateLimitDisplaySection? {
+        let rows = rows(for: snapshot, excludingExpiredRowsAt: now)
         guard !rows.isEmpty else {
             return nil
         }
@@ -107,36 +123,48 @@ enum RateLimitDisplayBuilder {
         return "Codex CLI"
     }
 
-    private static func rows(for snapshot: RateLimitSnapshotModel) -> [RateLimitDisplayRow] {
+    private static func rows(for snapshot: RateLimitSnapshotModel, excludingExpiredRowsAt now: Date?) -> [RateLimitDisplayRow] {
         var result: [RateLimitDisplayRow] = []
 
-        if let primary = snapshot.primary {
-            let resetDate = resetDate(for: primary.resetsAt)
-            result.append(
-                RateLimitDisplayRow(
-                    id: "\(snapshot.limitId ?? "limit").primary",
-                    title: rowTitle(minutes: primary.windowDurationMins, fallback: L10n.tr("limit.generic")),
-                    usedPercent: primary.usedPercent,
-                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
-                    resetDate: resetDate
-                )
-            )
+        if let primary = snapshot.primary,
+           let row = makeRow(
+                id: "\(snapshot.limitId ?? "limit").primary",
+                window: primary,
+                excludingExpiredRowsAt: now
+           ) {
+            result.append(row)
         }
 
-        if let secondary = snapshot.secondary {
-            let resetDate = resetDate(for: secondary.resetsAt)
-            result.append(
-                RateLimitDisplayRow(
-                    id: "\(snapshot.limitId ?? "limit").secondary",
-                    title: rowTitle(minutes: secondary.windowDurationMins, fallback: L10n.tr("limit.generic")),
-                    usedPercent: secondary.usedPercent,
-                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
-                    resetDate: resetDate
-                )
-            )
+        if let secondary = snapshot.secondary,
+           let row = makeRow(
+                id: "\(snapshot.limitId ?? "limit").secondary",
+                window: secondary,
+                excludingExpiredRowsAt: now
+           ) {
+            result.append(row)
         }
 
         return result
+    }
+
+    private static func makeRow(
+        id: String,
+        window: RateLimitWindowSnapshot,
+        excludingExpiredRowsAt now: Date?
+    ) -> RateLimitDisplayRow? {
+        let resetDate = resetDate(for: window.resetsAt)
+
+        if let now, let resetDate, resetDate <= now {
+            return nil
+        }
+
+        return RateLimitDisplayRow(
+            id: id,
+            title: rowTitle(minutes: window.windowDurationMins, fallback: L10n.tr("limit.generic")),
+            usedPercent: window.usedPercent,
+            resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
+            resetDate: resetDate
+        )
     }
 
     private static func rowTitle(minutes: Int64?, fallback: String) -> String {

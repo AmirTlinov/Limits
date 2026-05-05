@@ -137,6 +137,63 @@ import Testing
     }
 }
 
+@Test func storedLimitDisplayKeepsFutureWeeklyWhenFiveHourResetPassed() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let resetAlreadyPassed = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
+    let weeklyReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 10, hour: 12)))
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(resetAlreadyPassed.timeIntervalSince1970), usedPercent: 0, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(resetsAt: Int64(weeklyReset.timeIntervalSince1970), usedPercent: 81, windowDurationMins: 10_080)
+    )
+
+    L10n.withLanguage("ru") {
+        let sections = AppModel.storedRateLimitSections(primary: snapshot, byLimitId: nil, now: now)
+        #expect(sections.count == 1)
+        #expect(sections.first?.rows.map(\.title) == ["Недельный лимит"])
+        #expect(sections.first?.rows.first?.usedPercent == 81)
+
+        let summary = AppModel.sidebarLimitSummary(primary: snapshot, byLimitId: nil, now: now)
+        #expect(summary?.fiveHourRemainingPercent == nil)
+        #expect(summary?.weeklyRemainingPercent == 19)
+        #expect(summary?.compactLimitText() == "7д 19%")
+        #expect(AppModel.storedRemainingPercent(primary: snapshot, byLimitId: nil, now: now) == nil)
+    }
+}
+
+@Test func storedLimitDisplayUsesExactByLimitSnapshotsInsteadOfAggregateFallback() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
+    let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 18)))
+    let aggregate = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "aggregate",
+        limitName: "Aggregate",
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(futureReset.timeIntervalSince1970), usedPercent: 5, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let expiredCodex = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(resetsAt: Int64(pastReset.timeIntervalSince1970), usedPercent: 95, windowDurationMins: 300),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    let sections = AppModel.storedRateLimitSections(primary: aggregate, byLimitId: ["codex": expiredCodex], now: now)
+    #expect(sections.isEmpty)
+}
+
 @Test func storedLimitDisplayTreatsExpiredCodexByLimitSnapshotAsStale() throws {
     let calendar = Calendar.current
     let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))

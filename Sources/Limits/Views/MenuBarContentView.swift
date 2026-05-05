@@ -32,7 +32,7 @@ struct MenuBarContentView: View {
     }
 
     private var currentCodexRows: [RateLimitDisplayRow] {
-        compactRows(from: model.currentCLIRateLimitSections())
+        compactRows(from: model.currentCLIDisplayRateLimitSections())
     }
 
     private var currentClaudeRows: [RateLimitDisplayRow] {

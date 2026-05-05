@@ -761,6 +761,10 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func currentCLIProbeWarningText() -> String? {
+        currentCLIProbeError.map { Self.currentCLIProbeNote(for: $0) }
+    }
+
     func hasExternalCLIAuthDrift() -> Bool {
         if case .external = currentCLIState.source {
             return true
@@ -1175,6 +1179,23 @@ final class AppModel: ObservableObject {
         Self.liveCurrentCLIRateLimitSections(probe: currentCLIProbe, probeError: currentCLIProbeError)
     }
 
+    func currentCLIDisplayRateLimitSections(now: Date = .now) -> [RateLimitDisplaySection] {
+        let liveSections = currentCLIRateLimitSections()
+        if !liveSections.isEmpty {
+            return liveSections
+        }
+
+        guard let account = currentCLIReferenceAccount() else {
+            return []
+        }
+
+        return Self.storedRateLimitSections(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId,
+            now: now
+        )
+    }
+
     static func liveCurrentCLIPanelSummary(probe: CurrentCLIProbe?, probeError: String? = nil) -> String? {
         guard probeError == nil else { return nil }
         return probe?.rateLimit?.panelSummary()
@@ -1329,6 +1350,18 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func currentCLIDisplaySidebarLimitSummary(now: Date = .now) -> SidebarLimitSummary? {
+        if let liveSummary = currentCLISidebarLimitSummary(now: now), liveSummary.hasLimitData {
+            return liveSummary
+        }
+
+        guard let account = currentCLIReferenceAccount() else {
+            return nil
+        }
+
+        return sidebarLimitSummary(for: account, now: now)
+    }
+
     func sidebarLimitSummary(for account: StoredAccount, now: Date = .now) -> SidebarLimitSummary? {
         let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
         if useLiveProbe {
@@ -1351,10 +1384,6 @@ final class AppModel: ObservableObject {
         byLimitId: [String: RateLimitSnapshotModel]?,
         now: Date = .now
     ) -> SidebarLimitSummary? {
-        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
-            return nil
-        }
-
         guard let snapshot = byLimitId?["codex"] ?? primary else {
             return nil
         }
@@ -1507,13 +1536,11 @@ final class AppModel: ObservableObject {
         byLimitId: [String: RateLimitSnapshotModel]?,
         now: Date = .now
     ) -> [RateLimitDisplaySection] {
-        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
-            return []
-        }
-
+        let hasExactLimitSnapshots = byLimitId?.isEmpty == false
         return RateLimitDisplayBuilder.makeSections(
-            primary: primary,
-            byLimitId: byLimitId
+            primary: hasExactLimitSnapshots ? nil : primary,
+            byLimitId: byLimitId,
+            excludingExpiredRowsAt: now
         )
     }
 
@@ -1671,7 +1698,7 @@ final class AppModel: ObservableObject {
 
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
         if let probeError = currentCLIProbeError {
-            return currentCLIProbeNote(for: probeError)
+            return Self.currentCLIProbeNote(for: probeError)
         }
         if currentCLIProbe == nil {
             return isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : L10n.tr("limits.empty.account.subtitle")
@@ -1696,7 +1723,7 @@ final class AppModel: ObservableObject {
 
     private func noteForExternalAuth(_ account: StoredAccount?) -> String? {
         if let probeError = currentCLIProbeError {
-            return currentCLIProbeNote(for: probeError)
+            return Self.currentCLIProbeNote(for: probeError)
         }
         if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
             return L10n.tr("busy.refreshing_live_limits")
@@ -1710,7 +1737,7 @@ final class AppModel: ObservableObject {
         return L10n.tr("cli.import_current_note")
     }
 
-    private func currentCLIProbeNote(for message: String) -> String {
+    nonisolated static func currentCLIProbeNote(for message: String) -> String {
         let lowered = message.lowercased()
         if lowered.contains("unauthorized") || lowered.contains("401") || lowered.contains("auth") || lowered.contains("login") {
             return L10n.tr("cli.current_reauth_needed")

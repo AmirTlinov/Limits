@@ -380,11 +380,25 @@ final class StatusItemController: NSObject {
     }
 
     private func availableCodexAccountCountWithLimits() -> Int {
-        let currentCountsAsAvailable = model.currentCLISidebarLimitSummary()?.hasLimitData == true
+        let currentCountsAsAvailable = currentCodexAccountCountsAsAvailableWithLimits()
         let storedOtherCount = model.accounts.filter { account in
-            !model.isCurrentCLIAccount(account) && model.sidebarLimitSummary(for: account)?.hasLimitData == true
+            !model.isCurrentCLIAccount(account)
+                && account.status == .ok
+                && model.sidebarLimitSummary(for: account)?.hasLimitData == true
         }.count
         return (currentCountsAsAvailable ? 1 : 0) + storedOtherCount
+    }
+
+    private func currentCodexAccountCountsAsAvailableWithLimits() -> Bool {
+        guard model.currentCLISidebarLimitSummary()?.hasLimitData == true else {
+            return false
+        }
+
+        guard let account = model.currentCLIReferenceAccount() else {
+            return true
+        }
+
+        return account.status == .ok
     }
 
     private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
