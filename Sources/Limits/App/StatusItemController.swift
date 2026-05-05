@@ -25,6 +25,7 @@ final class StatusItemController: NSObject {
     private var languageCancellable: AnyCancellable?
     private var localEventMonitor: Any?
     private var globalEventMonitor: Any?
+    private var trayPanelResizeTask: Task<Void, Never>?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void, openSettingsWindow: @escaping () -> Void) {
         self.model = model
@@ -101,8 +102,8 @@ final class StatusItemController: NSObject {
                 self?.openSettingsWindowFromTray()
             },
             maxScrollableContentHeight: trayScrollableContentHeight(for: screen),
-            providerFilterDidChange: { [weak self] _ in
-                self?.refreshStatusItemAppearance()
+            providerFilterDidChange: { [weak self] filter in
+                self?.handleProviderFilterDidChange(filter)
             }
         )
         let rootView = TrayPanelChromeView {
@@ -156,6 +157,46 @@ final class StatusItemController: NSObject {
         return min(640, max(360, visibleHeight - 120))
     }
 
+    private func handleProviderFilterDidChange(_: AccountsSidebarFilter) {
+        refreshStatusItemAppearance()
+        scheduleVisibleTrayPanelResize()
+    }
+
+    private func scheduleVisibleTrayPanelResize() {
+        trayPanelResizeTask?.cancel()
+        trayPanelResizeTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            self?.resizeVisibleTrayPanel()
+            self?.trayPanelResizeTask = nil
+        }
+    }
+
+    private func resizeVisibleTrayPanel() {
+        guard
+            let panel = trayPanel,
+            panel.isVisible,
+            let button = statusItem?.button,
+            let buttonWindow = button.window
+        else { return }
+
+        let screen = buttonWindow.screen ?? panel.screen
+        button.layoutSubtreeIfNeeded()
+
+        guard let hostingController = panel.contentViewController as? NSHostingController<TrayPanelChromeView<MenuBarContentView>> else {
+            rebuildTrayPanelContent(screen: screen)
+            guard let rebuiltPanel = trayPanel else { return }
+            rebuiltPanel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow), display: true)
+            return
+        }
+
+        hostingController.view.needsLayout = true
+        hostingController.view.layoutSubtreeIfNeeded()
+        let size = trayPanelSize(for: hostingController, screen: screen)
+        hostingController.view.frame = NSRect(origin: .zero, size: size)
+        panel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow, size: size), display: true)
+    }
+
     @objc private func toggleTrayPanel(_ sender: NSStatusBarButton) {
         if trayPanel?.isVisible == true {
             closeTrayPanel()
@@ -180,11 +221,11 @@ final class StatusItemController: NSObject {
         startEventMonitoring()
     }
 
-    private func trayPanelFrame(relativeTo button: NSStatusBarButton, in buttonWindow: NSWindow) -> NSRect {
+    private func trayPanelFrame(relativeTo button: NSStatusBarButton, in buttonWindow: NSWindow, size explicitSize: NSSize? = nil) -> NSRect {
         let anchorInWindow = button.convert(button.bounds, to: nil)
         let anchor = buttonWindow.convertToScreen(anchorInWindow)
         let screenFrame = buttonWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? anchor
-        let size = trayPanel?.frame.size ?? NSSize(width: 350, height: 420)
+        let size = explicitSize ?? trayPanel?.frame.size ?? NSSize(width: 350, height: 420)
         let x = min(
             max(anchor.midX - size.width / 2, screenFrame.minX + 8),
             screenFrame.maxX - size.width - 8
@@ -198,6 +239,8 @@ final class StatusItemController: NSObject {
             RuntimeLog.tray.info("tray panel closed")
         }
         trayPanel?.orderOut(nil)
+        trayPanelResizeTask?.cancel()
+        trayPanelResizeTask = nil
         stopEventMonitoring()
     }
 
@@ -236,6 +279,7 @@ final class StatusItemController: NSObject {
             Task { @MainActor [weak self] in
                 await Task.yield()
                 self?.refreshStatusItemAppearance()
+                self?.scheduleVisibleTrayPanelResize()
             }
         }
 
@@ -243,6 +287,7 @@ final class StatusItemController: NSObject {
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.refreshStatusItemAppearance()
+                    self?.scheduleVisibleTrayPanelResize()
                 }
             }
 
@@ -250,6 +295,7 @@ final class StatusItemController: NSObject {
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.refreshLocalizedText()
+                    self?.scheduleVisibleTrayPanelResize()
                 }
             }
     }

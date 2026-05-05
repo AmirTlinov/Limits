@@ -114,9 +114,19 @@ struct MenuBarContentView: View {
             get: { providerFilter },
             set: { newFilter in
                 providerFilterRaw = newFilter.rawValue
+                revealVisibleSections(for: newFilter)
                 providerFilterDidChange(newFilter)
             }
         )
+    }
+
+    private func revealVisibleSections(for filter: AccountsSidebarFilter) {
+        if filter.includesCodex {
+            codexExpanded = true
+        }
+        if filter.includesClaude {
+            claudeExpanded = true
+        }
     }
 
     var body: some View {
