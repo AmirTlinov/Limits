@@ -12,7 +12,7 @@ import Testing
     L10n.withLanguage("ru") {
         #expect(RateLimitResetFormatter.expandedText(for: laterToday, now: now) == "Сброс в 04:15")
         #expect(RateLimitResetFormatter.compactText(for: laterToday, now: now) == "Сброс 04:15")
-        #expect(RateLimitResetFormatter.expandedText(for: stale, now: now) == "Сброс прошёл · обновите")
+        #expect(RateLimitResetFormatter.expandedText(for: stale, now: now) == "Сброс прошёл · автообновление")
         #expect(RateLimitResetFormatter.compactText(for: stale, now: now) == "сброс прошёл")
         #expect(RateLimitResetFormatter.compactText(for: tomorrow, now: now).hasPrefix("Сброс 25"))
     }
@@ -132,7 +132,7 @@ import Testing
 
     L10n.withLanguage("ru") {
         #expect(AppModel.storedRateLimitSections(primary: staleSnapshot, byLimitId: nil, now: now).isEmpty)
-        #expect(AppModel.storedRateLimitSummary(primary: staleSnapshot, byLimitId: nil, now: now) == "Сброс прошёл · обновите")
+        #expect(AppModel.storedRateLimitSummary(primary: staleSnapshot, byLimitId: nil, now: now) == "Сброс прошёл · автообновление")
         #expect(AppModel.storedRemainingPercent(primary: staleSnapshot, byLimitId: nil, now: now) == nil)
     }
 }

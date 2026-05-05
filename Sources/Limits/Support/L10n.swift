@@ -91,6 +91,10 @@ enum L10n {
         }
     }
 
+    static func limitAvailability(available: Int, total: Int) -> String {
+        tr("tray.availability.with_limits", available, total)
+    }
+
     static func readyAccountCount(_ count: Int) -> String {
         switch languageFamily {
         case "ru":

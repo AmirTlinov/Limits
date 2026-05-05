@@ -44,11 +44,11 @@
 "settings.language.description" = "Choose the language used by the tray, windows, and messages.";
 "settings.language.system" = "Use system language";
 "settings.tray_legend.title" = "Tray icon";
-"settings.tray_legend.description" = "The two rings show account counts and 5-hour limit status at a glance.";
-"settings.tray_legend.codex.title" = "Blue ring — Codex";
-"settings.tray_legend.codex.subtitle" = "The number is your visible Codex account count.";
-"settings.tray_legend.claude.title" = "Orange ring — Claude";
-"settings.tray_legend.claude.subtitle" = "The number is your visible Claude account count.";
+"settings.tray_legend.description" = "Compact percentages show the current limit and how many visible accounts have usable limit data.";
+"settings.tray_legend.codex.title" = "Codex percentage";
+"settings.tray_legend.codex.subtitle" = "The count shows accounts with usable limits out of visible Codex accounts.";
+"settings.tray_legend.claude.title" = "Claude percentage";
+"settings.tray_legend.claude.subtitle" = "The count shows accounts with usable limits out of visible Claude accounts.";
 "busy.connecting_claude_live" = "Connecting Claude live limits…";
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";
@@ -141,7 +141,7 @@
 "reset.other_day.compact" = "Reset %@";
 "reset.other_day.expanded" = "Resets at %@, %@";
 "reset.stale.compact" = "reset passed";
-"reset.stale.expanded" = "Reset passed · refresh";
+"reset.stale.expanded" = "Reset passed · auto-checking";
 "reset.today.compact" = "Reset %@";
 "reset.today.expanded" = "Resets at %@";
 "time.checked_at" = "Checked %@";
@@ -155,3 +155,5 @@
 "tray.accessibility.ready_accounts.other" = "%d other accounts ready";
 "tray.tooltip.five_hour" = "%@ · 5h limit: %d%% remaining";
 "tray.tooltip.five_hour.no_data" = "%@ · 5h limit has no data yet";
+
+"tray.availability.with_limits" = "%d/%d with limits";

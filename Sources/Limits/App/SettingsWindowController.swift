@@ -120,14 +120,14 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 9) {
                     TrayLegendRow(
                         color: .blue,
-                        number: "3",
+                        sample: "C 90% 2/8",
                         title: L10n.tr("settings.tray_legend.codex.title"),
                         subtitle: L10n.tr("settings.tray_legend.codex.subtitle")
                     )
 
                     TrayLegendRow(
                         color: Color(red: 0.86, green: 0.39, blue: 0.24),
-                        number: "1",
+                        sample: "Cl 95% 1/2",
                         title: L10n.tr("settings.tray_legend.claude.title"),
                         subtitle: L10n.tr("settings.tray_legend.claude.subtitle")
                     )
@@ -156,25 +156,19 @@ struct SettingsView: View {
 
 private struct TrayLegendRow: View {
     let color: Color
-    let number: String
+    let sample: String
     let title: String
     let subtitle: String
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.28), lineWidth: 3)
-                    .frame(width: 24, height: 24)
-                Circle()
-                    .trim(from: 0, to: 0.72)
-                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 24, height: 24)
-                Text(number)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-            }
-            .accessibilityHidden(true)
+            Text(sample)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(color.opacity(0.10), in: Capsule())
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

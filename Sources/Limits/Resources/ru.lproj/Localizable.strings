@@ -44,11 +44,11 @@
 "settings.language.description" = "Выберите язык трея, окон и сообщений.";
 "settings.language.system" = "Как в системе";
 "settings.tray_legend.title" = "Иконка в трее";
-"settings.tray_legend.description" = "Два кольца показывают аккаунты и состояние 5ч лимита одним взглядом.";
-"settings.tray_legend.codex.title" = "Синее кольцо — Codex";
-"settings.tray_legend.codex.subtitle" = "Число внутри показывает видимые Codex-аккаунты.";
-"settings.tray_legend.claude.title" = "Оранжевое кольцо — Claude";
-"settings.tray_legend.claude.subtitle" = "Число внутри показывает видимые Claude-аккаунты.";
+"settings.tray_legend.description" = "Компактные проценты показывают текущий лимит и сколько видимых аккаунтов имеют годные данные лимитов.";
+"settings.tray_legend.codex.title" = "Процент Codex";
+"settings.tray_legend.codex.subtitle" = "Счётчик показывает аккаунты с лимитами из всех видимых Codex-аккаунтов.";
+"settings.tray_legend.claude.title" = "Процент Claude";
+"settings.tray_legend.claude.subtitle" = "Счётчик показывает аккаунты с лимитами из всех видимых Claude-аккаунтов.";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";
@@ -141,7 +141,7 @@
 "reset.other_day.compact" = "Сброс %@";
 "reset.other_day.expanded" = "Сброс в %@, %@";
 "reset.stale.compact" = "сброс прошёл";
-"reset.stale.expanded" = "Сброс прошёл · обновите";
+"reset.stale.expanded" = "Сброс прошёл · автообновление";
 "reset.today.compact" = "Сброс %@";
 "reset.today.expanded" = "Сброс в %@";
 "time.checked_at" = "Проверено %@";
@@ -155,3 +155,5 @@
 "tray.accessibility.ready_accounts.other" = "%d других аккаунтов откатились";
 "tray.tooltip.five_hour" = "%@ · 5ч лимит: %d%% осталось";
 "tray.tooltip.five_hour.no_data" = "%@ · 5ч лимит пока без данных";
+
+"tray.availability.with_limits" = "%d/%d с лимитами";

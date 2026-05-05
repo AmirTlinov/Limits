@@ -44,11 +44,11 @@
 "settings.language.description" = "Elige el idioma de la barra de menús, las ventanas y los mensajes.";
 "settings.language.system" = "Usar idioma del sistema";
 "settings.tray_legend.title" = "Icono de la barra de menús";
-"settings.tray_legend.description" = "Los dos anillos muestran cuentas y el estado del límite de 5 h de un vistazo.";
-"settings.tray_legend.codex.title" = "Anillo azul — Codex";
-"settings.tray_legend.codex.subtitle" = "El número muestra las cuentas visibles de Codex.";
-"settings.tray_legend.claude.title" = "Anillo naranja — Claude";
-"settings.tray_legend.claude.subtitle" = "El número muestra las cuentas visibles de Claude.";
+"settings.tray_legend.description" = "Los porcentajes compactos muestran el límite actual y cuántas cuentas visibles tienen datos de límites utilizables.";
+"settings.tray_legend.codex.title" = "Porcentaje de Codex";
+"settings.tray_legend.codex.subtitle" = "El contador muestra cuentas con límites utilizables entre las cuentas visibles de Codex.";
+"settings.tray_legend.claude.title" = "Porcentaje de Claude";
+"settings.tray_legend.claude.subtitle" = "El contador muestra cuentas con límites utilizables entre las cuentas visibles de Claude.";
 "busy.connecting_claude_live" = "Conectando límites en vivo de Claude…";
 "busy.deleting" = "Eliminando %@…";
 "busy.disconnecting_claude_bridge" = "Desconectando puente de Claude…";
@@ -141,7 +141,7 @@
 "reset.other_day.compact" = "Reinicio %@";
 "reset.other_day.expanded" = "Reinicio a las %@, %@";
 "reset.stale.compact" = "reinicio pasado";
-"reset.stale.expanded" = "El reinicio ya pasó · actualiza";
+"reset.stale.expanded" = "El reinicio ya pasó · comprobación automática";
 "reset.today.compact" = "Reinicio %@";
 "reset.today.expanded" = "Reinicio a las %@";
 "time.checked_at" = "Comprobado %@";
@@ -155,3 +155,5 @@
 "tray.accessibility.ready_accounts.other" = "%d otras cuentas listas";
 "tray.tooltip.five_hour" = "%@ · límite 5 h: queda %d%%";
 "tray.tooltip.five_hour.no_data" = "%@ · límite 5 h sin datos";
+
+"tray.availability.with_limits" = "%d/%d con límites";

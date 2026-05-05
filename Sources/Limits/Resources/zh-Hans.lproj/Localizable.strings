@@ -44,11 +44,11 @@
 "settings.language.description" = "选择菜单栏、窗口和消息使用的语言。";
 "settings.language.system" = "使用系统语言";
 "settings.tray_legend.title" = "菜单栏图标";
-"settings.tray_legend.description" = "两个圆环一眼显示账户数量和 5 小时限额状态。";
-"settings.tray_legend.codex.title" = "蓝色圆环 — Codex";
-"settings.tray_legend.codex.subtitle" = "数字表示可见的 Codex 账户数量。";
-"settings.tray_legend.claude.title" = "橙色圆环 — Claude";
-"settings.tray_legend.claude.subtitle" = "数字表示可见的 Claude 账户数量。";
+"settings.tray_legend.description" = "紧凑百分比显示当前限额，以及可见账户中有可用限额数据的数量。";
+"settings.tray_legend.codex.title" = "Codex 百分比";
+"settings.tray_legend.codex.subtitle" = "计数显示可见 Codex 账户中有可用限额数据的账户数。";
+"settings.tray_legend.claude.title" = "Claude 百分比";
+"settings.tray_legend.claude.subtitle" = "计数显示可见 Claude 账户中有可用限额数据的账户数。";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";
@@ -141,7 +141,7 @@
 "reset.other_day.compact" = "重置 %@";
 "reset.other_day.expanded" = "%@，%@ 重置";
 "reset.stale.compact" = "重置已过";
-"reset.stale.expanded" = "重置时间已过 · 请刷新";
+"reset.stale.expanded" = "重置时间已过 · 自动检查中";
 "reset.today.compact" = "重置 %@";
 "reset.today.expanded" = "%@ 重置";
 "time.checked_at" = "已检查 %@";
@@ -155,3 +155,5 @@
 "tray.accessibility.ready_accounts.other" = "%d 个其他账户已恢复";
 "tray.tooltip.five_hour" = "%@ · 5小时限额：剩余 %d%%";
 "tray.tooltip.five_hour.no_data" = "%@ · 5小时限额暂无数据";
+
+"tray.availability.with_limits" = "%d/%d 有限额数据";

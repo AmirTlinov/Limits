@@ -102,6 +102,7 @@ final class AppModel: ObservableObject {
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
     @Published var currentClaudeBridgeError: String?
+    @Published private(set) var presentationNow = Date()
 
     private let persistence = AccountsPersistence()
     private let vault = KeychainAuthVault()
@@ -112,7 +113,16 @@ final class AppModel: ObservableObject {
     private let claudeStatuslineBridgeService = ClaudeStatuslineBridgeService()
     private let currentCLIProbeTTL: TimeInterval = 300
     private let backgroundRefreshInterval: TimeInterval = 300
+    private let presentationTickInterval: TimeInterval = 30
+    private let currentCLIExpiredResetRetryInterval: TimeInterval = 300
+    private let storedCodexAutoRefreshInterval: TimeInterval = 60
+    private let storedCodexAutoRefreshRetryInterval: TimeInterval = 1_800
     private var backgroundRefreshTask: Task<Void, Never>?
+    private var presentationClockTask: Task<Void, Never>?
+    private var storedCodexAutoRefreshTask: Task<Void, Never>?
+    private var lastStoredCodexAutoRefreshAttempt: [UUID: Date] = [:]
+    private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
+    private var isRefreshingStoredCodexAccount = false
 
     func invalidateLocalizedText() {
         objectWillChange.send()
@@ -120,7 +130,15 @@ final class AppModel: ObservableObject {
 
     init() {
         Task { await bootstrap() }
+        startPresentationClockLoop()
         startBackgroundRefreshLoop()
+        startStoredCodexAutoRefreshLoop()
+    }
+
+    deinit {
+        backgroundRefreshTask?.cancel()
+        presentationClockTask?.cancel()
+        storedCodexAutoRefreshTask?.cancel()
     }
 
     func bootstrap() async {
@@ -136,6 +154,7 @@ final class AppModel: ObservableObject {
                 await refreshCurrentCLIState()
             }
             await refreshCurrentCLIProbe(force: false)
+            await refreshOneStaleStoredCodexAccountInBackground()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -196,7 +215,13 @@ final class AppModel: ObservableObject {
             return
         }
 
-        if !force, let probe = currentCLIProbe, probe.fingerprint == fingerprint, Date().timeIntervalSince(probe.validatedAt) < currentCLIProbeTTL {
+        let now = Date()
+        if !force, let probe = currentCLIProbe, Self.currentCLIProbeCanBeReused(
+            probe,
+            expectedFingerprint: fingerprint,
+            now: now,
+            ttl: currentCLIProbeTTL
+        ) {
             return
         }
 
@@ -216,7 +241,7 @@ final class AppModel: ObservableObject {
                 planType: result.planType,
                 rateLimit: result.rateLimit,
                 rateLimitsByLimitId: result.rateLimitsByLimitId,
-                validatedAt: Date()
+                validatedAt: now
             )
             currentCLIProbeError = nil
 
@@ -414,6 +439,47 @@ final class AppModel: ObservableObject {
         await refreshCurrentClaudeState()
     }
 
+    private func startPresentationClockLoop() {
+        guard presentationClockTask == nil else {
+            return
+        }
+
+        let interval = UInt64(presentationTickInterval * 1_000_000_000)
+        presentationClockTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: interval)
+                guard !Task.isCancelled else {
+                    break
+                }
+                await self?.tickPresentationClock()
+            }
+        }
+    }
+
+    private func tickPresentationClock() async {
+        let now = Date()
+        presentationNow = now
+        await refreshCurrentCLIProbeIfResetExpired(now: now)
+    }
+
+    private func refreshCurrentCLIProbeIfResetExpired(now: Date) async {
+        guard
+            currentCLIProbeError == nil,
+            currentCLIProbe != nil,
+            currentCLIProbeHasExpiredReset(now: now),
+            Self.canAttemptExpiredResetRefresh(
+                lastAttempt: lastCurrentCLIExpiredResetRefreshAttempt,
+                now: now,
+                retryInterval: currentCLIExpiredResetRetryInterval
+            )
+        else {
+            return
+        }
+
+        lastCurrentCLIExpiredResetRefreshAttempt = now
+        await refreshCurrentCLIProbe(force: false)
+    }
+
     private func startBackgroundRefreshLoop() {
         guard backgroundRefreshTask == nil else {
             return
@@ -437,6 +503,55 @@ final class AppModel: ObservableObject {
         }
 
         await refreshCurrentValues(forceProbe: false)
+    }
+
+    private func startStoredCodexAutoRefreshLoop() {
+        guard storedCodexAutoRefreshTask == nil else {
+            return
+        }
+
+        let initialDelay = UInt64(10 * 1_000_000_000)
+        let interval = UInt64(storedCodexAutoRefreshInterval * 1_000_000_000)
+        storedCodexAutoRefreshTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: initialDelay)
+            while !Task.isCancelled {
+                await self?.refreshOneStaleStoredCodexAccountInBackground()
+                try? await Task.sleep(nanoseconds: interval)
+            }
+        }
+    }
+
+    private func refreshOneStaleStoredCodexAccountInBackground(now: Date = Date()) async {
+        guard !isBusy, !isRefreshingCurrentCLIProbe, !isRefreshingStoredCodexAccount else {
+            return
+        }
+
+        guard let accountID = Self.nextStoredCodexAccountIDForAutoRefresh(
+            accounts: accounts,
+            currentAccountID: currentStoredCodexAccountID(),
+            lastAttempts: lastStoredCodexAutoRefreshAttempt,
+            now: now,
+            retryInterval: storedCodexAutoRefreshRetryInterval
+        ) else {
+            return
+        }
+
+        guard let account = accounts.first(where: { $0.id == accountID }) else {
+            return
+        }
+
+        lastStoredCodexAutoRefreshAttempt[accountID] = now
+        isRefreshingStoredCodexAccount = true
+        defer { isRefreshingStoredCodexAccount = false }
+
+        await validateAccount(account)
+    }
+
+    private func currentStoredCodexAccountID() -> UUID? {
+        if case .stored(let id) = currentCLIState.source {
+            return id
+        }
+        return nil
     }
 
     func validateAccount(_ account: StoredAccount) async {
@@ -1265,6 +1380,105 @@ final class AppModel: ObservableObject {
         }
 
         return (max(0, 100 - window.usedPercent), resetDate)
+    }
+
+    nonisolated static func currentCLIProbeCanBeReused(
+        _ probe: CurrentCLIProbe,
+        expectedFingerprint: String,
+        now: Date,
+        ttl: TimeInterval
+    ) -> Bool {
+        guard probe.fingerprint == expectedFingerprint else {
+            return false
+        }
+
+        guard now.timeIntervalSince(probe.validatedAt) < ttl else {
+            return false
+        }
+
+        return !storedSnapshotIsStale(
+            primary: probe.rateLimit,
+            byLimitId: probe.rateLimitsByLimitId,
+            now: now
+        )
+    }
+
+    func currentCLIProbeHasExpiredReset(now: Date = .now) -> Bool {
+        guard let probe = currentCLIProbe else {
+            return false
+        }
+
+        return Self.currentCLIProbeHasExpiredReset(probe, now: now)
+    }
+
+    nonisolated static func currentCLIProbeHasExpiredReset(_ probe: CurrentCLIProbe, now: Date = .now) -> Bool {
+        storedSnapshotIsStale(primary: probe.rateLimit, byLimitId: probe.rateLimitsByLimitId, now: now)
+    }
+
+    nonisolated static func canAttemptExpiredResetRefresh(
+        lastAttempt: Date?,
+        now: Date,
+        retryInterval: TimeInterval
+    ) -> Bool {
+        guard let lastAttempt else {
+            return true
+        }
+        return now.timeIntervalSince(lastAttempt) >= retryInterval
+    }
+
+    nonisolated static func nextStoredCodexAccountIDForAutoRefresh(
+        accounts: [StoredAccount],
+        currentAccountID: UUID?,
+        lastAttempts: [UUID: Date],
+        now: Date,
+        retryInterval: TimeInterval
+    ) -> UUID? {
+        accounts
+            .filter { account in
+                guard account.id != currentAccountID else {
+                    return false
+                }
+                guard account.status != .needsReauth else {
+                    return false
+                }
+                guard storedCodexAccountNeedsAutoRefresh(account, now: now) else {
+                    return false
+                }
+                if let lastAttempt = lastAttempts[account.id], now.timeIntervalSince(lastAttempt) < retryInterval {
+                    return false
+                }
+                return true
+            }
+            .sorted { lhs, rhs in
+                let lhsReset = staleCodexResetDate(for: lhs) ?? .distantFuture
+                let rhsReset = staleCodexResetDate(for: rhs) ?? .distantFuture
+                if lhsReset != rhsReset {
+                    return lhsReset < rhsReset
+                }
+
+                let lhsValidated = lhs.lastValidatedAt ?? .distantPast
+                let rhsValidated = rhs.lastValidatedAt ?? .distantPast
+                if lhsValidated != rhsValidated {
+                    return lhsValidated < rhsValidated
+                }
+
+                return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+            }
+            .first?
+            .id
+    }
+
+    nonisolated static func storedCodexAccountNeedsAutoRefresh(_ account: StoredAccount, now: Date = .now) -> Bool {
+        storedSnapshotIsStale(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId,
+            now: now
+        )
+    }
+
+    private nonisolated static func staleCodexResetDate(for account: StoredAccount) -> Date? {
+        let snapshot = account.lastRateLimitsByLimitId?["codex"] ?? account.lastRateLimit
+        return snapshot?.fiveHourResetDate
     }
 
     nonisolated static func storedRateLimitSections(

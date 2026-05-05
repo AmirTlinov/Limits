@@ -44,11 +44,11 @@
 "settings.language.description" = "Choisissez la langue de la barre de menus, des fenêtres et des messages.";
 "settings.language.system" = "Utiliser la langue du système";
 "settings.tray_legend.title" = "Icône de la barre de menus";
-"settings.tray_legend.description" = "Les deux anneaux affichent le nombre de comptes et l’état de la limite 5 h.";
-"settings.tray_legend.codex.title" = "Anneau bleu — Codex";
-"settings.tray_legend.codex.subtitle" = "Le nombre indique les comptes Codex visibles.";
-"settings.tray_legend.claude.title" = "Anneau orange — Claude";
-"settings.tray_legend.claude.subtitle" = "Le nombre indique les comptes Claude visibles.";
+"settings.tray_legend.description" = "Des pourcentages compacts affichent la limite actuelle et les comptes visibles avec des données de limites utilisables.";
+"settings.tray_legend.codex.title" = "Pourcentage Codex";
+"settings.tray_legend.codex.subtitle" = "Le compteur affiche les comptes avec limites utilisables parmi les comptes Codex visibles.";
+"settings.tray_legend.claude.title" = "Pourcentage Claude";
+"settings.tray_legend.claude.subtitle" = "Le compteur affiche les comptes avec limites utilisables parmi les comptes Claude visibles.";
 "busy.connecting_claude_live" = "Connexion aux limites en direct de Claude…";
 "busy.deleting" = "Suppression de %@…";
 "busy.disconnecting_claude_bridge" = "Déconnexion du pont Claude…";
@@ -141,7 +141,7 @@
 "reset.other_day.compact" = "Réinit. %@";
 "reset.other_day.expanded" = "Réinitialisation à %@, %@";
 "reset.stale.compact" = "réinitialisation passée";
-"reset.stale.expanded" = "Réinitialisation passée · actualisez";
+"reset.stale.expanded" = "Réinitialisation passée · vérification auto";
 "reset.today.compact" = "Réinit. %@";
 "reset.today.expanded" = "Réinitialisation à %@";
 "time.checked_at" = "Vérifié %@";
@@ -155,3 +155,5 @@
 "tray.accessibility.ready_accounts.other" = "%d autres comptes prêts";
 "tray.tooltip.five_hour" = "%@ · limite 5 h : %d%% restant";
 "tray.tooltip.five_hour.no_data" = "%@ · limite 5 h sans données";
+
+"tray.availability.with_limits" = "%d/%d avec limites";

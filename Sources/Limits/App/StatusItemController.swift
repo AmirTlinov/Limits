@@ -16,7 +16,7 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private let openAccountsWindow: () -> Void
     private let openSettingsWindow: () -> Void
-    private let statusItemLength: CGFloat = 54
+    private let statusItemLength: CGFloat = NSStatusItem.variableLength
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var modelCancellable: AnyCancellable?
@@ -78,8 +78,9 @@ final class StatusItemController: NSObject {
     private func configure(button: NSStatusBarButton) {
         button.isBordered = false
         button.focusRingType = .none
-        button.imagePosition = .imageOnly
+        button.imagePosition = .noImage
         button.imageScaling = .scaleProportionallyDown
+        button.image = nil
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.target = self
@@ -194,10 +195,18 @@ final class StatusItemController: NSObject {
     }
 
     private func refreshStatusItemAppearance() {
-        let selectedProvider = currentTrayStatusProvider()
+        let filter = currentTrayFilter()
         let codexSnapshot = currentFiveHourLimitSnapshot(for: .codex)
         let claudeSnapshot = currentFiveHourLimitSnapshot(for: .claude)
-        let tooltip = tooltipText(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot)
+        let codexAvailability = providerAvailability(for: .codex, snapshot: codexSnapshot)
+        let claudeAvailability = providerAvailability(for: .claude, snapshot: claudeSnapshot)
+        let title = TrayStatusPresentation.title(filter: filter, codex: codexAvailability, claude: claudeAvailability)
+        let tooltip = tooltipText(
+            codexSnapshot: codexSnapshot,
+            claudeSnapshot: claudeSnapshot,
+            codexAvailability: codexAvailability,
+            claudeAvailability: claudeAvailability
+        )
 
         guard let button = statusItem?.button else {
             RuntimeLog.tray.error("cannot refresh status item because button is missing")
@@ -205,40 +214,45 @@ final class StatusItemController: NSObject {
         }
 
         syncStatusButton(
-            selectedProvider: selectedProvider,
+            title: title,
             codexSnapshot: codexSnapshot,
             claudeSnapshot: claudeSnapshot,
+            codexAvailability: codexAvailability,
+            claudeAvailability: claudeAvailability,
             tooltip: tooltip,
             on: button
         )
-        RuntimeLog.tray.debug("status item refreshed selectedProvider=\(selectedProvider.displayTitle, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public)")
+        RuntimeLog.tray.debug("status item refreshed filter=\(filter.rawValue, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public) title=\(title, privacy: .public)")
     }
 
     private func syncStatusButton(
-        selectedProvider: TrayStatusProvider,
+        title: String,
         codexSnapshot: FiveHourLimitSnapshot,
         claudeSnapshot: FiveHourLimitSnapshot,
+        codexAvailability: TrayProviderAvailability,
+        claudeAvailability: TrayProviderAvailability,
         tooltip: String,
         on button: NSStatusBarButton
     ) {
-        let codexAccountCount = visibleCodexAccountCount()
-        let claudeAccountCount = visibleClaudeAccountCount()
-        let image = StatusItemIconRenderer.render(
-            codex: ProviderRingSnapshot(snapshot: codexSnapshot),
-            claude: ProviderRingSnapshot(snapshot: claudeSnapshot),
-            selectedProvider: selectedProvider,
-            codexAccountCount: codexAccountCount,
-            claudeAccountCount: claudeAccountCount
-        )
-
         statusItem?.length = statusItemLength
-        button.image = image
-        button.imagePosition = .imageOnly
+        button.image = nil
+        button.imagePosition = .noImage
         button.imageScaling = .scaleProportionallyDown
-        button.title = ""
-        button.attributedTitle = NSAttributedString(string: "")
+        button.title = title
+        button.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
         button.toolTip = tooltip
-        button.setAccessibilityLabel(accessibilityLabel(codexSnapshot: codexSnapshot, claudeSnapshot: claudeSnapshot, codexAccountCount: codexAccountCount, claudeAccountCount: claudeAccountCount))
+        button.setAccessibilityLabel(accessibilityLabel(
+            codexSnapshot: codexSnapshot,
+            claudeSnapshot: claudeSnapshot,
+            codexAvailability: codexAvailability,
+            claudeAvailability: claudeAvailability
+        ))
         button.setAccessibilityTitle("Limits")
         button.needsDisplay = true
     }
@@ -255,42 +269,43 @@ final class StatusItemController: NSObject {
         return L10n.tr("tray.tooltip.five_hour.no_data", provider.displayTitle)
     }
 
-    private func tooltipText(codexSnapshot: FiveHourLimitSnapshot, claudeSnapshot: FiveHourLimitSnapshot) -> String {
+    private func tooltipText(
+        codexSnapshot: FiveHourLimitSnapshot,
+        claudeSnapshot: FiveHourLimitSnapshot,
+        codexAvailability: TrayProviderAvailability,
+        claudeAvailability: TrayProviderAvailability
+    ) -> String {
         [
-            tooltipText(provider: .codex, snapshot: codexSnapshot),
-            tooltipText(provider: .claude, snapshot: claudeSnapshot),
+            tooltipText(provider: .codex, snapshot: codexSnapshot, availability: codexAvailability),
+            tooltipText(provider: .claude, snapshot: claudeSnapshot, availability: claudeAvailability),
         ].joined(separator: " · ")
     }
 
-    private func accessibilitySegment(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
+    private func tooltipText(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, availability: TrayProviderAvailability) -> String {
+        var tooltip = tooltipText(provider: provider, snapshot: snapshot)
+        tooltip += " · \(L10n.limitAvailability(available: availability.availableAccounts, total: availability.totalAccounts))"
+        return tooltip
+    }
+
+    private func accessibilitySegment(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, availability: TrayProviderAvailability) -> String {
         let base: String = if let remainingPercent = snapshot.remainingPercent {
             L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
         } else {
             L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
         }
-        return base
+        return "\(base), \(L10n.limitAvailability(available: availability.availableAccounts, total: availability.totalAccounts))"
     }
 
     private func accessibilityLabel(
         codexSnapshot: FiveHourLimitSnapshot,
         claudeSnapshot: FiveHourLimitSnapshot,
-        codexAccountCount: Int,
-        claudeAccountCount: Int
+        codexAvailability: TrayProviderAvailability,
+        claudeAvailability: TrayProviderAvailability
     ) -> String {
-        var parts = [
-            accessibilitySegment(provider: .codex, snapshot: codexSnapshot),
-            accessibilitySegment(provider: .claude, snapshot: claudeSnapshot),
-        ]
-
-        if codexAccountCount > 0 {
-            parts.append("Codex · \(L10n.accountCount(codexAccountCount))")
-        }
-
-        if claudeAccountCount > 0 {
-            parts.append("Claude · \(L10n.accountCount(claudeAccountCount))")
-        }
-
-        return parts.joined(separator: " · ")
+        [
+            accessibilitySegment(provider: .codex, snapshot: codexSnapshot, availability: codexAvailability),
+            accessibilitySegment(provider: .claude, snapshot: claudeSnapshot, availability: claudeAvailability),
+        ].joined(separator: " · ")
     }
 
     private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
@@ -305,10 +320,9 @@ final class StatusItemController: NSObject {
         )
     }
 
-    private func currentTrayStatusProvider() -> TrayStatusProvider {
+    private func currentTrayFilter() -> AccountsSidebarFilter {
         let rawFilter = UserDefaults.standard.string(forKey: AccountsSidebarFilter.providerFilterStorageKey)
-        let filter = rawFilter.flatMap(AccountsSidebarFilter.init(rawValue:)) ?? .all
-        return filter.trayStatusProvider
+        return rawFilter.flatMap(AccountsSidebarFilter.init(rawValue:)) ?? .all
     }
 
     private func visibleCodexAccountCount() -> Int {
@@ -333,6 +347,31 @@ final class StatusItemController: NSObject {
 
         let storedOtherCount = model.claudeAccounts.filter { !model.isCurrentClaudeAccount($0) }.count
         return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
+    }
+
+    private func providerAvailability(for provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> TrayProviderAvailability {
+        switch provider {
+        case .codex:
+            return TrayProviderAvailability(
+                remainingPercent: snapshot.remainingPercent,
+                availableAccounts: availableCodexAccountCountWithLimits(),
+                totalAccounts: visibleCodexAccountCount()
+            )
+        case .claude:
+            return TrayProviderAvailability(
+                remainingPercent: snapshot.remainingPercent,
+                availableAccounts: snapshot.remainingPercent == nil ? 0 : 1,
+                totalAccounts: visibleClaudeAccountCount()
+            )
+        }
+    }
+
+    private func availableCodexAccountCountWithLimits() -> Int {
+        let currentCountsAsAvailable = model.currentCLISidebarLimitSummary()?.hasLimitData == true
+        let storedOtherCount = model.accounts.filter { account in
+            !model.isCurrentCLIAccount(account) && model.sidebarLimitSummary(for: account)?.hasLimitData == true
+        }.count
+        return (currentCountsAsAvailable ? 1 : 0) + storedOtherCount
     }
 
     private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
@@ -367,143 +406,4 @@ private struct FiveHourLimitSnapshot {
     let remainingProgress: Double?
     let remainingPercent: Int?
     let resetText: String?
-}
-
-private struct ProviderRingSnapshot {
-    let progress: Double
-    let isProgressKnown: Bool
-    let remainingPercent: Int?
-
-    init(snapshot: FiveHourLimitSnapshot) {
-        self.progress = snapshot.remainingProgress ?? 1
-        self.isProgressKnown = snapshot.remainingProgress != nil
-        self.remainingPercent = snapshot.remainingPercent
-    }
-}
-
-private enum StatusItemIconRenderer {
-    static func render(
-        codex: ProviderRingSnapshot,
-        claude: ProviderRingSnapshot,
-        selectedProvider: TrayStatusProvider,
-        codexAccountCount: Int,
-        claudeAccountCount: Int
-    ) -> NSImage {
-        let size = NSSize(width: 46, height: 22)
-        let image = NSImage(size: size)
-        image.isTemplate = false
-
-        image.lockFocus()
-        defer { image.unlockFocus() }
-
-        drawProviderRing(
-            codex,
-            center: NSPoint(x: 12, y: size.height / 2),
-            accent: .systemBlue,
-            isSelected: selectedProvider == .codex,
-            centerText: codexAccountCount > 0 ? String(min(codexAccountCount, 9)) : nil
-        )
-        drawProviderRing(
-            claude,
-            center: NSPoint(x: 34, y: size.height / 2),
-            accent: .systemOrange,
-            isSelected: selectedProvider == .claude,
-            centerText: claudeAccountCount > 0 ? String(min(claudeAccountCount, 9)) : nil
-        )
-
-        return image
-    }
-
-    private static func drawProviderRing(
-        _ snapshot: ProviderRingSnapshot,
-        center: NSPoint,
-        accent: NSColor,
-        isSelected: Bool,
-        centerText: String?
-    ) {
-        let radius: CGFloat = isSelected ? 6.7 : 6.1
-        let lineWidth: CGFloat = isSelected ? 2.35 : 2.05
-        let trackRect = NSRect(
-            x: center.x - radius,
-            y: center.y - radius,
-            width: radius * 2,
-            height: radius * 2
-        )
-
-        let track = NSBezierPath(ovalIn: trackRect)
-        accent.withAlphaComponent(snapshot.isProgressKnown ? 0.28 : 0.18).setStroke()
-        track.lineWidth = lineWidth
-        track.stroke()
-
-        if snapshot.isProgressKnown {
-            let clamped = min(max(snapshot.progress, 0), 1)
-            if clamped >= 0.995 {
-                let progressPath = NSBezierPath(ovalIn: trackRect)
-                progressColor(providerAccent: accent, remainingPercent: snapshot.remainingPercent).setStroke()
-                progressPath.lineWidth = lineWidth
-                progressPath.stroke()
-            } else if clamped > 0 {
-                let startAngle: CGFloat = 90
-                let endAngle = startAngle - CGFloat(360 * clamped)
-                let progressPath = NSBezierPath()
-                progressPath.appendArc(
-                    withCenter: center,
-                    radius: radius,
-                    startAngle: startAngle,
-                    endAngle: endAngle,
-                    clockwise: true
-                )
-                progressColor(providerAccent: accent, remainingPercent: snapshot.remainingPercent).setStroke()
-                progressPath.lineWidth = lineWidth
-                progressPath.lineCapStyle = .round
-                progressPath.stroke()
-            }
-        }
-
-        if let centerText {
-            drawCount(centerText, at: center)
-        }
-    }
-
-    private static func progressColor(providerAccent: NSColor, remainingPercent: Int?) -> NSColor {
-        guard let remainingPercent else {
-            return providerAccent
-        }
-
-        switch remainingPercent {
-        case ...9:
-            return .systemRed
-        case 10...24:
-            return .systemOrange
-        default:
-            return providerAccent
-        }
-    }
-
-    private static func drawCount(_ textValue: String, at center: NSPoint) {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
-
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.38)
-        shadow.shadowBlurRadius = 1.2
-        shadow.shadowOffset = .zero
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 8.6, weight: .bold),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.98),
-            .paragraphStyle: paragraphStyle,
-            .shadow: shadow,
-        ]
-
-        let text = textValue as NSString
-        let textSize = text.size(withAttributes: attributes)
-        let textRect = NSRect(
-            x: center.x - 5,
-            y: center.y - textSize.height / 2 - 0.35,
-            width: 10,
-            height: textSize.height + 1
-        )
-        text.draw(in: textRect, withAttributes: attributes)
-    }
 }

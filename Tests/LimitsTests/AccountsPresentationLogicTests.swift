@@ -190,6 +190,77 @@ import Testing
     #expect(sorted.map(\.id) == [fuller.id, lower.id])
 }
 
+
+@Test func codexCurrentProbeTTLDoesNotReuseSnapshotAfterResetPassed() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15, minute: 59)))
+    let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 17)))
+
+    let staleProbe = AppModel.CurrentCLIProbe(
+        fingerprint: "fingerprint",
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 95),
+        rateLimitsByLimitId: nil,
+        validatedAt: now.addingTimeInterval(-30)
+    )
+    let freshProbe = AppModel.CurrentCLIProbe(
+        fingerprint: "fingerprint",
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10),
+        rateLimitsByLimitId: nil,
+        validatedAt: now.addingTimeInterval(-30)
+    )
+
+    #expect(!AppModel.currentCLIProbeCanBeReused(staleProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+    #expect(AppModel.currentCLIProbeCanBeReused(freshProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+}
+
+@Test func currentExpiredResetRefreshUsesBackoffInsteadOfThirtySecondPolling() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let lastAttempt = now.addingTimeInterval(-30)
+
+    #expect(AppModel.canAttemptExpiredResetRefresh(lastAttempt: nil, now: now, retryInterval: 300))
+    #expect(!AppModel.canAttemptExpiredResetRefresh(lastAttempt: lastAttempt, now: now, retryInterval: 300))
+    #expect(AppModel.canAttemptExpiredResetRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
+}
+
+@Test func storedCodexAutoRefreshPicksStaleAccountWithoutRetryHammering() throws {
+    let calendar = Calendar.current
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
+    let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
+    let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 17)))
+
+    let current = makeStoredAccount(label: "current@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
+    let throttled = makeStoredAccount(label: "throttled@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
+    let candidate = makeStoredAccount(label: "candidate@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
+    let fresh = makeStoredAccount(label: "fresh@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10))
+    let reauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth, lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
+
+    let selected = AppModel.nextStoredCodexAccountIDForAutoRefresh(
+        accounts: [fresh, current, throttled, candidate, reauth],
+        currentAccountID: current.id,
+        lastAttempts: [throttled.id: now.addingTimeInterval(-120)],
+        now: now,
+        retryInterval: 1_800
+    )
+
+    #expect(selected == candidate.id)
+}
+
+@Test func trayStatusTitleUsesPercentagesAndAvailabilityCounts() {
+    let codex = TrayProviderAvailability(remainingPercent: 96, availableAccounts: 1, totalAccounts: 8)
+    let claude = TrayProviderAvailability(remainingPercent: 95, availableAccounts: 1, totalAccounts: 2)
+    let noData = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 8)
+
+    #expect(TrayStatusPresentation.title(filter: .all, codex: codex, claude: claude) == "C 96% 1/8 · Cl 95% 1/2")
+    #expect(TrayStatusPresentation.title(filter: .codex, codex: codex, claude: claude) == "Codex 96% 1/8")
+    #expect(TrayStatusPresentation.title(filter: .codex, codex: noData, claude: claude) == "Codex — 0/8")
+}
+
 @Test func codexSidebarLimitSummaryCompactsFiveHourAndWeeklyWithoutExtraRows() {
     L10n.withLanguage("ru") {
         let summary = AppModel.SidebarLimitSummary(
@@ -202,7 +273,12 @@ import Testing
     }
 }
 
-private func makeStoredAccount(label: String, status: AccountStatus = .ok) -> StoredAccount {
+private func makeStoredAccount(
+    label: String,
+    status: AccountStatus = .ok,
+    lastRateLimit: RateLimitSnapshotModel? = nil,
+    lastValidatedAt: Date? = nil
+) -> StoredAccount {
     let id = UUID()
     return StoredAccount(
         id: id,
@@ -212,12 +288,32 @@ private func makeStoredAccount(label: String, status: AccountStatus = .ok) -> St
         planType: "pro",
         createdAt: .distantPast,
         updatedAt: .distantPast,
-        lastValidatedAt: nil,
+        lastValidatedAt: lastValidatedAt,
         status: status,
         statusMessage: nil,
-        lastRateLimit: nil,
+        lastRateLimit: lastRateLimit,
         lastRateLimitsByLimitId: nil,
         authFingerprint: "fingerprint-\(id.uuidString)",
         keychainAccount: "account.\(id.uuidString)"
+    )
+}
+
+private func makeRateLimitSnapshot(resetDate: Date, usedPercent: Int) -> RateLimitSnapshotModel {
+    RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(resetDate.timeIntervalSince1970),
+            usedPercent: usedPercent,
+            windowDurationMins: 300
+        ),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(
+            resetsAt: Int64(resetDate.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970),
+            usedPercent: min(usedPercent, 99),
+            windowDurationMins: 10_080
+        )
     )
 }
