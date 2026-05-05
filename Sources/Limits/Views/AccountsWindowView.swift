@@ -1057,10 +1057,13 @@ private struct LimitProgressRowView: View {
 private struct LimitProgressBar: View {
     let progress: Double
     let tint: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var displayedProgress: Double?
 
     var body: some View {
         GeometryReader { geometry in
             let availableWidth = max(0, geometry.size.width - 4)
+            let progress = visibleProgress
             let fillWidth = progress == 0 ? 0 : max(10, availableWidth * progress)
 
             ZStack(alignment: .leading) {
@@ -1073,6 +1076,36 @@ private struct LimitProgressBar: View {
             }
         }
         .frame(height: 12)
+        .onAppear {
+            updateDisplayedProgress(progress, animated: !reduceMotion)
+        }
+        .onChange(of: progress) { _, newProgress in
+            updateDisplayedProgress(newProgress, animated: !reduceMotion)
+        }
+    }
+
+    private var visibleProgress: Double {
+        displayedProgress ?? (reduceMotion ? clampedProgress(progress) : 0)
+    }
+
+    private func updateDisplayedProgress(_ progress: Double, animated: Bool) {
+        let progress = clampedProgress(progress)
+        guard animated else {
+            displayedProgress = progress
+            return
+        }
+
+        if displayedProgress == nil {
+            displayedProgress = 0
+        }
+
+        withAnimation(.easeOut(duration: 0.14)) {
+            displayedProgress = progress
+        }
+    }
+
+    private func clampedProgress(_ progress: Double) -> Double {
+        min(max(progress, 0), 1)
     }
 }
 

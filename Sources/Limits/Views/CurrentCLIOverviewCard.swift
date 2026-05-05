@@ -269,10 +269,13 @@ private struct CompactLimitBar: View {
     let tint: Color
     let height: CGFloat
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var displayedProgress: Double?
 
     var body: some View {
         GeometryReader { geometry in
             let lineHeight = min(height, height <= 5 ? 3 : 4)
+            let progress = visibleProgress
             let fillWidth = progress == 0 ? 0 : max(lineHeight * 1.8, geometry.size.width * progress)
 
             ZStack(alignment: .leading) {
@@ -287,9 +290,39 @@ private struct CompactLimitBar: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: height)
+        .onAppear {
+            updateDisplayedProgress(progress, animated: !reduceMotion)
+        }
+        .onChange(of: progress) { _, newProgress in
+            updateDisplayedProgress(newProgress, animated: !reduceMotion)
+        }
     }
 
     private var trackColor: Color {
         colorScheme == .dark ? .white.opacity(0.16) : .black.opacity(0.12)
+    }
+
+    private var visibleProgress: Double {
+        displayedProgress ?? (reduceMotion ? clampedProgress(progress) : 0)
+    }
+
+    private func updateDisplayedProgress(_ progress: Double, animated: Bool) {
+        let progress = clampedProgress(progress)
+        guard animated else {
+            displayedProgress = progress
+            return
+        }
+
+        if displayedProgress == nil {
+            displayedProgress = 0
+        }
+
+        withAnimation(.easeOut(duration: 0.14)) {
+            displayedProgress = progress
+        }
+    }
+
+    private func clampedProgress(_ progress: Double) -> Double {
+        min(max(progress, 0), 1)
     }
 }
