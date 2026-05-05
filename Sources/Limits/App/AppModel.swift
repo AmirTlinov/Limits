@@ -52,6 +52,40 @@ final class AppModel: ObservableObject {
         let note: String?
     }
 
+    struct SidebarLimitSummary: Hashable {
+        let fiveHourRemainingPercent: Int?
+        let weeklyRemainingPercent: Int?
+        let nextResetDate: Date?
+
+        var hasLimitData: Bool {
+            fiveHourRemainingPercent != nil || weeklyRemainingPercent != nil
+        }
+
+        var limitSortScore: Int {
+            [fiveHourRemainingPercent, weeklyRemainingPercent]
+                .compactMap(\.self)
+                .reduce(0, +)
+        }
+
+        func compactLimitText() -> String? {
+            var parts: [String] = []
+
+            if let fiveHourRemainingPercent {
+                parts.append("\(L10n.windowLabel(minutes: 300, fallback: "5h")) \(fiveHourRemainingPercent)%")
+            }
+
+            if let weeklyRemainingPercent {
+                parts.append("\(L10n.durationLabel(minutes: 10_080)) \(weeklyRemainingPercent)%")
+            }
+
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }
+
+        func compactResetText(now: Date = .now) -> String? {
+            nextResetDate.map { RateLimitResetFormatter.compactText(for: $0, now: now) }
+        }
+    }
+
     @Published private(set) var accounts: [StoredAccount] = []
     @Published private(set) var claudeAccounts: [ClaudeStoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
@@ -1083,6 +1117,156 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func sortedCodexAccountsForSidebar(now: Date = .now) -> [StoredAccount] {
+        let summaries = Dictionary(
+            uniqueKeysWithValues: accounts.map { account in
+                (account.id, sidebarLimitSummary(for: account, now: now))
+            }
+        )
+        return Self.sortedCodexAccountsForSidebar(accounts, summaries: summaries)
+    }
+
+    nonisolated static func sortedCodexAccountsForSidebar(
+        _ accounts: [StoredAccount],
+        summaries: [UUID: SidebarLimitSummary?]
+    ) -> [StoredAccount] {
+        accounts.sorted { lhs, rhs in
+            compareCodexSidebarAccounts(lhs, rhs, summaries: summaries)
+        }
+    }
+
+    private nonisolated static func compareCodexSidebarAccounts(
+        _ lhs: StoredAccount,
+        _ rhs: StoredAccount,
+        summaries: [UUID: SidebarLimitSummary?]
+    ) -> Bool {
+        let lhsSummary = summaries[lhs.id] ?? nil
+        let rhsSummary = summaries[rhs.id] ?? nil
+        let lhsHasData = lhsSummary?.hasLimitData == true
+        let rhsHasData = rhsSummary?.hasLimitData == true
+
+        if lhsHasData != rhsHasData {
+            return lhsHasData
+        }
+
+        switch (lhsSummary?.nextResetDate, rhsSummary?.nextResetDate) {
+        case let (lhsReset?, rhsReset?) where lhsReset != rhsReset:
+            return lhsReset < rhsReset
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        default:
+            break
+        }
+
+        let lhsScore = lhsSummary?.limitSortScore ?? -1
+        let rhsScore = rhsSummary?.limitSortScore ?? -1
+        if lhsScore != rhsScore {
+            return lhsScore > rhsScore
+        }
+
+        let lhsStatusRank = sidebarStatusRank(lhs.status)
+        let rhsStatusRank = sidebarStatusRank(rhs.status)
+        if lhsStatusRank != rhsStatusRank {
+            return lhsStatusRank < rhsStatusRank
+        }
+
+        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+    }
+
+    private nonisolated static func sidebarStatusRank(_ status: AccountStatus) -> Int {
+        switch status {
+        case .ok:
+            return 0
+        case .limitReached:
+            return 1
+        case .unknown:
+            return 2
+        case .needsReauth:
+            return 3
+        case .validationFailed:
+            return 4
+        }
+    }
+
+    func currentCLISidebarLimitSummary(now: Date = .now) -> SidebarLimitSummary? {
+        Self.sidebarLimitSummary(
+            primary: currentCLIProbe?.rateLimit,
+            byLimitId: currentCLIProbe?.rateLimitsByLimitId,
+            now: now
+        )
+    }
+
+    func sidebarLimitSummary(for account: StoredAccount, now: Date = .now) -> SidebarLimitSummary? {
+        let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
+        if useLiveProbe {
+            return Self.sidebarLimitSummary(
+                primary: currentCLIProbe?.rateLimit,
+                byLimitId: currentCLIProbe?.rateLimitsByLimitId,
+                now: now
+            )
+        }
+
+        return Self.sidebarLimitSummary(
+            primary: account.lastRateLimit,
+            byLimitId: account.lastRateLimitsByLimitId,
+            now: now
+        )
+    }
+
+    nonisolated static func sidebarLimitSummary(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date = .now
+    ) -> SidebarLimitSummary? {
+        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
+            return nil
+        }
+
+        guard let snapshot = byLimitId?["codex"] ?? primary else {
+            return nil
+        }
+
+        let fiveHour = remainingWindow(from: snapshot, minutes: 300, now: now)
+        let weekly = remainingWindow(from: snapshot, minutes: 10_080, now: now)
+
+        guard fiveHour.remainingPercent != nil || weekly.remainingPercent != nil else {
+            return nil
+        }
+
+        let nextResetDate = [fiveHour.resetDate, weekly.resetDate]
+            .compactMap(\.self)
+            .min()
+
+        return SidebarLimitSummary(
+            fiveHourRemainingPercent: fiveHour.remainingPercent,
+            weeklyRemainingPercent: weekly.remainingPercent,
+            nextResetDate: nextResetDate
+        )
+    }
+
+    private nonisolated static func remainingWindow(
+        from snapshot: RateLimitSnapshotModel,
+        minutes: Int64,
+        now: Date
+    ) -> (remainingPercent: Int?, resetDate: Date?) {
+        let window = [snapshot.primary, snapshot.secondary]
+            .compactMap(\.self)
+            .first { $0.windowDurationMins == minutes }
+
+        guard let window else {
+            return (nil, nil)
+        }
+
+        let resetDate = window.resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+        if let resetDate, resetDate <= now {
+            return (nil, nil)
+        }
+
+        return (max(0, 100 - window.usedPercent), resetDate)
+    }
+
     nonisolated static func storedRateLimitSections(
         primary: RateLimitSnapshotModel?,
         byLimitId: [String: RateLimitSnapshotModel]?,
@@ -1115,15 +1299,7 @@ final class AppModel: ObservableObject {
         byLimitId: [String: RateLimitSnapshotModel]?,
         now: Date = .now
     ) -> Int? {
-        guard !storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) else {
-            return nil
-        }
-
-        guard let usedPercent = primary?.primary?.usedPercent else {
-            return nil
-        }
-
-        return max(0, 100 - usedPercent)
+        sidebarLimitSummary(primary: primary, byLimitId: byLimitId, now: now)?.fiveHourRemainingPercent
     }
 
     private nonisolated static func storedSnapshotIsStale(
@@ -1150,15 +1326,7 @@ final class AppModel: ObservableObject {
     }
 
     func remainingPercent(for account: StoredAccount) -> Int? {
-        let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
-        if useLiveProbe, let usedPercent = currentCLIProbe?.rateLimit?.primary?.usedPercent {
-            return max(0, 100 - usedPercent)
-        }
-
-        return Self.storedRemainingPercent(
-            primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId
-        )
+        sidebarLimitSummary(for: account)?.fiveHourRemainingPercent
     }
 
     func sidebarSecondaryText(for account: StoredAccount) -> String {

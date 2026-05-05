@@ -40,7 +40,7 @@ struct MenuBarContentView: View {
     }
 
     private var storedCodexAccounts: [StoredAccount] {
-        model.accounts.filter { !model.isCurrentCLIAccount($0) }
+        model.sortedCodexAccountsForSidebar().filter { !model.isCurrentCLIAccount($0) }
     }
 
     private var storedClaudeAccounts: [ClaudeStoredAccount] {

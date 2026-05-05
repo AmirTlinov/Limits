@@ -204,11 +204,11 @@ struct AccountsWindowView: View {
 
                 if sidebarFilter.includesCodex, !model.accounts.isEmpty {
                     Section(L10n.tr("accounts.codex.section")) {
-                        ForEach(model.accounts) { account in
+                        ForEach(model.sortedCodexAccountsForSidebar()) { account in
                             SidebarRowView(
                                 icon: sidebarIcon(for: account),
                                 title: account.label,
-                                subtitle: nil,
+                                subtitle: sidebarSubtitle(for: account),
                                 trailing: sidebarTrailing(for: account),
                                 accent: sidebarAccent(for: account)
                             )
@@ -296,10 +296,7 @@ struct AccountsWindowView: View {
     }
 
     private var currentCLITrailingText: String? {
-        if let used = model.currentCLIProbe?.rateLimit?.primary?.usedPercent {
-            return "\(max(0, 100 - used))%"
-        }
-        return nil
+        model.currentCLISidebarLimitSummary()?.compactLimitText()
     }
 
     private var currentClaudeTrailingText: String? {
@@ -311,10 +308,11 @@ struct AccountsWindowView: View {
     }
 
     private func sidebarTrailing(for account: StoredAccount) -> String? {
-        if let remainingPercent = model.remainingPercent(for: account) {
-            return "\(remainingPercent)%"
-        }
-        return nil
+        model.sidebarLimitSummary(for: account)?.compactLimitText()
+    }
+
+    private func sidebarSubtitle(for account: StoredAccount) -> String? {
+        model.sidebarLimitSummary(for: account)?.compactResetText()
     }
 
     private func sidebarIcon(for account: StoredAccount) -> String {
@@ -435,6 +433,8 @@ private struct SidebarRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
         }
         .padding(.vertical, 2)
