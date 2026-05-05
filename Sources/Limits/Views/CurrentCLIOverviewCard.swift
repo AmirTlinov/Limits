@@ -268,21 +268,28 @@ private struct CompactLimitBar: View {
     let progress: Double
     let tint: Color
     let height: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         GeometryReader { geometry in
-            let availableWidth = max(0, geometry.size.width - 4)
-            let fillWidth = progress == 0 ? 0 : max(8, availableWidth * progress)
+            let lineHeight = min(height, height <= 5 ? 3 : 4)
+            let fillWidth = progress == 0 ? 0 : max(lineHeight * 1.8, geometry.size.width * progress)
 
             ZStack(alignment: .leading) {
-                MinimalProgressTrack(fillOpacity: 0.045, strokeOpacity: 0.16)
+                Capsule()
+                    .fill(trackColor)
+                    .frame(height: lineHeight)
 
                 Capsule()
-                    .fill(tint.opacity(0.86))
-                    .padding(2)
-                    .frame(width: fillWidth)
+                    .fill(tint.opacity(colorScheme == .dark ? 0.82 : 0.74))
+                    .frame(width: min(geometry.size.width, fillWidth), height: lineHeight)
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: height)
+    }
+
+    private var trackColor: Color {
+        colorScheme == .dark ? .white.opacity(0.16) : .black.opacity(0.12)
     }
 }
