@@ -138,7 +138,7 @@
 "plan.plus" = "Plus plan";
 "plan.pro" = "Pro plan";
 "plan.unknown" = "Unknown plan";
-"reset.other_day.compact" = "Reset %@";
+"reset.other_day.compact" = "Reset %@, %@";
 "reset.other_day.expanded" = "Resets at %@, %@";
 "reset.stale.compact" = "reset passed";
 "reset.stale.expanded" = "Reset passed · auto-checking";

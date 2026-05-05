@@ -138,7 +138,7 @@
 "plan.plus" = "Forfait Plus";
 "plan.pro" = "Forfait Pro";
 "plan.unknown" = "Forfait inconnu";
-"reset.other_day.compact" = "Réinit. %@";
+"reset.other_day.compact" = "Réinit. %@, %@";
 "reset.other_day.expanded" = "Réinitialisation à %@, %@";
 "reset.stale.compact" = "réinitialisation passée";
 "reset.stale.expanded" = "Réinitialisation passée · vérification auto";

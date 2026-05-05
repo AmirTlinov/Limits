@@ -138,7 +138,7 @@
 "plan.plus" = "Plus 计划";
 "plan.pro" = "Pro 计划";
 "plan.unknown" = "未知计划";
-"reset.other_day.compact" = "重置 %@";
+"reset.other_day.compact" = "重置 %@ %@";
 "reset.other_day.expanded" = "%@，%@ 重置";
 "reset.stale.compact" = "重置已过";
 "reset.stale.expanded" = "重置时间已过 · 自动检查中";

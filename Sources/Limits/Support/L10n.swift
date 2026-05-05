@@ -157,7 +157,11 @@ enum L10n {
         if calendar.isDate(date, inSameDayAs: now) {
             return tr("reset.today.compact", shortTimeFormatter.string(from: date))
         }
-        return tr("reset.other_day.compact", shortDayMonthFormatter.string(from: date))
+        return tr(
+            "reset.other_day.compact",
+            shortDayMonthFormatter.string(from: date),
+            shortTimeFormatter.string(from: date)
+        )
     }
 
     static func limitTitle(minutes: Int64?, fallback: String) -> String {

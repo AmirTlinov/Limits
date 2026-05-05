@@ -138,7 +138,7 @@
 "plan.plus" = "План Plus";
 "plan.pro" = "План Pro";
 "plan.unknown" = "План неизвестен";
-"reset.other_day.compact" = "Сброс %@";
+"reset.other_day.compact" = "Сброс %@, %@";
 "reset.other_day.expanded" = "Сброс в %@, %@";
 "reset.stale.compact" = "сброс прошёл";
 "reset.stale.expanded" = "Сброс прошёл · автообновление";

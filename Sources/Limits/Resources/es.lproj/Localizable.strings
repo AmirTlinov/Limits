@@ -138,7 +138,7 @@
 "plan.plus" = "Plan Plus";
 "plan.pro" = "Plan Pro";
 "plan.unknown" = "Plan desconocido";
-"reset.other_day.compact" = "Reinicio %@";
+"reset.other_day.compact" = "Reinicio %@, %@";
 "reset.other_day.expanded" = "Reinicio a las %@, %@";
 "reset.stale.compact" = "reinicio pasado";
 "reset.stale.expanded" = "El reinicio ya pasó · comprobación automática";

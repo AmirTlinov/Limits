@@ -14,7 +14,9 @@ import Testing
         #expect(RateLimitResetFormatter.compactText(for: laterToday, now: now) == "Сброс 04:15")
         #expect(RateLimitResetFormatter.expandedText(for: stale, now: now) == "Сброс прошёл · автообновление")
         #expect(RateLimitResetFormatter.compactText(for: stale, now: now) == "сброс прошёл")
-        #expect(RateLimitResetFormatter.compactText(for: tomorrow, now: now).hasPrefix("Сброс 25"))
+        let compactTomorrow = RateLimitResetFormatter.compactText(for: tomorrow, now: now)
+        #expect(compactTomorrow.hasPrefix("Сброс 25"))
+        #expect(compactTomorrow.contains("04:15"))
     }
 }
 
