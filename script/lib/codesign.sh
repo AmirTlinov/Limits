@@ -42,7 +42,12 @@ limits_sign_path() {
     identity="-"
   fi
 
-  local args=(--force --options runtime --timestamp=none --sign "$identity")
+  local args=(--force --options runtime --sign "$identity")
+  if [[ "$identity" == "-" || "${LIMITS_CODESIGN_TIMESTAMP:-}" == "none" ]]; then
+    args+=(--timestamp=none)
+  else
+    args+=(--timestamp)
+  fi
   if [[ -n "$entitlements" ]]; then
     args+=(--entitlements "$entitlements")
   fi

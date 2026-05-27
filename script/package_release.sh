@@ -1,7 +1,74 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-0.1.0}"
+VERSION=""
+NOTARIZE="${LIMITS_NOTARIZE:-0}"
+NOTARY_PROFILE="${LIMITS_NOTARY_PROFILE:-LimitsNotary}"
+NOTARY_PROFILE_EXPLICIT="false"
+NOTARY_TIMEOUT="${LIMITS_NOTARY_TIMEOUT:-30m}"
+
+usage() {
+  cat <<USAGE
+Usage: $0 [version] [--notarize] [--notary-profile NAME] [--notary-timeout 30m]
+
+Builds, signs, and zips Limits.app.
+
+Options:
+  --notarize              Submit the app to Apple notary service, staple it,
+                          validate the ticket, then recreate the final zip.
+  --notary-profile NAME   Keychain profile created by notarytool
+                          store-credentials. Defaults to LimitsNotary.
+  --notary-timeout VALUE  notarytool wait timeout. Defaults to 30m.
+  -h, --help              Show this help.
+
+Notary auth can also come from env:
+  LIMITS_NOTARY_PROFILE
+  LIMITS_NOTARY_KEY + LIMITS_NOTARY_KEY_ID + LIMITS_NOTARY_ISSUER
+  LIMITS_NOTARY_APPLE_ID + LIMITS_NOTARY_PASSWORD + LIMITS_NOTARY_TEAM_ID
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --notarize)
+      NOTARIZE="1"
+      shift
+      ;;
+    --no-notarize)
+      NOTARIZE="0"
+      shift
+      ;;
+    --notary-profile)
+      NOTARY_PROFILE="${2:?--notary-profile requires a value}"
+      NOTARY_PROFILE_EXPLICIT="true"
+      shift 2
+      ;;
+    --notary-timeout)
+      NOTARY_TIMEOUT="${2:?--notary-timeout requires a value}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$VERSION" ]]; then
+        echo "Unexpected extra argument: $1" >&2
+        usage >&2
+        exit 2
+      fi
+      VERSION="$1"
+      shift
+      ;;
+  esac
+done
+
+VERSION="${VERSION:-0.1.0}"
 APP_NAME="Limits"
 APP_BUNDLE_ID="com.amir.Limits"
 WIDGET_NAME="LimitsWidgetExtension"
@@ -33,6 +100,91 @@ APP_ENTITLEMENTS="$ENTITLEMENTS_DIR/$APP_NAME.entitlements"
 WIDGET_ENTITLEMENTS="$ENTITLEMENTS_DIR/$WIDGET_NAME.entitlements"
 ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-$ARCH.zip"
 CHECKSUM_PATH="$ZIP_PATH.sha256"
+NOTARY_SUBMIT_ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-$ARCH-notary-submit.zip"
+LIMITS_NOTARY_AUTH_ARGS=()
+
+create_zip() {
+  local output_path="$1"
+  rm -f "$output_path"
+  (
+    cd "$DIST_DIR"
+    COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$(basename "$output_path")"
+  )
+}
+
+write_checksum() {
+  local input_path="$1"
+  local output_path="$2"
+  rm -f "$output_path"
+  (
+    cd "$DIST_DIR"
+    shasum -a 256 "$(basename "$input_path")" > "$(basename "$output_path")"
+  )
+}
+
+configure_notary_auth_args() {
+  LIMITS_NOTARY_AUTH_ARGS=()
+
+  if [[ "$NOTARY_PROFILE_EXPLICIT" == "true" || -n "${LIMITS_NOTARY_PROFILE:-}" ]]; then
+    LIMITS_NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+    return
+  fi
+
+  if [[ -n "${LIMITS_NOTARY_KEY:-}" || -n "${LIMITS_NOTARY_KEY_ID:-}" || -n "${LIMITS_NOTARY_ISSUER:-}" ]]; then
+    if [[ -z "${LIMITS_NOTARY_KEY:-}" || -z "${LIMITS_NOTARY_KEY_ID:-}" || -z "${LIMITS_NOTARY_ISSUER:-}" ]]; then
+      echo "notarytool: set LIMITS_NOTARY_KEY, LIMITS_NOTARY_KEY_ID, and LIMITS_NOTARY_ISSUER together" >&2
+      exit 1
+    fi
+    LIMITS_NOTARY_AUTH_ARGS=(--key "$LIMITS_NOTARY_KEY" --key-id "$LIMITS_NOTARY_KEY_ID" --issuer "$LIMITS_NOTARY_ISSUER")
+    return
+  fi
+
+  if [[ -n "${LIMITS_NOTARY_APPLE_ID:-}" || -n "${LIMITS_NOTARY_PASSWORD:-}" || -n "${LIMITS_NOTARY_TEAM_ID:-}" ]]; then
+    if [[ -z "${LIMITS_NOTARY_APPLE_ID:-}" || -z "${LIMITS_NOTARY_TEAM_ID:-}" ]]; then
+      echo "notarytool: set LIMITS_NOTARY_APPLE_ID and LIMITS_NOTARY_TEAM_ID together" >&2
+      exit 1
+    fi
+    LIMITS_NOTARY_AUTH_ARGS=(--apple-id "$LIMITS_NOTARY_APPLE_ID" --team-id "$LIMITS_NOTARY_TEAM_ID")
+    if [[ -n "${LIMITS_NOTARY_PASSWORD:-}" ]]; then
+      LIMITS_NOTARY_AUTH_ARGS+=(--password "$LIMITS_NOTARY_PASSWORD")
+    elif [[ ! -t 0 ]]; then
+      echo "notarytool: LIMITS_NOTARY_PASSWORD is required for non-interactive Apple ID auth; or use a keychain profile" >&2
+      exit 1
+    fi
+    return
+  fi
+
+  LIMITS_NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+}
+
+notarize_and_staple_app() {
+  configure_notary_auth_args
+
+  create_zip "$NOTARY_SUBMIT_ZIP_PATH"
+  echo "notarytool: submitting $(basename "$NOTARY_SUBMIT_ZIP_PATH")"
+  if ! xcrun notarytool submit "$NOTARY_SUBMIT_ZIP_PATH" "${LIMITS_NOTARY_AUTH_ARGS[@]}" --wait --timeout "$NOTARY_TIMEOUT"; then
+    cat >&2 <<ERROR
+
+notarytool failed.
+
+Create the default keychain profile, then rerun:
+  ./script/store_notary_credentials.sh "$NOTARY_PROFILE"
+  ./script/package_release.sh "$VERSION" --notarize
+
+Or provide App Store Connect API env:
+  LIMITS_NOTARY_KEY
+  LIMITS_NOTARY_KEY_ID
+  LIMITS_NOTARY_ISSUER
+ERROR
+    exit 1
+  fi
+
+  echo "stapler: stapling $APP_BUNDLE"
+  xcrun stapler staple "$APP_BUNDLE"
+  xcrun stapler validate "$APP_BUNDLE"
+  spctl -a -vvv "$APP_BUNDLE"
+  rm -f "$NOTARY_SUBMIT_ZIP_PATH"
+}
 
 write_app_group_entitlements() {
   local path="$1"
@@ -62,7 +214,7 @@ PLIST
 
 cd "$ROOT_DIR"
 limits_require_codesign_team "$APP_GROUP_TEAM_ID"
-rm -rf "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH"
+rm -rf "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH" "$NOTARY_SUBMIT_ZIP_PATH"
 
 swift build -c release --product "$APP_NAME"
 swift build -c release --product "$WIDGET_NAME"
@@ -177,16 +329,14 @@ limits_sign_path "$WIDGET_BUNDLE" "$WIDGET_ENTITLEMENTS"
 limits_sign_app "$APP_BUNDLE" "$APP_ENTITLEMENTS"
 
 mkdir -p "$DIST_DIR"
-(
-  cd "$DIST_DIR"
-  COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$(basename "$ZIP_PATH")"
-)
-(
-  cd "$DIST_DIR"
-  shasum -a 256 "$(basename "$ZIP_PATH")" > "$(basename "$CHECKSUM_PATH")"
-)
-
 codesign --verify --deep --strict "$APP_BUNDLE"
+
+if [[ "$NOTARIZE" == "1" || "$NOTARIZE" == "true" || "$NOTARIZE" == "yes" ]]; then
+  notarize_and_staple_app
+fi
+
+create_zip "$ZIP_PATH"
+write_checksum "$ZIP_PATH" "$CHECKSUM_PATH"
 
 echo "$ZIP_PATH"
 echo "$CHECKSUM_PATH"

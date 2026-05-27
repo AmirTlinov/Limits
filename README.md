@@ -31,7 +31,7 @@ Download the latest macOS build from **Releases**:
 
 Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it. After first launch, add the **Limits** widget from macOS widget gallery if you want limits on the desktop or Notification Center.
 
-The current release is ad-hoc signed, not Apple-notarized. On first launch macOS may ask for confirmation in **System Settings → Privacy & Security**.
+The app is Developer ID signed. Widget Gallery discovery requires the shipped app to be Apple-notarized; if macOS reports `source=Unnotarized Developer ID`, the app may launch but the widget extension can stay invisible.
 
 ## Notes
 
@@ -47,3 +47,18 @@ swift test
 ```
 
 The packaged app and zip are written to `dist/`.
+
+For a widget-visible distribution build, store Apple notary credentials once and package with notarization:
+
+```bash
+./script/store_notary_credentials.sh LimitsNotary
+./script/package_release.sh 0.1.0 --notarize
+```
+
+The notarized path submits a temporary zip, staples the ticket onto `dist/Limits.app`, validates it, then recreates the final release zip.
+
+After installing the notarized app to `/Applications`, verify WidgetKit ingestion:
+
+```bash
+./script/verify_widget_extension.sh --refresh-chronod /Applications/Limits.app
+```
