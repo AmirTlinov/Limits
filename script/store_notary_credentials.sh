@@ -3,16 +3,9 @@ set -euo pipefail
 
 PROFILE="${1:-${LIMITS_NOTARY_PROFILE:-LimitsNotary}}"
 TEAM_ID="${LIMITS_NOTARY_TEAM_ID:-${LIMITS_APP_GROUP_TEAM_ID:-M94V58FCVP}}"
+APPLE_ID="${LIMITS_NOTARY_APPLE_ID:-}"
 
 ARGS=("$PROFILE" --team-id "$TEAM_ID")
-
-if [[ -n "${LIMITS_NOTARY_APPLE_ID:-}" ]]; then
-  ARGS+=(--apple-id "$LIMITS_NOTARY_APPLE_ID")
-fi
-
-if [[ -n "${LIMITS_NOTARY_PASSWORD:-}" ]]; then
-  ARGS+=(--password "$LIMITS_NOTARY_PASSWORD")
-fi
 
 if [[ -n "${LIMITS_NOTARY_KEY:-}" || -n "${LIMITS_NOTARY_KEY_ID:-}" || -n "${LIMITS_NOTARY_ISSUER:-}" ]]; then
   if [[ -z "${LIMITS_NOTARY_KEY:-}" || -z "${LIMITS_NOTARY_KEY_ID:-}" || -z "${LIMITS_NOTARY_ISSUER:-}" ]]; then
@@ -20,6 +13,27 @@ if [[ -n "${LIMITS_NOTARY_KEY:-}" || -n "${LIMITS_NOTARY_KEY_ID:-}" || -n "${LIM
     exit 1
   fi
   ARGS=("$PROFILE" --key "$LIMITS_NOTARY_KEY" --key-id "$LIMITS_NOTARY_KEY_ID" --issuer "$LIMITS_NOTARY_ISSUER")
+fi
+
+if [[ -z "${LIMITS_NOTARY_KEY:-}" && -z "$APPLE_ID" ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "set LIMITS_NOTARY_APPLE_ID to your Apple ID email; the team id is $TEAM_ID" >&2
+    exit 1
+  fi
+  echo "Team ID is $TEAM_ID. Do not enter the Team ID as the Developer Apple ID."
+  read -r -p "Developer Apple ID email: " APPLE_ID
+fi
+
+if [[ -n "$APPLE_ID" ]]; then
+  if [[ "$APPLE_ID" == "$TEAM_ID" ]]; then
+    echo "Developer Apple ID must be the Apple account email, not the Team ID '$TEAM_ID'." >&2
+    exit 1
+  fi
+  ARGS+=(--apple-id "$APPLE_ID")
+fi
+
+if [[ -n "${LIMITS_NOTARY_PASSWORD:-}" ]]; then
+  ARGS+=(--password "$LIMITS_NOTARY_PASSWORD")
 fi
 
 echo "notarytool: storing credentials in keychain profile '$PROFILE' for team '$TEAM_ID'"

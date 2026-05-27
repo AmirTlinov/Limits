@@ -55,7 +55,7 @@ For a widget-visible distribution build, store Apple notary credentials once and
 ./script/package_release.sh 0.1.0 --notarize
 ```
 
-The notarized path submits a temporary zip, staples the ticket onto `dist/Limits.app`, validates it, then recreates the final release zip.
+When prompted, enter the Apple ID email for the developer account, not the Team ID. The notarized path submits a temporary zip, staples the ticket onto `dist/Limits.app`, validates it, then recreates the final release zip.
 
 After installing the notarized app to `/Applications`, verify WidgetKit ingestion:
 
