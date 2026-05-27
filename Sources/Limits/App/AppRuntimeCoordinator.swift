@@ -90,6 +90,7 @@ final class AppRuntimeCoordinator {
         accountsWindowController.refreshLocalizedText()
         settingsWindowController.refreshLocalizedText()
         statusItemController.refreshLocalizedText()
+        model.publishWidgetSnapshotNow()
     }
 
     private func syncActivationPolicyWithVisibleWindows() {

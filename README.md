@@ -16,8 +16,9 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 
 ## What it does
 
-- Shows Codex CLI limits in the menu bar panel and native macOS window.
+- Shows Codex CLI limits in the menu bar panel, native macOS window, and WidgetKit widgets.
 - Shows Claude Code live limits when the Claude statusline bridge is enabled.
+- Publishes a safe widget snapshot through the macOS App Group container; widgets never read auth files or Keychain credentials.
 - Saves separate Codex and Claude accounts for quick switching.
 - Highlights providers consistently: Codex is blue, Claude is coral.
 - Stores saved auth snapshots in macOS Keychain.
@@ -28,7 +29,7 @@ Download the latest macOS build from **Releases**:
 
 <https://github.com/AmirTlinov/Limits/releases/latest>
 
-Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it.
+Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it. After first launch, add the **Limits** widget from macOS widget gallery if you want limits on the desktop or Notification Center.
 
 The current release is ad-hoc signed, not Apple-notarized. On first launch macOS may ask for confirmation in **System Settings → Privacy & Security**.
 

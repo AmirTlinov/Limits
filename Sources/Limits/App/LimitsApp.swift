@@ -1,4 +1,5 @@
 import AppKit
+import LimitsShared
 
 @MainActor
 final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
@@ -11,6 +12,7 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         RuntimeLog.lifecycle.info("activation policy set to accessory")
         installApplicationIcon()
+        installURLHandler()
 
         let coordinator = AppRuntimeCoordinator()
         self.coordinator = coordinator
@@ -44,12 +46,36 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
         coordinator?.closeFrontmostWindow()
     }
 
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
+        guard
+            let rawURL = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+            let url = URL(string: rawURL),
+            url.scheme == LimitsWidgetConstants.openURL.scheme
+        else {
+            RuntimeLog.lifecycle.warning("ignored unsupported URL event")
+            return
+        }
+
+        RuntimeLog.lifecycle.info("URL event opened Limits window path=\(url.host ?? url.path, privacy: .public)")
+        coordinator?.openAccountsWindow()
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(closeWindowFromMenu(_:)) {
             return coordinator?.hasVisibleWindow == true
         }
 
         return true
+    }
+
+    private func installURLHandler() {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+        RuntimeLog.lifecycle.info("URL handler installed")
     }
 
     private func installKeyboardShortcuts() {

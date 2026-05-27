@@ -6,4 +6,5 @@ enum RuntimeLog {
     static let lifecycle = Logger(subsystem: subsystem, category: "lifecycle")
     static let tray = Logger(subsystem: subsystem, category: "tray")
     static let window = Logger(subsystem: subsystem, category: "window")
+    static let widget = Logger(subsystem: subsystem, category: "widget")
 }

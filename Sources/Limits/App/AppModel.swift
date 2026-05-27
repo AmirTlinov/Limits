@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import LimitsShared
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -116,6 +117,7 @@ final class AppModel: ObservableObject {
     private let presentationTickInterval: TimeInterval = 30
     private let currentCLIExpiredResetRetryInterval: TimeInterval = 300
     private let storedCodexAutoRefreshInterval: TimeInterval = 60
+    private let widgetSnapshotPublisher = LimitsWidgetSnapshotPublisher()
     private let storedCodexAutoRefreshRetryInterval: TimeInterval = 1_800
     private var backgroundRefreshTask: Task<Void, Never>?
     private var presentationClockTask: Task<Void, Never>?
@@ -142,6 +144,7 @@ final class AppModel: ObservableObject {
     }
 
     func bootstrap() async {
+        defer { publishWidgetSnapshotIfPossible() }
         do {
             let state = try persistence.load()
             accounts = state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
@@ -161,6 +164,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentCLIState() async {
+        defer { publishWidgetSnapshotIfPossible() }
         do {
             guard globalAuthService.hasGlobalAuth() else {
                 currentCLIState = CurrentCLIState(source: .missing, authFingerprint: nil, accountId: nil, authMode: nil)
@@ -197,6 +201,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentCLIProbe(force: Bool = false) async {
+        defer { publishWidgetSnapshotIfPossible() }
         guard globalAuthService.hasGlobalAuth() else {
             currentCLIProbe = nil
             currentCLIProbeError = nil
@@ -268,6 +273,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentClaudeState() async {
+        defer { publishWidgetSnapshotIfPossible() }
         guard claudeAuthStatusService.isInstalled() else {
             currentClaudeState = CurrentClaudeState(source: .notInstalled, authFingerprint: nil)
             currentClaudeStatus = nil
@@ -555,6 +561,7 @@ final class AppModel: ObservableObject {
     }
 
     func validateAccount(_ account: StoredAccount) async {
+        defer { publishWidgetSnapshotIfPossible() }
         do {
             let authData = try vault.read(account: account.keychainAccount)
             let result = try await codexAccountService.validate(authData: authData)
@@ -736,6 +743,95 @@ final class AppModel: ObservableObject {
             return L10n.tr("cli.summary.external")
         case .unreadable:
             return L10n.tr("cli.summary.unreadable")
+        }
+    }
+
+    func publishWidgetSnapshotNow() {
+        publishWidgetSnapshotIfPossible()
+    }
+
+    func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
+        let codexOverview = currentCLIOverview()
+        let codexLimits = Self.widgetLimitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
+        let claudeOverview = currentClaudeOverview()
+        let claudeLimits = Self.widgetLimitSnapshots(from: currentClaudeLiveRateLimitSections(), now: now)
+
+        return LimitsWidgetSnapshot(
+            generatedAt: now,
+            providers: [
+                LimitsWidgetProviderSnapshot(
+                    id: .codex,
+                    title: codexOverview.title,
+                    subtitle: codexOverview.subtitle,
+                    status: widgetCodexStatus(limits: codexLimits),
+                    limits: codexLimits,
+                    updatedAt: currentCLIValidatedAt(),
+                    note: codexOverview.note ?? currentCLIProbeError
+                ),
+                LimitsWidgetProviderSnapshot(
+                    id: .claude,
+                    title: claudeOverview.title,
+                    subtitle: claudeOverview.subtitle,
+                    status: widgetClaudeStatus(limits: claudeLimits),
+                    limits: claudeLimits,
+                    updatedAt: claudeLiveBridgeSnapshotUpdatedAt() ?? claudeValidatedAt(),
+                    note: claudeOverview.note ?? currentClaudeBridgeError ?? currentClaudeError
+                ),
+            ]
+        )
+    }
+
+    nonisolated static func widgetLimitSnapshots(
+        from sections: [RateLimitDisplaySection],
+        now: Date = .now
+    ) -> [LimitsWidgetLimitSnapshot] {
+        sections.flatMap { section in
+            section.rows.map { row in
+                let resetIsStale = row.resetDate.map { $0 <= now } ?? false
+                return LimitsWidgetLimitSnapshot(
+                    id: "\(section.id).\(row.id)",
+                    title: row.title,
+                    remainingPercent: resetIsStale ? nil : row.remainingPercent,
+                    resetDate: row.resetDate
+                )
+            }
+        }
+    }
+
+    private func widgetCodexStatus(limits: [LimitsWidgetLimitSnapshot]) -> LimitsWidgetProviderStatus {
+        switch currentCLIState.source {
+        case .missing:
+            return .unavailable
+        case .unreadable:
+            return .error
+        case .stored, .external:
+            if limits.contains(where: { $0.remainingPercent != nil }) {
+                return .available
+            }
+            return currentCLIProbeError == nil ? .noData : .error
+        }
+    }
+
+    private func widgetClaudeStatus(limits: [LimitsWidgetLimitSnapshot]) -> LimitsWidgetProviderStatus {
+        switch currentClaudeState.source {
+        case .notInstalled, .loggedOut:
+            return .unavailable
+        case .unreadable:
+            return .error
+        case .stored, .external:
+            if limits.contains(where: { $0.remainingPercent != nil }) {
+                return .available
+            }
+            return currentClaudeBridgeError == nil ? .noData : .error
+        }
+    }
+
+    private func publishWidgetSnapshotIfPossible(now: Date = .now) {
+        do {
+            try widgetSnapshotPublisher.publish(makeWidgetSnapshot(now: now))
+            RuntimeLog.widget.debug("widget snapshot published")
+        } catch {
+            RuntimeLog.widget.warning("widget snapshot publish failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

@@ -9,16 +9,29 @@ let package = Package(
     platforms: [
         .macOS(.v14),
     ],
+    products: [
+        .executable(name: "Limits", targets: ["Limits"]),
+        .executable(name: "LimitsWidgetExtension", targets: ["LimitsWidgetExtension"]),
+        .library(name: "LimitsShared", targets: ["LimitsShared"]),
+    ],
     targets: [
+        .target(
+            name: "LimitsShared"
+        ),
         .executableTarget(
             name: "Limits",
+            dependencies: ["LimitsShared"],
             resources: [
                 .process("Resources")
             ]
         ),
+        .executableTarget(
+            name: "LimitsWidgetExtension",
+            dependencies: ["LimitsShared"]
+        ),
         .testTarget(
             name: "LimitsTests",
-            dependencies: ["Limits"]
+            dependencies: ["Limits", "LimitsShared"]
         ),
     ],
     swiftLanguageModes: [.v6]
