@@ -51,7 +51,6 @@ case "$MODE" in
     /usr/bin/log stream --info --style compact --predicate 'subsystem == "com.amir.Limits"'
     ;;
   --verify|verify)
-    open_app
     "$ROOT_DIR/script/verify_runtime.sh" "$APP_BUNDLE"
     ;;
   *)

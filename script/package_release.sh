@@ -179,7 +179,7 @@ SPARKLE="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
 [[ "$(lipo -archs "$APP_BUNDLE/Contents/MacOS/$APP_NAME")" == "arm64" ]]
 [[ "$(lipo -archs "$WIDGET/Contents/MacOS/LimitsWidgetExtension")" == "arm64" ]]
 
-codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+"$ROOT_DIR/script/verify_widget_extension.sh" --static-only "$APP_BUNDLE"
 codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "TeamIdentifier=$APP_TEAM_ID" >/dev/null
 codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "Runtime Version=" >/dev/null
 codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "Timestamp=" >/dev/null

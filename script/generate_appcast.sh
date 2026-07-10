@@ -4,6 +4,7 @@ set -euo pipefail
 VERSION="${1:-}"
 shift || true
 [[ -n "$VERSION" ]] || { echo "Usage: $0 VERSION [--existing-appcast PATH]" >&2; exit 2; }
+[[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}$ ]] || { echo "Invalid release version: $VERSION" >&2; exit 2; }
 
 EXISTING_APPCAST=""
 while [[ $# -gt 0 ]]; do
@@ -28,6 +29,7 @@ WORK_DIR="$ROOT_DIR/.build/appcast"
 SPARKLE_ACCOUNT="${LIMITS_SPARKLE_ACCOUNT:-com.amir.Limits}"
 TOOLS_DIR="${LIMITS_SPARKLE_TOOLS_DIR:-$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin}"
 GENERATE_APPCAST="$TOOLS_DIR/generate_appcast"
+SIGN_UPDATE="$TOOLS_DIR/sign_update"
 
 [[ -f "$ARCHIVE_PATH" ]] || { echo "Missing release archive: $ARCHIVE_PATH" >&2; exit 1; }
 if [[ ! -x "$GENERATE_APPCAST" ]]; then
@@ -37,6 +39,7 @@ if [[ ! -x "$GENERATE_APPCAST" ]]; then
     -clonedSourcePackagesDirPath "$ROOT_DIR/.build/SourcePackages" >/dev/null
 fi
 [[ -x "$GENERATE_APPCAST" ]] || { echo "Sparkle generate_appcast tool was not resolved." >&2; exit 1; }
+[[ -x "$SIGN_UPDATE" ]] || { echo "Sparkle sign_update tool was not resolved." >&2; exit 1; }
 
 rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR" "$DIST_DIR"
@@ -79,6 +82,18 @@ fi
 
 xmllint --noout "$WORK_DIR/appcast.xml"
 grep -F "v$VERSION/$ARCHIVE_NAME" "$WORK_DIR/appcast.xml" >/dev/null
-grep -F 'sparkle:edSignature=' "$WORK_DIR/appcast.xml" >/dev/null
+SIGNATURE="$(xmllint --xpath "string((//*[local-name()='enclosure' and contains(@url, '$ARCHIVE_NAME')]/@*[local-name()='edSignature'])[1])" "$WORK_DIR/appcast.xml")"
+[[ -n "$SIGNATURE" ]] || { echo "Generated appcast has no EdDSA signature for $ARCHIVE_NAME." >&2; exit 1; }
+
+VERIFY_ARGS=(--account "$SPARKLE_ACCOUNT" --verify "$ARCHIVE_PATH" "$SIGNATURE")
+if [[ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ]]; then
+  "$SIGN_UPDATE" --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" "${VERIFY_ARGS[@]}"
+elif [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+  printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - "${VERIFY_ARGS[@]}"
+else
+  "$SIGN_UPDATE" "${VERIFY_ARGS[@]}"
+fi
+echo "Verified Sparkle EdDSA signature for $ARCHIVE_NAME" >&2
+
 cp "$WORK_DIR/appcast.xml" "$OUTPUT_PATH"
 printf '%s\n' "$OUTPUT_PATH"

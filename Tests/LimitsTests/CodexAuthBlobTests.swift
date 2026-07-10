@@ -71,9 +71,11 @@ private func base64URLJSON(_ object: [String: String]) -> String {
 
     let now = Date(timeIntervalSince1970: 1_777_000_000 - 600)
 
-    #expect(snapshot.compactUsageSummary() == "5ч 9% · Неделя 60%")
-    #expect(snapshot.compactResetSummary(now: now) == "6д 17ч")
-    #expect(snapshot.panelSummary(now: now) == "5ч 9% · Неделя 60% | 6д 17ч")
+    L10n.withLanguage("ru") {
+        #expect(snapshot.compactUsageSummary() == "5ч 9% · Неделя 60%")
+        #expect(snapshot.compactResetSummary(now: now) == "6д 17ч")
+        #expect(snapshot.panelSummary(now: now) == "5ч 9% · Неделя 60% | 6д 17ч")
+    }
 }
 
 @Test func displayBuilderKeepsCodexFirstAndModelSectionsAfterIt() {
