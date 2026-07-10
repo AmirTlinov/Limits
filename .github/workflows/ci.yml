@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, codex/limits-v1]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
+
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Verify deterministic Xcode project
+        run: |
+          gem install xcodeproj -v 1.27.0 --no-document --user-install
+          export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
+          ./script/generate_xcode_project.rb
+          git diff --exit-code -- Limits.xcodeproj
+
+      - name: Build all products
+        run: |
+          xcodebuild \
+            -project Limits.xcodeproj \
+            -scheme Limits \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath .build/ci \
+            -clonedSourcePackagesDirPath .build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Run unit tests
+        run: |
+          xcodebuild \
+            -project Limits.xcodeproj \
+            -scheme Limits \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath .build/ci \
+            -clonedSourcePackagesDirPath .build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO \
+            test \
+            -only-testing:LimitsTests

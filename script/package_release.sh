@@ -8,21 +8,20 @@ NOTARY_PROFILE_EXPLICIT="false"
 NOTARY_TIMEOUT="${LIMITS_NOTARY_TIMEOUT:-30m}"
 
 usage() {
-  cat <<USAGE
-Usage: $0 [version] [--notarize] [--notary-profile NAME] [--notary-timeout 30m]
+  cat <<'USAGE'
+Usage: ./script/package_release.sh [version] [options]
 
-Builds, signs, and zips Limits.app.
+Archives Limits with Xcode, Developer ID signs the complete bundle, and creates
+the Sparkle-ready release zip and SHA-256 checksum.
 
 Options:
-  --notarize              Submit the app to Apple notary service, staple it,
-                          validate the ticket, then recreate the final zip.
-  --notary-profile NAME   Keychain profile created by notarytool
-                          store-credentials. Defaults to LimitsNotary.
-  --notary-timeout VALUE  notarytool wait timeout. Defaults to 30m.
+  --notarize              Submit to Apple, wait, staple, and validate.
+  --no-notarize           Build the signed archive without notarization.
+  --notary-profile NAME   notarytool Keychain profile (default: LimitsNotary).
+  --notary-timeout VALUE  notarytool wait timeout (default: 30m).
   -h, --help              Show this help.
 
-Notary auth can also come from env:
-  LIMITS_NOTARY_PROFILE
+Notary auth may also come from:
   LIMITS_NOTARY_KEY + LIMITS_NOTARY_KEY_ID + LIMITS_NOTARY_ISSUER
   LIMITS_NOTARY_APPLE_ID + LIMITS_NOTARY_PASSWORD + LIMITS_NOTARY_TEAM_ID
 USAGE
@@ -57,286 +56,148 @@ while [[ $# -gt 0 ]]; do
       exit 2
       ;;
     *)
-      if [[ -n "$VERSION" ]]; then
-        echo "Unexpected extra argument: $1" >&2
-        usage >&2
-        exit 2
-      fi
+      [[ -z "$VERSION" ]] || { echo "Unexpected extra argument: $1" >&2; exit 2; }
       VERSION="$1"
       shift
       ;;
   esac
 done
 
-VERSION="${VERSION:-0.1.0}"
-APP_NAME="Limits"
-APP_BUNDLE_ID="com.amir.Limits"
-WIDGET_NAME="LimitsWidgetExtension"
-WIDGET_BUNDLE_ID="com.amir.Limits.WidgetExtension"
-APP_GROUP_TEAM_ID="${LIMITS_APP_GROUP_TEAM_ID:-M94V58FCVP}"
-APP_GROUP_ID="${LIMITS_APP_GROUP_ID:-$APP_GROUP_TEAM_ID.com.amir.Limits.shared}"
-MIN_SYSTEM_VERSION="14.0"
-ARCH="$(uname -m)"
+VERSION="${VERSION:-1.0.0}"
+[[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}([.-][0-9A-Za-z.-]+)?$ ]] || {
+  echo "Invalid version: $VERSION" >&2
+  exit 2
+}
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT_DIR/script/lib/codesign.sh"
+APP_NAME="Limits"
+APP_TEAM_ID="${LIMITS_APP_GROUP_TEAM_ID:-M94V58FCVP}"
+BUILD_NUMBER="${LIMITS_BUILD_NUMBER:-$VERSION}"
+[[ "$BUILD_NUMBER" =~ ^[0-9]+([.][0-9]+){0,2}$ ]] || {
+  echo "CFBundleVersion must be numeric; set LIMITS_BUILD_NUMBER for prereleases." >&2
+  exit 2
+}
+DERIVED_DATA="$ROOT_DIR/.build/xcode-release"
+SOURCE_PACKAGES="$ROOT_DIR/.build/SourcePackages"
+ARCHIVE_PATH="$ROOT_DIR/.build/release/Limits.xcarchive"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-APP_CONTENTS="$APP_BUNDLE/Contents"
-APP_MACOS="$APP_CONTENTS/MacOS"
-APP_RESOURCES="$APP_CONTENTS/Resources"
-APP_PLUGINS="$APP_CONTENTS/PlugIns"
-APP_BINARY="$APP_MACOS/$APP_NAME"
-INFO_PLIST="$APP_CONTENTS/Info.plist"
-APP_ICON_SOURCE="$ROOT_DIR/Assets/AppIcon.icns"
-APP_ICON_FILE="AppIcon.icns"
-WIDGET_BUNDLE="$APP_PLUGINS/$WIDGET_NAME.appex"
-WIDGET_CONTENTS="$WIDGET_BUNDLE/Contents"
-WIDGET_MACOS="$WIDGET_CONTENTS/MacOS"
-WIDGET_BINARY="$WIDGET_MACOS/$WIDGET_NAME"
-WIDGET_INFO_PLIST="$WIDGET_CONTENTS/Info.plist"
-ENTITLEMENTS_DIR="$DIST_DIR/Entitlements"
-APP_ENTITLEMENTS="$ENTITLEMENTS_DIR/$APP_NAME.entitlements"
-WIDGET_ENTITLEMENTS="$ENTITLEMENTS_DIR/$WIDGET_NAME.entitlements"
-ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-$ARCH.zip"
+ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-arm64.zip"
 CHECKSUM_PATH="$ZIP_PATH.sha256"
-NOTARY_SUBMIT_ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-$ARCH-notary-submit.zip"
+NOTARY_ZIP="$ROOT_DIR/.build/release/$APP_NAME-v$VERSION-notary.zip"
 LIMITS_NOTARY_AUTH_ARGS=()
+
+find_developer_id_identity() {
+  if [[ -n "${LIMITS_CODESIGN_IDENTITY:-}" ]]; then
+    printf '%s\n' "$LIMITS_CODESIGN_IDENTITY"
+    return
+  fi
+  security find-identity -p codesigning -v 2>/dev/null \
+    | awk -F '"' '/Developer ID Application:/ { print $2; exit }'
+}
 
 create_zip() {
   local output_path="$1"
   rm -f "$output_path"
+  mkdir -p "$(dirname "$output_path")"
   (
-    cd "$DIST_DIR"
-    COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$(basename "$output_path")"
+    cd "$(dirname "$APP_BUNDLE")"
+    COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$(basename "$APP_BUNDLE")" "$output_path"
   )
 }
 
-write_checksum() {
-  local input_path="$1"
-  local output_path="$2"
-  rm -f "$output_path"
-  (
-    cd "$DIST_DIR"
-    shasum -a 256 "$(basename "$input_path")" > "$(basename "$output_path")"
-  )
-}
-
-configure_notary_auth_args() {
-  LIMITS_NOTARY_AUTH_ARGS=()
-
+configure_notary_auth() {
   if [[ "$NOTARY_PROFILE_EXPLICIT" == "true" || -n "${LIMITS_NOTARY_PROFILE:-}" ]]; then
     LIMITS_NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
-    return
-  fi
-
-  if [[ -n "${LIMITS_NOTARY_KEY:-}" || -n "${LIMITS_NOTARY_KEY_ID:-}" || -n "${LIMITS_NOTARY_ISSUER:-}" ]]; then
-    if [[ -z "${LIMITS_NOTARY_KEY:-}" || -z "${LIMITS_NOTARY_KEY_ID:-}" || -z "${LIMITS_NOTARY_ISSUER:-}" ]]; then
-      echo "notarytool: set LIMITS_NOTARY_KEY, LIMITS_NOTARY_KEY_ID, and LIMITS_NOTARY_ISSUER together" >&2
+  elif [[ -n "${LIMITS_NOTARY_KEY:-}" || -n "${LIMITS_NOTARY_KEY_ID:-}" || -n "${LIMITS_NOTARY_ISSUER:-}" ]]; then
+    [[ -n "${LIMITS_NOTARY_KEY:-}" && -n "${LIMITS_NOTARY_KEY_ID:-}" && -n "${LIMITS_NOTARY_ISSUER:-}" ]] || {
+      echo "Set LIMITS_NOTARY_KEY, LIMITS_NOTARY_KEY_ID, and LIMITS_NOTARY_ISSUER together." >&2
       exit 1
-    fi
-    LIMITS_NOTARY_AUTH_ARGS=(--key "$LIMITS_NOTARY_KEY" --key-id "$LIMITS_NOTARY_KEY_ID" --issuer "$LIMITS_NOTARY_ISSUER")
-    return
-  fi
-
-  if [[ -n "${LIMITS_NOTARY_APPLE_ID:-}" || -n "${LIMITS_NOTARY_PASSWORD:-}" || -n "${LIMITS_NOTARY_TEAM_ID:-}" ]]; then
-    if [[ -z "${LIMITS_NOTARY_APPLE_ID:-}" || -z "${LIMITS_NOTARY_TEAM_ID:-}" ]]; then
-      echo "notarytool: set LIMITS_NOTARY_APPLE_ID and LIMITS_NOTARY_TEAM_ID together" >&2
+    }
+    LIMITS_NOTARY_AUTH_ARGS=(
+      --key "$LIMITS_NOTARY_KEY"
+      --key-id "$LIMITS_NOTARY_KEY_ID"
+      --issuer "$LIMITS_NOTARY_ISSUER"
+    )
+  elif [[ -n "${LIMITS_NOTARY_APPLE_ID:-}" || -n "${LIMITS_NOTARY_PASSWORD:-}" || -n "${LIMITS_NOTARY_TEAM_ID:-}" ]]; then
+    [[ -n "${LIMITS_NOTARY_APPLE_ID:-}" && -n "${LIMITS_NOTARY_PASSWORD:-}" && -n "${LIMITS_NOTARY_TEAM_ID:-}" ]] || {
+      echo "Set LIMITS_NOTARY_APPLE_ID, LIMITS_NOTARY_PASSWORD, and LIMITS_NOTARY_TEAM_ID together." >&2
       exit 1
-    fi
-    LIMITS_NOTARY_AUTH_ARGS=(--apple-id "$LIMITS_NOTARY_APPLE_ID" --team-id "$LIMITS_NOTARY_TEAM_ID")
-    if [[ -n "${LIMITS_NOTARY_PASSWORD:-}" ]]; then
-      LIMITS_NOTARY_AUTH_ARGS+=(--password "$LIMITS_NOTARY_PASSWORD")
-    elif [[ ! -t 0 ]]; then
-      echo "notarytool: LIMITS_NOTARY_PASSWORD is required for non-interactive Apple ID auth; or use a keychain profile" >&2
-      exit 1
-    fi
-    return
+    }
+    LIMITS_NOTARY_AUTH_ARGS=(
+      --apple-id "$LIMITS_NOTARY_APPLE_ID"
+      --password "$LIMITS_NOTARY_PASSWORD"
+      --team-id "$LIMITS_NOTARY_TEAM_ID"
+    )
+  else
+    LIMITS_NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
   fi
-
-  LIMITS_NOTARY_AUTH_ARGS=(--keychain-profile "$NOTARY_PROFILE")
 }
 
-notarize_and_staple_app() {
-  configure_notary_auth_args
-
-  create_zip "$NOTARY_SUBMIT_ZIP_PATH"
-  echo "notarytool: submitting $(basename "$NOTARY_SUBMIT_ZIP_PATH")"
-  if ! xcrun notarytool submit "$NOTARY_SUBMIT_ZIP_PATH" "${LIMITS_NOTARY_AUTH_ARGS[@]}" --wait --timeout "$NOTARY_TIMEOUT"; then
-    cat >&2 <<ERROR
-
-notarytool failed.
-
-Create the default keychain profile, then rerun:
-  ./script/store_notary_credentials.sh "$NOTARY_PROFILE"
-  ./script/package_release.sh "$VERSION" --notarize
-
-Or provide App Store Connect API env:
-  LIMITS_NOTARY_KEY
-  LIMITS_NOTARY_KEY_ID
-  LIMITS_NOTARY_ISSUER
-ERROR
-    exit 1
-  fi
-
-  echo "stapler: stapling $APP_BUNDLE"
-  xcrun stapler staple "$APP_BUNDLE"
-  xcrun stapler validate "$APP_BUNDLE"
-  spctl -a -vvv "$APP_BUNDLE"
-  rm -f "$NOTARY_SUBMIT_ZIP_PATH"
-}
-
-write_app_group_entitlements() {
-  local path="$1"
-  local sandbox="${2:-false}"
-  mkdir -p "$(dirname "$path")"
-  cat >"$path" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-PLIST
-  if [[ "$sandbox" == "true" ]]; then
-    cat >>"$path" <<PLIST
-  <key>com.apple.security.app-sandbox</key>
-  <true/>
-PLIST
-  fi
-  cat >>"$path" <<PLIST
-  <key>com.apple.security.application-groups</key>
-  <array>
-    <string>$APP_GROUP_ID</string>
-  </array>
-</dict>
-</plist>
-PLIST
+IDENTITY="$(find_developer_id_identity)"
+[[ -n "$IDENTITY" ]] || { echo "A Developer ID Application identity is required." >&2; exit 1; }
+[[ "$IDENTITY" == *"($APP_TEAM_ID)" ]] || {
+  echo "Signing identity does not belong to team $APP_TEAM_ID: $IDENTITY" >&2
+  exit 1
 }
 
 cd "$ROOT_DIR"
-limits_require_codesign_team "$APP_GROUP_TEAM_ID"
-rm -rf "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH" "$NOTARY_SUBMIT_ZIP_PATH"
+mkdir -p "$DIST_DIR" "$(dirname "$ARCHIVE_PATH")"
+rm -rf "$DERIVED_DATA" "$ARCHIVE_PATH" "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH" "$NOTARY_ZIP"
 
-swift build -c release --product "$APP_NAME"
-swift build -c release --product "$WIDGET_NAME"
-BUILD_DIR="$(swift build -c release --show-bin-path)"
-BUILD_BINARY="$BUILD_DIR/$APP_NAME"
-BUILD_WIDGET_BINARY="$BUILD_DIR/$WIDGET_NAME"
+xcodebuild \
+  -project Limits.xcodeproj \
+  -scheme Limits \
+  -configuration Release \
+  -destination 'generic/platform=macOS' \
+  -derivedDataPath "$DERIVED_DATA" \
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
+  -archivePath "$ARCHIVE_PATH" \
+  archive \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
+  MARKETING_VERSION="$VERSION" \
+  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  CODE_SIGN_STYLE=Manual \
+  DEVELOPMENT_TEAM="$APP_TEAM_ID" \
+  CODE_SIGN_IDENTITY="$IDENTITY" \
+  OTHER_CODE_SIGN_FLAGS=--timestamp
 
-mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$WIDGET_MACOS"
-cp "$BUILD_BINARY" "$APP_BINARY"
-chmod +x "$APP_BINARY"
-cp "$BUILD_WIDGET_BINARY" "$WIDGET_BINARY"
-chmod +x "$WIDGET_BINARY"
-cp "$APP_ICON_SOURCE" "$APP_RESOURCES/$APP_ICON_FILE"
-
-if [[ -d "$ROOT_DIR/Sources/Limits/Resources" ]]; then
-  cp -R "$ROOT_DIR/Sources/Limits/Resources/." "$APP_RESOURCES/"
-fi
-
-cat >"$INFO_PLIST" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>$APP_NAME</string>
-  <key>CFBundleIdentifier</key>
-  <string>$APP_BUNDLE_ID</string>
-  <key>CFBundleName</key>
-  <string>$APP_NAME</string>
-  <key>CFBundleDevelopmentRegion</key>
-  <string>en</string>
-  <key>CFBundleLocalizations</key>
-  <array>
-    <string>en</string>
-    <string>ru</string>
-    <string>zh-Hans</string>
-    <string>fr</string>
-    <string>es</string>
-  </array>
-  <key>CFBundleDisplayName</key>
-  <string>$APP_NAME</string>
-  <key>CFBundleShortVersionString</key>
-  <string>$VERSION</string>
-  <key>CFBundleVersion</key>
-  <string>$VERSION</string>
-  <key>CFBundleIconFile</key>
-  <string>$APP_ICON_FILE</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleURLTypes</key>
-  <array>
-    <dict>
-      <key>CFBundleURLName</key>
-      <string>$APP_BUNDLE_ID</string>
-      <key>CFBundleURLSchemes</key>
-      <array>
-        <string>limits</string>
-      </array>
-    </dict>
-  </array>
-  <key>LSMinimumSystemVersion</key>
-  <string>$MIN_SYSTEM_VERSION</string>
-  <key>LimitsAppGroupIdentifier</key>
-  <string>$APP_GROUP_ID</string>
-  <key>NSPrincipalClass</key>
-  <string>NSApplication</string>
-</dict>
-</plist>
-PLIST
-
-cat >"$WIDGET_INFO_PLIST" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>$WIDGET_NAME</string>
-  <key>CFBundleIdentifier</key>
-  <string>$WIDGET_BUNDLE_ID</string>
-  <key>CFBundleName</key>
-  <string>$WIDGET_NAME</string>
-  <key>CFBundleDisplayName</key>
-  <string>Limits</string>
-  <key>CFBundleShortVersionString</key>
-  <string>$VERSION</string>
-  <key>CFBundleVersion</key>
-  <string>$VERSION</string>
-  <key>CFBundlePackageType</key>
-  <string>XPC!</string>
-  <key>CFBundleSupportedPlatforms</key>
-  <array>
-    <string>MacOSX</string>
-  </array>
-  <key>MinimumOSVersion</key>
-  <string>$MIN_SYSTEM_VERSION</string>
-  <key>LimitsAppGroupIdentifier</key>
-  <string>$APP_GROUP_ID</string>
-  <key>NSExtension</key>
-  <dict>
-    <key>NSExtensionPointIdentifier</key>
-    <string>com.apple.widgetkit-extension</string>
-  </dict>
-</dict>
-</plist>
-PLIST
-
-write_app_group_entitlements "$APP_ENTITLEMENTS"
-write_app_group_entitlements "$WIDGET_ENTITLEMENTS" true
-plutil -lint "$INFO_PLIST" "$WIDGET_INFO_PLIST" "$APP_ENTITLEMENTS" "$WIDGET_ENTITLEMENTS" >/dev/null
+ARCHIVED_APP="$ARCHIVE_PATH/Products/Applications/$APP_NAME.app"
+[[ -d "$ARCHIVED_APP" ]] || { echo "Archive did not contain $ARCHIVED_APP" >&2; exit 1; }
+ditto "$ARCHIVED_APP" "$APP_BUNDLE"
 xattr -cr "$APP_BUNDLE" 2>/dev/null || true
-limits_sign_path "$WIDGET_BUNDLE" "$WIDGET_ENTITLEMENTS"
-limits_sign_app "$APP_BUNDLE" "$APP_ENTITLEMENTS"
 
-mkdir -p "$DIST_DIR"
-codesign --verify --deep --strict "$APP_BUNDLE"
+INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
+WIDGET="$APP_BUNDLE/Contents/PlugIns/LimitsWidgetExtension.appex"
+SPARKLE="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" == "$VERSION" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")" == "$BUILD_NUMBER" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$INFO_PLIST")" == "https://amirtlinov.github.io/Limits/appcast.xml" ]]
+[[ -d "$WIDGET" ]] || { echo "Widget extension is missing from release app." >&2; exit 1; }
+[[ -d "$SPARKLE" ]] || { echo "Sparkle.framework is missing from release app." >&2; exit 1; }
+[[ "$(lipo -archs "$APP_BUNDLE/Contents/MacOS/$APP_NAME")" == "arm64" ]]
+[[ "$(lipo -archs "$WIDGET/Contents/MacOS/LimitsWidgetExtension")" == "arm64" ]]
+
+codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "TeamIdentifier=$APP_TEAM_ID" >/dev/null
+codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "Runtime Version=" >/dev/null
+codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | grep -F "Timestamp=" >/dev/null
 
 if [[ "$NOTARIZE" == "1" || "$NOTARIZE" == "true" || "$NOTARIZE" == "yes" ]]; then
-  notarize_and_staple_app
+  configure_notary_auth
+  create_zip "$NOTARY_ZIP"
+  xcrun notarytool submit "$NOTARY_ZIP" "${LIMITS_NOTARY_AUTH_ARGS[@]}" --wait --timeout "$NOTARY_TIMEOUT"
+  xcrun stapler staple "$APP_BUNDLE"
+  xcrun stapler validate "$APP_BUNDLE"
+  spctl -a -t exec -vvv "$APP_BUNDLE"
+  rm -f "$NOTARY_ZIP"
 fi
 
 create_zip "$ZIP_PATH"
-write_checksum "$ZIP_PATH" "$CHECKSUM_PATH"
+(
+  cd "$DIST_DIR"
+  shasum -a 256 "$(basename "$ZIP_PATH")" > "$(basename "$CHECKSUM_PATH")"
+)
 
-echo "$ZIP_PATH"
-echo "$CHECKSUM_PATH"
+printf '%s\n' "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH"

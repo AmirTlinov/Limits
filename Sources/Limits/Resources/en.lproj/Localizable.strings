@@ -42,6 +42,14 @@
 "app.title" = "Limits";
 "settings.title" = "Settings";
 "settings.subtitle" = "Tune Limits for this Mac.";
+"settings.general.title" = "General";
+"settings.launch_at_login.title" = "Launch at login";
+"settings.launch_at_login.description" = "Keep Limits available in the menu bar after you sign in.";
+"settings.launch_at_login.requires_approval" = "Allow Limits in System Settings to finish enabling it.";
+"settings.launch_at_login.open_settings" = "Open Login Items";
+"settings.launch_at_login.unavailable" = "Launch at login is unavailable for this copy of Limits.";
+"settings.launch_at_login.error" = "Could not update the login setting: %@";
+"settings.updates.check" = "Check for Updates…";
 "settings.language.title" = "Language";
 "settings.language.description" = "Choose the language used by the tray, windows, and messages.";
 "settings.language.system" = "Use system language";

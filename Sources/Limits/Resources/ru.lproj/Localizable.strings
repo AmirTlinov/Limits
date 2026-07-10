@@ -42,6 +42,14 @@
 "app.title" = "Лимиты";
 "settings.title" = "Настройки";
 "settings.subtitle" = "Настройте Limits для этого Mac.";
+"settings.general.title" = "Основные";
+"settings.launch_at_login.title" = "Запускать при входе";
+"settings.launch_at_login.description" = "Оставлять Limits доступным в строке меню после входа в систему.";
+"settings.launch_at_login.requires_approval" = "Разрешите Limits в Системных настройках, чтобы завершить включение.";
+"settings.launch_at_login.open_settings" = "Открыть объекты входа";
+"settings.launch_at_login.unavailable" = "Для этой копии Limits запуск при входе недоступен.";
+"settings.launch_at_login.error" = "Не удалось изменить настройку запуска: %@";
+"settings.updates.check" = "Проверить обновления…";
 "settings.language.title" = "Язык";
 "settings.language.description" = "Выберите язык трея, окон и сообщений.";
 "settings.language.system" = "Как в системе";

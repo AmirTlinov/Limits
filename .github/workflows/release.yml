@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+      DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+      NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+      LIMITS_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+      LIMITS_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          [[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}$ ]]
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Require signing secrets
+        shell: bash
+        run: |
+          for name in DEVELOPER_ID_P12_BASE64 DEVELOPER_ID_P12_PASSWORD NOTARY_KEY_P8_BASE64 LIMITS_NOTARY_KEY_ID LIMITS_NOTARY_ISSUER SPARKLE_PRIVATE_KEY; do
+            [[ -n "${!name:-}" ]] || { echo "Missing GitHub secret for $name" >&2; exit 1; }
+          done
+
+      - name: Import Developer ID identity
+        shell: bash
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/limits-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          P12="$RUNNER_TEMP/developer-id.p12"
+          printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$P12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$P12" -k "$KEYCHAIN" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          security find-identity -p codesigning -v "$KEYCHAIN"
+
+      - name: Prepare notarization key
+        shell: bash
+        run: |
+          NOTARY_KEY="$RUNNER_TEMP/AuthKey_${LIMITS_NOTARY_KEY_ID}.p8"
+          printf '%s' "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$NOTARY_KEY"
+          chmod 600 "$NOTARY_KEY"
+          echo "LIMITS_NOTARY_KEY=$NOTARY_KEY" >> "$GITHUB_ENV"
+
+      - name: Build, sign, notarize, and staple
+        run: ./script/package_release.sh "${{ steps.version.outputs.version }}" --notarize
+
+      - name: Fetch current public appcast
+        shell: bash
+        run: |
+          if ! curl --fail --silent --show-error --location \
+            https://amirtlinov.github.io/Limits/appcast.xml \
+            --output "$RUNNER_TEMP/appcast.xml"; then
+            cp site/appcast.xml "$RUNNER_TEMP/appcast.xml"
+          fi
+
+      - name: Generate signed appcast
+        run: ./script/generate_appcast.sh "${{ steps.version.outputs.version }}" --existing-appcast "$RUNNER_TEMP/appcast.xml"
+
+      - name: Publish GitHub release
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          ASSETS=(
+            "dist/Limits-v$VERSION-macOS-arm64.zip"
+            "dist/Limits-v$VERSION-macOS-arm64.zip.sha256"
+            "dist/appcast.xml"
+          )
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          elif [[ -f "release-notes/v$VERSION.md" ]]; then
+            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "Limits $VERSION" --notes-file "release-notes/v$VERSION.md"
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "Limits $VERSION" --generate-notes
+          fi
+
+      - name: Publish appcast to GitHub Pages
+        shell: bash
+        run: |
+          PAGES="$RUNNER_TEMP/limits-pages"
+          git clone --branch gh-pages "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$PAGES"
+          cp site/index.html site/.nojekyll "$PAGES/"
+          cp dist/appcast.xml "$PAGES/appcast.xml"
+          cd "$PAGES"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html .nojekyll appcast.xml
+          if ! git diff --cached --quiet; then
+            git commit -m "release: publish Limits ${{ steps.version.outputs.version }} appcast"
+            git push origin gh-pages
+          fi

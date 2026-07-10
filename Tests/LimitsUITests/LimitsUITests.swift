@@ -10,9 +10,9 @@ final class LimitsUITests: XCTestCase {
         ]
         app.launch()
 
-        let mainWindow = app.windows["Limits"]
+        let mainWindow = app.windows.matching(identifier: "accounts").firstMatch
         XCTAssertTrue(mainWindow.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.splitGroups.firstMatch.exists)
+        XCTAssertTrue(mainWindow.splitGroups.firstMatch.exists)
         app.terminate()
     }
 }

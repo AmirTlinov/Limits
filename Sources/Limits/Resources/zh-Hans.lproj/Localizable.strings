@@ -42,6 +42,14 @@
 "app.title" = "Limits";
 "settings.title" = "设置";
 "settings.subtitle" = "为这台 Mac 调整 Limits。";
+"settings.general.title" = "通用";
+"settings.launch_at_login.title" = "登录时启动";
+"settings.launch_at_login.description" = "登录后让 Limits 在菜单栏中保持可用。";
+"settings.launch_at_login.requires_approval" = "请在“系统设置”中允许 Limits，以完成启用。";
+"settings.launch_at_login.open_settings" = "打开登录项";
+"settings.launch_at_login.unavailable" = "此 Limits 副本无法设置登录时启动。";
+"settings.launch_at_login.error" = "无法更新登录设置：%@";
+"settings.updates.check" = "检查更新…";
 "settings.language.title" = "语言";
 "settings.language.description" = "选择菜单栏、窗口和消息使用的语言。";
 "settings.language.system" = "使用系统语言";

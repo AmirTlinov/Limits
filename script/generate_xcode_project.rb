@@ -2,10 +2,24 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "digest"
 require "xcodeproj"
 
 ROOT = File.expand_path("..", __dir__)
 PROJECT_PATH = File.join(ROOT, "Limits.xcodeproj")
+PACKAGE_RESOLVED_PATH = File.join(PROJECT_PATH, "project.xcworkspace", "xcshareddata", "swiftpm", "Package.resolved")
+package_resolved = File.binread(PACKAGE_RESOLVED_PATH) if File.file?(PACKAGE_RESOLVED_PATH)
+existing_sources = if File.directory?(PROJECT_PATH)
+                     existing_project = Xcodeproj::Project.open(PROJECT_PATH)
+                     existing_project.targets.to_h do |target|
+                       sources = target.source_build_phase.files.each_with_object({}) do |file, result|
+                         result[file.file_ref.path] = file.file_ref.uuid if file.file_ref&.path
+                       end
+                       [target.name, sources]
+                     end
+                   else
+                     {}
+                   end
 FileUtils.rm_rf(PROJECT_PATH)
 
 module DeterministicProjectUUIDs
@@ -44,20 +58,43 @@ widget = project.new_target(:app_extension, "LimitsWidgetExtension", :osx, "26.0
 unit_tests = project.new_target(:unit_test_bundle, "LimitsTests", :osx, "26.0")
 ui_tests = project.new_target(:ui_test_bundle, "LimitsUITests", :osx, "26.0")
 
-def add_swift_sources(target, group, relative_glob)
-  source_root = relative_glob.split("/**").first
-  Dir.glob(File.join(ROOT, relative_glob)).sort.each do |absolute_path|
-    relative_to_group = absolute_path.delete_prefix(File.join(ROOT, source_root, "/"))
-    reference = group.new_file(relative_to_group)
-    target.source_build_phase.add_file_reference(reference)
-  end
+def enqueue_uuid(project, key)
+  uuid = "F#{Digest::SHA256.hexdigest(key).upcase[0, 23]}"
+  project.generated_uuids << uuid unless project.generated_uuids.include?(uuid)
+  project.instance_variable_get(:@available_uuids).unshift(uuid)
 end
 
-add_swift_sources(app, limits_group, "Sources/Limits/**/*.swift")
-add_swift_sources(shared, shared_group, "Sources/LimitsShared/**/*.swift")
-add_swift_sources(widget, widget_group, "Sources/LimitsWidgetExtension/**/*.swift")
-add_swift_sources(unit_tests, unit_tests_group, "Tests/LimitsTests/**/*.swift")
-add_swift_sources(ui_tests, ui_tests_group, "Tests/LimitsUITests/**/*.swift")
+def add_swift_source(target, group, source_root, absolute_path, stable_uuid: false)
+  relative_to_group = absolute_path.delete_prefix(File.join(ROOT, source_root, "/"))
+  enqueue_uuid(target.project, "source-reference:#{target.name}:#{relative_to_group}") if stable_uuid
+  reference = group.new_file(relative_to_group)
+  enqueue_uuid(target.project, "source-build-file:#{target.name}:#{relative_to_group}") if stable_uuid
+  target.source_build_phase.add_file_reference(reference)
+end
+
+def add_swift_sources(target, group, relative_glob, existing_sources, deferred_sources)
+  source_root = relative_glob.split("/**").first
+  paths = Dir.glob(File.join(ROOT, relative_glob)).sort
+  known_sources = existing_sources[target.name]
+  unless known_sources
+    paths.each { |path| add_swift_source(target, group, source_root, path) }
+    return
+  end
+
+  existing, added = paths.partition do |absolute_path|
+    relative_path = absolute_path.delete_prefix(File.join(ROOT, source_root, "/"))
+    known_sources.fetch(relative_path, "").start_with?("D")
+  end
+  existing.each { |path| add_swift_source(target, group, source_root, path) }
+  deferred_sources << [target, group, source_root, added]
+end
+
+deferred_sources = []
+add_swift_sources(app, limits_group, "Sources/Limits/**/*.swift", existing_sources, deferred_sources)
+add_swift_sources(shared, shared_group, "Sources/LimitsShared/**/*.swift", existing_sources, deferred_sources)
+add_swift_sources(widget, widget_group, "Sources/LimitsWidgetExtension/**/*.swift", existing_sources, deferred_sources)
+add_swift_sources(unit_tests, unit_tests_group, "Tests/LimitsTests/**/*.swift", existing_sources, deferred_sources)
+add_swift_sources(ui_tests, ui_tests_group, "Tests/LimitsUITests/**/*.swift", existing_sources, deferred_sources)
 
 resources_group = limits_group.new_group("Resources", "Resources")
 localizable = resources_group.new_variant_group("Localizable.strings")
@@ -179,12 +216,35 @@ ui_tests.build_configurations.each do |configuration|
   )
 end
 
+sparkle_package = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
+sparkle_package.repositoryURL = "https://github.com/sparkle-project/Sparkle"
+sparkle_package.requirement = { "kind" => "exactVersion", "version" => "2.9.2" }
+project.root_object.package_references << sparkle_package
+
+sparkle_product = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
+sparkle_product.package = sparkle_package
+sparkle_product.product_name = "Sparkle"
+app.package_product_dependencies << sparkle_product
+
+sparkle_build_file = project.new(Xcodeproj::Project::Object::PBXBuildFile)
+sparkle_build_file.product_ref = sparkle_product
+app.frameworks_build_phase.files << sparkle_build_file
+
+deferred_sources.each do |target, group, source_root, paths|
+  paths.each { |path| add_swift_source(target, group, source_root, path, stable_uuid: true) }
+end
+
 project.root_object.attributes["TargetAttributes"] = targets.to_h do |target|
   [target.uuid, { "CreatedOnToolsVersion" => "26.0", "DevelopmentTeam" => "M94V58FCVP", "ProvisioningStyle" => "Automatic" }]
 end
 
 project.sort
 project.save
+
+if package_resolved
+  FileUtils.mkdir_p(File.dirname(PACKAGE_RESOLVED_PATH))
+  File.binwrite(PACKAGE_RESOLVED_PATH, package_resolved)
+end
 
 scheme = Xcodeproj::XCScheme.new
 scheme.configure_with_targets(app, unit_tests, launch_target: app)

@@ -106,7 +106,7 @@ final class ApplicationActivationController {
             try? await Task.sleep(for: .milliseconds(100))
             guard let self, let window, isWindowPresented(window) else { return }
             window.makeKeyAndOrderFront(nil)
-            NSRunningApplication.current.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            NSRunningApplication.current.activate(options: [.activateAllWindows])
         }
     }
 

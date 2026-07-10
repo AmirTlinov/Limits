@@ -42,6 +42,14 @@
 "app.title" = "Limits";
 "settings.title" = "Ajustes";
 "settings.subtitle" = "Configura Limits para este Mac.";
+"settings.general.title" = "General";
+"settings.launch_at_login.title" = "Abrir al iniciar sesión";
+"settings.launch_at_login.description" = "Mantén Limits disponible en la barra de menús después de iniciar sesión.";
+"settings.launch_at_login.requires_approval" = "Autoriza Limits en Ajustes del Sistema para terminar de activarlo.";
+"settings.launch_at_login.open_settings" = "Abrir ítems de inicio";
+"settings.launch_at_login.unavailable" = "El inicio de sesión no está disponible para esta copia de Limits.";
+"settings.launch_at_login.error" = "No se pudo cambiar el ajuste de inicio: %@";
+"settings.updates.check" = "Buscar actualizaciones…";
 "settings.language.title" = "Idioma";
 "settings.language.description" = "Elige el idioma de la barra de menús, las ventanas y los mensajes.";
 "settings.language.system" = "Usar idioma del sistema";

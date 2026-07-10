@@ -80,6 +80,10 @@
 		D000000000000000000000D8 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; };
 		D000000000000000000000DA /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000DC /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002A /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000DF /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000DE /* Sparkle */; };
+		F2D5498994E34F1D5826B37B /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15EBFAC359B7634034C8B2F /* LaunchAtLoginController.swift */; };
+		F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */; };
+		FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -230,6 +234,9 @@
 		D000000000000000000000C7 /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
 		D000000000000000000000C8 /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
 		D000000000000000000000C9 /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+		F15EBFAC359B7634034C8B2F /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LaunchAtLoginController.swift; path = App/LaunchAtLoginController.swift; sourceTree = "<group>"; };
+		F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginControllerTests.swift; sourceTree = "<group>"; };
+		F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SoftwareUpdateController.swift; path = App/SoftwareUpdateController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -239,6 +246,7 @@
 			files = (
 				D0000000000000000000001B /* Cocoa.framework in Frameworks */,
 				D000000000000000000000D6 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000DF /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,6 +388,7 @@
 				D00000000000000000000077 /* GlobalCodexAuthService.swift */,
 				D00000000000000000000079 /* KeychainAuthVault.swift */,
 				D0000000000000000000007D /* L10n.swift */,
+				F15EBFAC359B7634034C8B2F /* LaunchAtLoginController.swift */,
 				D00000000000000000000047 /* LimitsApp.swift */,
 				D00000000000000000000049 /* LimitsWidgetSnapshotPublisher.swift */,
 				D00000000000000000000087 /* MenuBarContentView.swift */,
@@ -392,6 +401,7 @@
 				D000000000000000000000B7 /* Resources */,
 				D0000000000000000000004B /* RuntimeLog.swift */,
 				D0000000000000000000008F /* SettingsView.swift */,
+				F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */,
 				D0000000000000000000005D /* StoredAccount.swift */,
 				D0000000000000000000004D /* TrayStatusIconAsset.swift */,
 				D0000000000000000000004F /* TrayStatusIconRenderer.swift */,
@@ -435,6 +445,7 @@
 				D000000000000000000000A7 /* CodexRuntimeEnvironmentTests.swift */,
 				D000000000000000000000A9 /* FirstLaunchPolicyTests.swift */,
 				D000000000000000000000AB /* KeychainAuthVaultTests.swift */,
+				F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */,
 				D000000000000000000000AD /* LimitsWidgetSnapshotTests.swift */,
 				D000000000000000000000AF /* PersistedStateMigrationTests.swift */,
 				D000000000000000000000B1 /* RateLimitDisplayTests.swift */,
@@ -511,6 +522,9 @@
 				D000000000000000000000CD /* PBXTargetDependency */,
 			);
 			name = Limits;
+			packageProductDependencies = (
+				D000000000000000000000DE /* Sparkle */,
+			);
 			productName = Limits;
 			productReference = D00000000000000000000015 /* Limits.app */;
 			productType = "com.apple.product-type.application";
@@ -634,6 +648,9 @@
 			);
 			mainGroup = D00000000000000000000002;
 			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				D000000000000000000000DD /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00000000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -719,6 +736,7 @@
 				D00000000000000000000078 /* GlobalCodexAuthService.swift in Sources */,
 				D0000000000000000000007A /* KeychainAuthVault.swift in Sources */,
 				D0000000000000000000007E /* L10n.swift in Sources */,
+				F2D5498994E34F1D5826B37B /* LaunchAtLoginController.swift in Sources */,
 				D00000000000000000000048 /* LimitsApp.swift in Sources */,
 				D0000000000000000000004A /* LimitsWidgetSnapshotPublisher.swift in Sources */,
 				D00000000000000000000088 /* MenuBarContentView.swift in Sources */,
@@ -730,6 +748,7 @@
 				D0000000000000000000005C /* RateLimitDisplay.swift in Sources */,
 				D0000000000000000000004C /* RuntimeLog.swift in Sources */,
 				D00000000000000000000090 /* SettingsView.swift in Sources */,
+				F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */,
 				D0000000000000000000005E /* StoredAccount.swift in Sources */,
 				D0000000000000000000004E /* TrayStatusIconAsset.swift in Sources */,
 				D00000000000000000000050 /* TrayStatusIconRenderer.swift in Sources */,
@@ -770,6 +789,7 @@
 				D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift in Sources */,
 				D000000000000000000000AA /* FirstLaunchPolicyTests.swift in Sources */,
 				D000000000000000000000AC /* KeychainAuthVaultTests.swift in Sources */,
+				FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */,
 				D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift in Sources */,
 				D000000000000000000000B0 /* PersistedStateMigrationTests.swift in Sources */,
 				D000000000000000000000B2 /* RateLimitDisplayTests.swift in Sources */,
@@ -1263,6 +1283,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D000000000000000000000DD /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D000000000000000000000DE /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D000000000000000000000DD /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D00000000000000000000001 /* Project object */;
 }

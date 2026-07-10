@@ -2,10 +2,13 @@ import SwiftUI
 
 struct SettingsView: View {
     let languageDidChange: () -> Void
+    let checkForUpdates: () -> Void
     @State private var selectedLanguage: String
+    @StateObject private var launchAtLogin = LaunchAtLoginController()
 
-    init(languageDidChange: @escaping () -> Void) {
+    init(languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
         self.languageDidChange = languageDidChange
+        self.checkForUpdates = checkForUpdates
         _selectedLanguage = State(initialValue: L10n.selectedLanguageOverride ?? "")
     }
 
@@ -17,6 +20,45 @@ struct SettingsView: View {
                 Text(L10n.tr("settings.subtitle"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L10n.tr("settings.general.title"))
+                    .font(.headline)
+
+                Toggle(isOn: launchAtLoginBinding) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.tr("settings.launch_at_login.title"))
+                        Text(L10n.tr("settings.launch_at_login.description"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(launchAtLogin.state == .unavailable)
+
+                if launchAtLogin.state == .requiresApproval {
+                    HStack(spacing: 8) {
+                        Text(L10n.tr("settings.launch_at_login.requires_approval"))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Button(L10n.tr("settings.launch_at_login.open_settings")) {
+                            launchAtLogin.openSystemSettings()
+                        }
+                        .buttonStyle(.link)
+                    }
+                } else if launchAtLogin.state == .unavailable {
+                    Text(L10n.tr("settings.launch_at_login.unavailable"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let errorMessage = launchAtLogin.errorMessage {
+                    Text(L10n.tr("settings.launch_at_login.error", errorMessage))
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button(L10n.tr("settings.updates.check"), action: checkForUpdates)
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -66,7 +108,10 @@ struct SettingsView: View {
             Spacer(minLength: 0)
         }
         .padding(28)
-        .frame(width: 560, height: 420, alignment: .topLeading)
+        .frame(width: 560, height: 560, alignment: .topLeading)
+        .onAppear {
+            launchAtLogin.refresh()
+        }
     }
 
     private var languageBinding: Binding<String> {
@@ -77,6 +122,13 @@ struct SettingsView: View {
                 L10n.setLanguageOverride(newValue.isEmpty ? nil : newValue)
                 languageDidChange()
             }
+        )
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { launchAtLogin.state.isRequested },
+            set: { launchAtLogin.setEnabled($0) }
         )
     }
 }

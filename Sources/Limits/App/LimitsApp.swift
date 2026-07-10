@@ -11,6 +11,7 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        SoftwareUpdateController.shared.start()
         if ApplicationLaunchState.presentsMainWindow {
             ApplicationActivationController.shared.requestActivation(of: .accounts)
             ApplicationSceneRouter.shared.requestAccountsWindow()
@@ -64,10 +65,15 @@ struct LimitsApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView {
-                model.invalidateLocalizedText()
-                model.publishWidgetSnapshotNow()
-            }
+            SettingsView(
+                languageDidChange: {
+                    model.invalidateLocalizedText()
+                    model.publishWidgetSnapshotNow()
+                },
+                checkForUpdates: {
+                    SoftwareUpdateController.shared.checkForUpdates()
+                }
+            )
             .background(WindowActivationTracker(kind: .settings))
         }
     }

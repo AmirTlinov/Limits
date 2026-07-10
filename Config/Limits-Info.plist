@@ -35,11 +35,17 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSMinimumSystemVersion</key>
     <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
     <key>LimitsAppGroupIdentifier</key>
     <string>$(LIMITS_APP_GROUP_ID)</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>SUFeedURL</key>
+    <string>https://amirtlinov.github.io/Limits/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>t+to52jjoiebTJ/XWpzF4jc3pngvi+W+hkrYuVUqLhQ=</string>
 </dict>
 </plist>

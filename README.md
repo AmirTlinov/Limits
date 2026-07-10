@@ -22,6 +22,8 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 - Saves separate Codex and Claude accounts for quick switching.
 - Highlights providers consistently: Codex is blue, Claude is coral.
 - Stores saved auth snapshots in macOS Keychain.
+- Can launch itself at login and stay tray-only until you open a window.
+- Checks a public, EdDSA-signed Sparkle feed for in-place updates.
 
 ## Install
 
@@ -55,6 +57,8 @@ The packaged app and zip are written to `dist/` by the release command:
 ./script/package_release.sh 1.0.0
 ```
 
+This path uses the Xcode archive as the only bundle owner, embeds the real WidgetKit extension and Sparkle framework, Developer ID signs every nested executable with a secure timestamp, then verifies the complete bundle before creating the zip.
+
 For a widget-visible distribution build, store Apple notary credentials once and package with notarization:
 
 ```bash
@@ -69,3 +73,5 @@ After installing the notarized app to `/Applications`, verify WidgetKit ingestio
 ```bash
 ./script/verify_widget_extension.sh --refresh-chronod /Applications/Limits.app
 ```
+
+Sparkle reads its signed feed from <https://amirtlinov.github.io/Limits/appcast.xml>. Maintainer release steps and required GitHub secrets are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
