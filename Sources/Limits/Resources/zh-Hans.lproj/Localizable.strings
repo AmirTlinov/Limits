@@ -70,6 +70,12 @@
 "account.switch.verification_failed" = "无法验证新的全局 Codex 授权。已恢复先前的授权。";
 "account.reauth.different_existing" = "你登录了另一个 Codex 账户。该账户已更新；%@ 保持不变。";
 "account.reauth.different_new" = "你登录了另一个 Codex 账户。该账户已单独保存；%@ 保持不变。";
+"process.timeout" = "命令未能在 %@ 秒内完成。";
+"claude.switch.concurrent_change" = "切换期间 Claude Code 凭据已被外部更改。已保留较新的外部更改。";
+"claude.switch.identity_mismatch" = "该凭据属于另一个 Claude Code 账户。已恢复先前的凭据。";
+"claude.switch.identity_missing" = "此已保存的 Claude Code 账户没有稳定身份。请重新导入后再切换。";
+"claude.switch.rollback_failed" = "Claude Code 切换失败，并且无法恢复先前的凭据。";
+"claude.switch.verification_failed" = "无法验证新的 Claude Code 凭据。已恢复先前的凭据。";
 "claude.account.ready" = "Claude Code 账户已就绪。";
 "claude.bridge_connected" = "桥接已连接";
 "claude.cli.not_found" = "找不到 `claude`。请安装 Claude Code，或确认 `command -v claude` 能在 zsh 中运行。";

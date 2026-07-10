@@ -22,7 +22,7 @@ enum ClaudeAuthStatusServiceError: LocalizedError {
     }
 }
 
-struct ClaudeAuthStatus: Decodable, Hashable {
+struct ClaudeAuthStatus: Decodable, Hashable, Sendable {
     let loggedIn: Bool
     let authMethod: String?
     let apiProvider: String?
@@ -30,73 +30,78 @@ struct ClaudeAuthStatus: Decodable, Hashable {
     let orgId: String?
     let orgName: String?
     let subscriptionType: String?
+
+    var stableIdentity: ClaudeAccountIdentity? {
+        ClaudeAccountIdentity(email: email, organizationId: orgId)
+    }
 }
 
 enum ClaudeExecutableLocator {
-    static func locate() throws -> URL {
-        let process = Process()
-        let stdout = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "command -v claude"]
-        process.standardOutput = stdout
-        process.standardError = Pipe()
-
-        try process.run()
-        process.waitUntilExit()
-
-        let output = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if process.terminationStatus == 0, let output, !output.isEmpty {
-            return URL(fileURLWithPath: output)
-        }
-
+    static func locate(
+        environmentPath: String? = ProcessInfo.processInfo.environment["PATH"],
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        let home = fileManager.homeDirectoryForCurrentUser
+        let pathCandidates = (environmentPath ?? "")
+            .split(separator: ":")
+            .map { URL(fileURLWithPath: String($0)).appending(path: "claude") }
         let fallbacks = [
-            FileManager.default.homeDirectoryForCurrentUser.appending(path: ".local/bin/claude"),
+            home.appending(path: ".local/bin/claude"),
+            home.appending(path: ".volta/bin/claude"),
+            home.appending(path: ".local/share/fnm/aliases/default/bin/claude"),
             URL(fileURLWithPath: "/opt/homebrew/bin/claude"),
             URL(fileURLWithPath: "/usr/local/bin/claude"),
         ]
 
-        if let fallback = fallbacks.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
-            return fallback
+        var seen = Set<String>()
+        if let executable = (pathCandidates + fallbacks).first(where: {
+            seen.insert($0.path).inserted && fileManager.isExecutableFile(atPath: $0.path)
+        }) {
+            return executable
         }
-
         throw ClaudeExecutableLocatorError.notFound
     }
 }
 
-struct ClaudeAuthStatusService {
-    func isInstalled() -> Bool {
-        (try? ClaudeExecutableLocator.locate()) != nil
+struct ClaudeAuthStatusService: Sendable {
+    private let executableURL: URL?
+    private let runner: AsyncCommandRunner
+    private let timeout: TimeInterval
+
+    init(
+        executableURL: URL? = nil,
+        runner: AsyncCommandRunner = AsyncCommandRunner(),
+        timeout: TimeInterval = 10
+    ) {
+        self.executableURL = executableURL
+        self.runner = runner
+        self.timeout = timeout
     }
 
-    func readStatus() throws -> ClaudeAuthStatus {
-        let executableURL = try ClaudeExecutableLocator.locate()
+    func isInstalled() -> Bool {
+        executableURL != nil || (try? ClaudeExecutableLocator.locate()) != nil
+    }
 
-        let process = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.executableURL = executableURL
-        process.arguments = ["auth", "status", "--json"]
-        process.standardOutput = stdout
-        process.standardError = stderr
+    func readStatus() async throws -> ClaudeAuthStatus {
+        let executableURL = try executableURL ?? ClaudeExecutableLocator.locate()
+        let result = try await runner.run(
+            executableURL: executableURL,
+            arguments: ["auth", "status", "--json"],
+            timeout: timeout
+        )
 
-        try process.run()
-        process.waitUntilExit()
-
-        let output = stdout.fileHandleForReading.readDataToEndOfFile()
-        let errorOutput = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !output.isEmpty else {
+        guard !result.standardOutput.isEmpty else {
             throw ClaudeAuthStatusServiceError.unreadableOutput
         }
-
-        if process.terminationStatus != 0 {
-            let detail = errorOutput?.isEmpty == false ? errorOutput! : "Claude Code завершился с кодом \(process.terminationStatus)."
+        guard result.terminationStatus == 0 else {
+            let errorOutput = String(data: result.standardError, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let detail = errorOutput?.isEmpty == false
+                ? errorOutput!
+                : "Claude Code завершился с кодом \(result.terminationStatus)."
             throw ClaudeAuthStatusServiceError.commandFailed(detail)
         }
 
-        return try JSONDecoder.limits.decode(ClaudeAuthStatus.self, from: output)
+        return try JSONDecoder.limits.decode(ClaudeAuthStatus.self, from: result.standardOutput)
     }
 }

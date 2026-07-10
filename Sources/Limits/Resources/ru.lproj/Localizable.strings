@@ -70,6 +70,12 @@
 "account.switch.verification_failed" = "Новую глобальную авторизацию Codex не удалось проверить. Прежняя авторизация восстановлена.";
 "account.reauth.different_existing" = "Вы вошли в другой аккаунт Codex. Он обновлён, а %@ остался без изменений.";
 "account.reauth.different_new" = "Вы вошли в другой аккаунт Codex. Он сохранён отдельно, а %@ остался без изменений.";
+"process.timeout" = "Команда не завершилась за %@ секунд.";
+"claude.switch.concurrent_change" = "Во время переключения данные Claude Code изменились извне. Более новое изменение сохранено.";
+"claude.switch.identity_mismatch" = "Данные принадлежат другому аккаунту Claude Code. Прежняя авторизация восстановлена.";
+"claude.switch.identity_missing" = "У сохранённого аккаунта Claude Code нет устойчивого идентификатора. Перед переключением импортируйте его заново.";
+"claude.switch.rollback_failed" = "Переключение Claude Code не удалось, и прежнюю авторизацию восстановить не получилось.";
+"claude.switch.verification_failed" = "Новую авторизацию Claude Code не удалось проверить. Прежняя авторизация восстановлена.";
 "claude.account.ready" = "Аккаунт Claude Code готов.";
 "claude.bridge_connected" = "Мост подключён";
 "claude.cli.not_found" = "Не удалось найти `claude`. Установите Claude Code или убедитесь, что `command -v claude` работает в zsh.";

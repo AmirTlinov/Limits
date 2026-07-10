@@ -344,7 +344,7 @@ final class AppModel: ObservableObject {
         }
 
         do {
-            let status = try claudeAuthStatusService.readStatus()
+            let status = try await claudeAuthStatusService.readStatus()
 
             guard status.loggedIn else {
                 currentClaudeState = CurrentClaudeState(source: .loggedOut, authFingerprint: nil)
@@ -396,7 +396,7 @@ final class AppModel: ObservableObject {
 
     func importCurrentClaudeAuth() async {
         await runBusy(L10n.tr("busy.importing_current_claude")) { [self] in
-            try self.importCurrentClaudeAuthNow()
+            try await self.importCurrentClaudeAuthNow()
             await self.refreshCurrentClaudeState()
         }
     }
@@ -442,15 +442,27 @@ final class AppModel: ObservableObject {
     func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
         await runBusy(L10n.tr("busy.switching_claude")) { [self] in
             let credential = try self.vault.read(account: account.keychainAccount)
-            try self.globalClaudeCredentialService.writeGlobalCredential(credential)
+            let transaction = ClaudeCredentialSwitchTransaction(
+                globalStore: self.globalClaudeCredentialService,
+                statusReader: self.claudeAuthStatusService
+            )
+            _ = try await transaction.execute(account: account, credential: credential) { result in
+                try await MainActor.run {
+                    try self.upsertClaudeAccount(
+                        credential: result.credential,
+                        status: result.status,
+                        preferredLabel: account.label,
+                        existingID: account.id
+                    )
+                }
+            }
             await self.refreshCurrentClaudeState()
-            try self.refreshStoredClaudeMetadataIfNeeded()
         }
     }
 
     func refreshCurrentClaudeAccount() async {
         await runBusy(L10n.tr("busy.refreshing_claude")) { [self] in
-            try self.refreshStoredClaudeMetadataIfNeeded()
+            try await self.refreshStoredClaudeMetadataIfNeeded()
             await self.refreshCurrentClaudeState()
         }
     }
@@ -998,9 +1010,9 @@ final class AppModel: ObservableObject {
             }
     }
 
-    private func importCurrentClaudeAuthNow() throws {
+    private func importCurrentClaudeAuthNow() async throws {
         let credential = try globalClaudeCredentialService.readGlobalCredential()
-        let status = try claudeAuthStatusService.readStatus()
+        let status = try await claudeAuthStatusService.readStatus()
 
         guard status.loggedIn, let email = status.email else {
             throw ClaudeAuthStatusServiceError.commandFailed(L10n.tr("claude.not_logged_in.error"))
@@ -2012,9 +2024,15 @@ final class AppModel: ObservableObject {
         return Date(timeIntervalSince1970: TimeInterval(timestamp))
     }
 
-    private func refreshStoredClaudeMetadataIfNeeded() throws {
+    private func refreshStoredClaudeMetadataIfNeeded() async throws {
+        let status: ClaudeAuthStatus
+        if let currentClaudeStatus {
+            status = currentClaudeStatus
+        } else {
+            status = try await claudeAuthStatusService.readStatus()
+        }
+
         guard
-            let status = currentClaudeStatus ?? (try? claudeAuthStatusService.readStatus()),
             status.loggedIn,
             let email = status.email,
             let fingerprint = currentClaudeState.authFingerprint ?? (try? globalClaudeCredentialService.readGlobalCredential()).map({ CodexAuthBlob.fingerprint(for: $0) })

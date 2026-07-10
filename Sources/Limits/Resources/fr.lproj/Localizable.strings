@@ -70,6 +70,12 @@
 "account.switch.verification_failed" = "La nouvelle autorisation globale Codex n’a pas pu être vérifiée. L’ancienne autorisation a été restaurée.";
 "account.reauth.different_existing" = "Vous vous êtes connecté à un autre compte Codex. Ce compte a été actualisé ; %@ reste inchangé.";
 "account.reauth.different_new" = "Vous vous êtes connecté à un autre compte Codex. Il a été enregistré séparément ; %@ reste inchangé.";
+"process.timeout" = "La commande ne s’est pas terminée en %@ secondes.";
+"claude.switch.concurrent_change" = "Les identifiants Claude Code ont changé pendant le basculement. La modification externe la plus récente a été conservée.";
+"claude.switch.identity_mismatch" = "Les identifiants appartiennent à un autre compte Claude Code. Les anciens identifiants ont été restaurés.";
+"claude.switch.identity_missing" = "Ce compte Claude Code enregistré n’a pas d’identité stable. Importez-le à nouveau avant de basculer.";
+"claude.switch.rollback_failed" = "Le basculement Claude Code a échoué et les anciens identifiants n’ont pas pu être restaurés.";
+"claude.switch.verification_failed" = "Les nouveaux identifiants Claude Code n’ont pas pu être vérifiés. Les anciens identifiants ont été restaurés.";
 "claude.account.ready" = "Le compte Claude Code est prêt.";
 "claude.bridge_connected" = "Pont connecté";
 "claude.cli.not_found" = "Impossible de trouver `claude`. Installez Claude Code ou vérifiez que `command -v claude` fonctionne dans zsh.";
