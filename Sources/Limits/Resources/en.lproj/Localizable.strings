@@ -63,6 +63,13 @@
 "busy.signing_in" = "Signing in…";
 "busy.switching_claude" = "Switching Claude Code…";
 "busy.switching_global_auth" = "Switching global authorization…";
+"account.switch.concurrent_change" = "Global Codex authorization changed during the switch. The newer external change was preserved.";
+"account.switch.identity_mismatch" = "The validated credential belongs to a different Codex account. Global authorization was left unchanged.";
+"account.switch.identity_missing" = "This saved Codex account has no stable account identity. Sign in again before switching.";
+"account.switch.rollback_failed" = "The Codex switch failed and the previous global authorization could not be restored.";
+"account.switch.verification_failed" = "Could not verify the new global Codex authorization. The previous authorization was restored.";
+"account.reauth.different_existing" = "You signed in to a different Codex account. That account was updated; %@ remains unchanged.";
+"account.reauth.different_new" = "You signed in to a different Codex account. It was saved separately; %@ remains unchanged.";
 "claude.account.ready" = "Claude Code account is ready.";
 "claude.bridge_connected" = "Bridge connected";
 "claude.cli.not_found" = "Could not find `claude`. Install Claude Code or make sure `command -v claude` works in zsh.";

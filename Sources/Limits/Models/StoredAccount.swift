@@ -29,7 +29,7 @@ struct ClaudeAccountIdentity: Codable, Hashable, Sendable {
     }
 }
 
-enum AccountStatus: String, Codable, Hashable {
+enum AccountStatus: String, Codable, Hashable, Sendable {
     case unknown
     case ok
     case needsReauth
@@ -37,19 +37,19 @@ enum AccountStatus: String, Codable, Hashable {
     case validationFailed
 }
 
-struct RateLimitWindowSnapshot: Codable, Hashable {
+struct RateLimitWindowSnapshot: Codable, Hashable, Sendable {
     let resetsAt: Int64?
     let usedPercent: Int
     let windowDurationMins: Int64?
 }
 
-struct CreditsSnapshot: Codable, Hashable {
+struct CreditsSnapshot: Codable, Hashable, Sendable {
     let balance: String?
     let hasCredits: Bool
     let unlimited: Bool
 }
 
-struct RateLimitSnapshotModel: Codable, Hashable {
+struct RateLimitSnapshotModel: Codable, Hashable, Sendable {
     let credits: CreditsSnapshot?
     let limitId: String?
     let limitName: String?
@@ -72,7 +72,7 @@ struct RateLimitSnapshotModel: Codable, Hashable {
     }
 }
 
-struct StoredAccount: Identifiable, Codable, Hashable {
+struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var label: String
     var email: String
@@ -108,7 +108,7 @@ struct StoredAccount: Identifiable, Codable, Hashable {
     }
 }
 
-struct RetiredCredential: Codable, Hashable, Identifiable {
+struct RetiredCredential: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     let provider: ProviderKind
     let sourceRecordID: UUID
@@ -118,7 +118,7 @@ struct RetiredCredential: Codable, Hashable, Identifiable {
     let purgeAfter: Date
 }
 
-struct PersistedState: Codable {
+struct PersistedState: Codable, Sendable {
     static let currentSchemaVersion = 2
 
     var schemaVersion: Int
@@ -154,13 +154,17 @@ struct PersistedState: Codable {
     }
 }
 
-struct AuthIdentity: Hashable {
+struct AuthIdentity: Hashable, Sendable {
     let authMode: String?
     let accountId: String?
     let email: String?
+
+    var stableIdentity: CodexAccountIdentity? {
+        CodexAccountIdentity(accountId)
+    }
 }
 
-struct AccountValidationResult {
+struct AccountValidationResult: Sendable {
     let authData: Data
     let authFingerprint: String
     let identity: AuthIdentity

@@ -63,6 +63,13 @@
 "busy.signing_in" = "Iniciando sesión…";
 "busy.switching_claude" = "Cambiando Claude Code…";
 "busy.switching_global_auth" = "Cambiando autorización global…";
+"account.switch.concurrent_change" = "La autorización global de Codex cambió durante el cambio. Se conservó el cambio externo más reciente.";
+"account.switch.identity_mismatch" = "La credencial validada pertenece a otra cuenta de Codex. La autorización global no cambió.";
+"account.switch.identity_missing" = "Esta cuenta de Codex guardada no tiene una identidad estable. Inicia sesión de nuevo antes de cambiar.";
+"account.switch.rollback_failed" = "El cambio de Codex falló y no se pudo restaurar la autorización global anterior.";
+"account.switch.verification_failed" = "No se pudo verificar la nueva autorización global de Codex. Se restauró la autorización anterior.";
+"account.reauth.different_existing" = "Iniciaste sesión en otra cuenta de Codex. Esa cuenta se actualizó; %@ no cambió.";
+"account.reauth.different_new" = "Iniciaste sesión en otra cuenta de Codex. Se guardó por separado; %@ no cambió.";
 "claude.account.ready" = "La cuenta de Claude Code está lista.";
 "claude.bridge_connected" = "Puente conectado";
 "claude.cli.not_found" = "No se pudo encontrar `claude`. Instala Claude Code o asegúrate de que `command -v claude` funcione en zsh.";

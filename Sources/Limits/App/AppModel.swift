@@ -4,6 +4,12 @@ import LimitsShared
 
 @MainActor
 final class AppModel: ObservableObject {
+    enum ReauthenticationTarget: Equatable {
+        case requestedAccount(UUID)
+        case existingAccount(UUID)
+        case newAccount
+    }
+
     struct CurrentCLIState {
         enum Source {
             case missing
@@ -103,7 +109,7 @@ final class AppModel: ObservableObject {
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
     @Published var currentClaudeBridgeError: String?
-    @Published private(set) var migrationNotice: String?
+    @Published private(set) var noticeMessage: String?
     @Published private(set) var presentationNow = Date()
 
     private let persistence = AccountsPersistence()
@@ -187,7 +193,7 @@ final class AppModel: ObservableObject {
                 }
                 try persistence.save(migration.state)
                 if migration.receipt.retiredCredentialCount > 0 {
-                    migrationNotice = L10n.tr("migration.duplicates_merged", migration.receipt.retiredCredentialCount)
+                    noticeMessage = L10n.tr("migration.duplicates_merged", migration.receipt.retiredCredentialCount)
                 }
             }
 
@@ -277,8 +283,15 @@ final class AppModel: ObservableObject {
         defer { isRefreshingCurrentCLIProbe = false }
 
         do {
-            let authData = try globalAuthService.readGlobalAuth()
+            let original = try globalAuthService.readSnapshot()
+            guard let authData = original.data else {
+                throw GlobalCodexAuthServiceError.missingAuthFile
+            }
+            let originalIdentity = try CodexAuthBlob.identity(from: authData).stableIdentity
             let result = try await codexAccountService.validate(authData: authData)
+            guard result.identity.stableIdentity == originalIdentity else {
+                throw CodexAuthSwitchTransactionError.identityMismatch
+            }
             currentCLIProbe = CurrentCLIProbe(
                 fingerprint: result.authFingerprint,
                 email: result.email,
@@ -291,7 +304,13 @@ final class AppModel: ObservableObject {
 
             do {
                 if result.authFingerprint != fingerprint {
-                    try globalAuthService.writeGlobalAuth(result.authData)
+                    do {
+                        try globalAuthService.commit(expected: original, replacement: result.authData)
+                        try globalAuthService.verifyCommitted(result.authData)
+                    } catch {
+                        try? globalAuthService.restore(original, replacing: result.authData)
+                        throw error
+                    }
                 }
                 try persistValidatedCurrentCLIAccountIfKnown(result)
                 if result.authFingerprint != fingerprint {
@@ -385,7 +404,15 @@ final class AppModel: ObservableObject {
     func activateAccount(_ account: StoredAccount) async {
         await runBusy(L10n.tr("busy.switching_global_auth")) { [self] in
             let authData = try self.vault.read(account: account.keychainAccount)
-            try self.globalAuthService.writeGlobalAuth(authData)
+            let transaction = CodexAuthSwitchTransaction(
+                globalStore: self.globalAuthService,
+                validator: self.codexAccountService
+            )
+            _ = try await transaction.execute(account: account, authData: authData) { result in
+                try await MainActor.run {
+                    try self.persistValidatedAccount(result, forAccountID: account.id)
+                }
+            }
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
         }
@@ -396,7 +423,17 @@ final class AppModel: ObservableObject {
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
-            try self.upsertAccount(from: result, preferredLabel: account.label, existingID: account.id)
+            switch Self.reauthenticationTarget(requested: account, result: result, accounts: self.accounts) {
+            case .requestedAccount(let id):
+                try self.upsertAccount(from: result, preferredLabel: account.label, existingID: id)
+            case .existingAccount(let id):
+                let label = self.accounts.first(where: { $0.id == id })?.label ?? result.email
+                try self.upsertAccount(from: result, preferredLabel: label, existingID: id)
+                self.noticeMessage = L10n.tr("account.reauth.different_existing", account.label)
+            case .newAccount:
+                try self.upsertAccount(from: result, preferredLabel: result.email, forceNew: true)
+                self.noticeMessage = L10n.tr("account.reauth.different_new", account.label)
+            }
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
         }
@@ -976,8 +1013,16 @@ final class AppModel: ObservableObject {
         )
     }
 
-    private func upsertAccount(from result: AccountValidationResult, preferredLabel: String, existingID: UUID? = nil) throws {
+    private func upsertAccount(
+        from result: AccountValidationResult,
+        preferredLabel: String,
+        existingID: UUID? = nil,
+        forceNew: Bool = false
+    ) throws {
         let existingIndex: Int? = {
+            if forceNew {
+                return nil
+            }
             if let existingID {
                 return accounts.firstIndex(where: { $0.id == existingID })
             }
@@ -1220,6 +1265,34 @@ final class AppModel: ObservableObject {
         }
 
         return nil
+    }
+
+    static func reauthenticationTarget(
+        requested: StoredAccount,
+        result: AccountValidationResult,
+        accounts: [StoredAccount]
+    ) -> ReauthenticationTarget {
+        if result.identity.stableIdentity == requested.stableIdentity,
+           result.identity.stableIdentity != nil {
+            return .requestedAccount(requested.id)
+        }
+
+        if let exact = accounts.first(where: { $0.authFingerprint == result.authFingerprint }) {
+            return exact.id == requested.id
+                ? .requestedAccount(requested.id)
+                : .existingAccount(exact.id)
+        }
+
+        if let identity = result.identity.stableIdentity {
+            let matches = accounts.filter { $0.stableIdentity == identity }
+            if matches.count == 1, let match = matches.first {
+                return match.id == requested.id
+                    ? .requestedAccount(requested.id)
+                    : .existingAccount(match.id)
+            }
+        }
+
+        return .newAccount
     }
 
     private func runBusy(_ message: String, operation: @escaping () async throws -> Void) async {

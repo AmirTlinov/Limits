@@ -63,6 +63,13 @@
 "busy.signing_in" = "正在登录…";
 "busy.switching_claude" = "正在切换 Claude Code…";
 "busy.switching_global_auth" = "正在切换全局授权…";
+"account.switch.concurrent_change" = "切换期间全局 Codex 授权已被外部更改。已保留较新的外部更改。";
+"account.switch.identity_mismatch" = "验证后的凭据属于另一个 Codex 账户。全局授权未更改。";
+"account.switch.identity_missing" = "此已保存的 Codex 账户没有稳定身份。请先重新登录再切换。";
+"account.switch.rollback_failed" = "Codex 切换失败，并且无法恢复先前的全局授权。";
+"account.switch.verification_failed" = "无法验证新的全局 Codex 授权。已恢复先前的授权。";
+"account.reauth.different_existing" = "你登录了另一个 Codex 账户。该账户已更新；%@ 保持不变。";
+"account.reauth.different_new" = "你登录了另一个 Codex 账户。该账户已单独保存；%@ 保持不变。";
 "claude.account.ready" = "Claude Code 账户已就绪。";
 "claude.bridge_connected" = "桥接已连接";
 "claude.cli.not_found" = "找不到 `claude`。请安装 Claude Code，或确认 `command -v claude` 能在 zsh 中运行。";

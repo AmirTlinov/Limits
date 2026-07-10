@@ -1,6 +1,6 @@
 import Foundation
 
-struct ClaudeStoredAccount: Identifiable, Codable, Hashable {
+struct ClaudeStoredAccount: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var label: String
     var email: String
