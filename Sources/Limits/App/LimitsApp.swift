@@ -51,6 +51,7 @@ struct LimitsApp: App {
                 .onOpenURL { url in
                     guard url.scheme == LimitsWidgetConstants.openURL.scheme else { return }
                     ApplicationActivationController.shared.requestActivation(of: .accounts)
+                    ApplicationSceneRouter.shared.requestAccountsWindow()
                 }
         }
         .defaultSize(width: 980, height: 620)
