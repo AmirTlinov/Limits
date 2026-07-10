@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import LimitsShared
 import SwiftUI
 
 struct StatusItemInstallSnapshot: Equatable {
@@ -232,6 +233,7 @@ final class StatusItemController: NSObject {
         panel.setFrame(trayPanelFrame(relativeTo: button, in: buttonWindow), display: false)
         panel.orderFrontRegardless()
         startEventMonitoring()
+        Task { await model.refreshCurrentValues(forceProbe: false) }
     }
 
     private func trayPanelFrame(
@@ -348,10 +350,12 @@ final class StatusItemController: NSObject {
 
     private func currentTrayStatusSnapshot() -> TrayStatusSnapshot {
         let filter = currentTrayFilter()
-        let codexLimit = currentFiveHourLimitSnapshot(for: .codex)
-        let claudeLimit = currentFiveHourLimitSnapshot(for: .claude)
-        let codexAvailability = providerAvailability(for: .codex, limit: codexLimit)
-        let claudeAvailability = providerAvailability(for: .claude, limit: claudeLimit)
+        let now = Date()
+        let sharedSnapshot = model.makeWidgetSnapshot(now: now)
+        let codexLimit = currentFiveHourLimitSnapshot(provider: sharedSnapshot.provider(.codex), now: now)
+        let claudeLimit = currentFiveHourLimitSnapshot(provider: sharedSnapshot.provider(.claude), now: now)
+        let codexAvailability = providerAvailability(for: .codex, limit: codexLimit, now: now)
+        let claudeAvailability = providerAvailability(for: .claude, limit: claudeLimit, now: now)
         return TrayStatusPresentation.snapshot(
             filter: filter,
             codex: codexAvailability,
@@ -421,12 +425,16 @@ final class StatusItemController: NSObject {
         return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
     }
 
-    private func providerAvailability(for provider: TrayStatusProvider, limit: TrayLimitSnapshot) -> TrayProviderAvailability {
+    private func providerAvailability(
+        for provider: TrayStatusProvider,
+        limit: TrayLimitSnapshot,
+        now: Date
+    ) -> TrayProviderAvailability {
         switch provider {
         case .codex:
             return TrayProviderAvailability(
                 remainingPercent: limit.remainingPercent,
-                availableAccounts: availableCodexAccountCountWithLimits(),
+                availableAccounts: availableCodexAccountCountWithLimits(now: now, currentLimit: limit),
                 totalAccounts: visibleCodexAccountCount()
             )
         case .claude:
@@ -438,18 +446,18 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func availableCodexAccountCountWithLimits() -> Int {
-        let currentCountsAsAvailable = currentCodexAccountCountsAsAvailableWithLimits()
+    private func availableCodexAccountCountWithLimits(now: Date, currentLimit: TrayLimitSnapshot) -> Int {
+        let currentCountsAsAvailable = currentCodexAccountCountsAsAvailableWithLimits(currentLimit: currentLimit)
         let storedOtherCount = model.accounts.filter { account in
             !model.isCurrentCLIAccount(account)
                 && account.status == .ok
-                && model.sidebarLimitSummary(for: account)?.hasLimitData == true
+                && model.storedCodexAccountHasFreshCompactLimits(account, now: now)
         }.count
         return (currentCountsAsAvailable ? 1 : 0) + storedOtherCount
     }
 
-    private func currentCodexAccountCountsAsAvailableWithLimits() -> Bool {
-        guard model.currentCLISidebarLimitSummary()?.hasLimitData == true else {
+    private func currentCodexAccountCountsAsAvailableWithLimits(currentLimit: TrayLimitSnapshot) -> Bool {
+        guard currentLimit.remainingPercent != nil else {
             return false
         }
 
@@ -460,30 +468,26 @@ final class StatusItemController: NSObject {
         return account.status == .ok
     }
 
-    private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> TrayLimitSnapshot {
-        let sections: [RateLimitDisplaySection] = switch provider {
-        case .codex:
-            model.currentCLIRateLimitSections()
-        case .claude:
-            model.currentClaudeLiveRateLimitSections()
+    private func currentFiveHourLimitSnapshot(
+        provider: LimitsWidgetProviderSnapshot?,
+        now: Date
+    ) -> TrayLimitSnapshot {
+        guard let provider else {
+            return TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
         }
+        let freshLimits = provider.limitsForCompactSurface(at: now)
+        let limit = freshLimits
+            .first(where: { $0.id.contains("five_hour") || $0.title == L10n.tr("limit.five_hour") })
+            ?? freshLimits.first
 
-        let row = sections
-            .flatMap(\.rows)
-            .first(where: isFiveHourLimitRow)
-
-        guard let row else {
+        guard let limit else {
             return TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
         }
 
         return TrayLimitSnapshot(
-            remainingPercent: row.remainingPercent,
-            resetText: row.resetText
+            remainingPercent: limit.remainingPercent,
+            resetText: limit.resetDate.map { RateLimitResetFormatter.compactText(for: $0, now: now) }
         )
-    }
-
-    private func isFiveHourLimitRow(_ row: RateLimitDisplayRow) -> Bool {
-        row.title == L10n.tr("limit.five_hour") || row.id.contains("five_hour")
     }
 }
 

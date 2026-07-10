@@ -16,8 +16,15 @@ struct LimitsWidgetSnapshotPublisher {
         self.reloadTimelines = reloadTimelines
     }
 
-    func publish(_ snapshot: LimitsWidgetSnapshot) throws {
+    @discardableResult
+    func publish(_ snapshot: LimitsWidgetSnapshot) throws -> Bool {
+        if let current = try store.readSnapshot(),
+           current.schemaVersion == snapshot.schemaVersion,
+           current.providers == snapshot.providers {
+            return false
+        }
         try store.writeSnapshot(snapshot)
         reloadTimelines()
+        return true
     }
 }

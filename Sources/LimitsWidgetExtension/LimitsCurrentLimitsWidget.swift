@@ -27,7 +27,13 @@ struct LimitsWidgetTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<LimitsWidgetEntry>) -> Void) {
         let now = Date()
         let entry = loadEntry(date: now, allowDemo: false)
-        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(300))))
+        let nextExpiry = entry.snapshot?.providers
+            .compactMap(\.freshUntil)
+            .filter { $0 > now }
+            .min()
+        let regularReload = now.addingTimeInterval(300)
+        let reloadDate = min(regularReload, nextExpiry?.addingTimeInterval(1) ?? regularReload)
+        completion(Timeline(entries: [entry], policy: .after(reloadDate)))
     }
 
     private func loadEntry(date: Date, allowDemo: Bool) -> LimitsWidgetEntry {
@@ -75,9 +81,8 @@ private struct LimitsWidgetView: View {
         return LimitsWidgetProviderID.allCases.compactMap { snapshot.provider($0) }
     }
 
-    private var snapshotIsStale: Bool {
-        guard let generatedAt = entry.snapshot?.generatedAt else { return true }
-        return entry.date.timeIntervalSince(generatedAt) > 900
+    private var allProvidersAreStale: Bool {
+        !providers.contains { $0.isFresh(at: entry.date) }
     }
 
     var body: some View {
@@ -117,7 +122,7 @@ private struct LimitsWidgetView: View {
             header(compact: true)
 
             ForEach(providers.prefix(2)) { provider in
-                ProviderCompactLine(provider: provider, stale: snapshotIsStale)
+                ProviderCompactLine(provider: provider, stale: !provider.isFresh(at: entry.date))
             }
 
             Spacer(minLength: 0)
@@ -131,7 +136,7 @@ private struct LimitsWidgetView: View {
 
             HStack(alignment: .top, spacing: 10) {
                 ForEach(providers.prefix(2)) { provider in
-                    ProviderCard(provider: provider, stale: snapshotIsStale, maxLimits: 2)
+                    ProviderCard(provider: provider, stale: !provider.isFresh(at: entry.date), maxLimits: 2)
                 }
             }
 
@@ -145,7 +150,11 @@ private struct LimitsWidgetView: View {
             header(compact: false)
 
             ForEach(providers.prefix(2)) { provider in
-                ProviderCard(provider: provider, stale: snapshotIsStale, maxLimits: family == .systemExtraLarge ? 4 : 2)
+                ProviderCard(
+                    provider: provider,
+                    stale: !provider.isFresh(at: entry.date),
+                    maxLimits: family == .systemExtraLarge ? 4 : 2
+                )
             }
 
             Spacer(minLength: 0)
@@ -163,7 +172,7 @@ private struct LimitsWidgetView: View {
                 .font(compact ? .headline : .title3.weight(.semibold))
                 .lineLimit(1)
             Spacer(minLength: 0)
-            if snapshotIsStale {
+            if allProvidersAreStale {
                 Text("stale")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.orange)
@@ -188,9 +197,10 @@ private struct LimitsWidgetView: View {
     }
 
     private func updatedText(snapshot: LimitsWidgetSnapshot) -> some View {
-        HStack(spacing: 4) {
+        let observedAt = snapshot.providers.compactMap(\.observedAt).max() ?? snapshot.generatedAt
+        return HStack(spacing: 4) {
             Text("Updated")
-            Text(snapshot.generatedAt, style: .time)
+            Text(observedAt, style: .time)
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
@@ -243,7 +253,7 @@ private struct ProviderCard: View {
                 .font(.callout.weight(.semibold))
                 .lineLimit(1)
 
-            if provider.limits.isEmpty || provider.status != .available || stale {
+            if provider.limits.isEmpty || stale {
                 Text(provider.statusText(stale: stale))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -368,7 +378,8 @@ private extension LimitsWidgetSnapshot {
                         LimitsWidgetLimitSnapshot(id: "codex.five_hour", title: "5h", remainingPercent: 64, resetDate: generatedAt.addingTimeInterval(3_600)),
                         LimitsWidgetLimitSnapshot(id: "codex.weekly", title: "Weekly", remainingPercent: 81, resetDate: generatedAt.addingTimeInterval(86_400)),
                     ],
-                    updatedAt: generatedAt,
+                    observedAt: generatedAt,
+                    freshUntil: generatedAt.addingTimeInterval(LimitsFreshnessPolicy.defaultTTL),
                     note: nil
                 ),
                 LimitsWidgetProviderSnapshot(
@@ -380,7 +391,8 @@ private extension LimitsWidgetSnapshot {
                         LimitsWidgetLimitSnapshot(id: "claude.five_hour", title: "5h", remainingPercent: 42, resetDate: generatedAt.addingTimeInterval(2_400)),
                         LimitsWidgetLimitSnapshot(id: "claude.weekly", title: "Weekly", remainingPercent: 73, resetDate: generatedAt.addingTimeInterval(72_000)),
                     ],
-                    updatedAt: generatedAt,
+                    observedAt: generatedAt,
+                    freshUntil: generatedAt.addingTimeInterval(LimitsFreshnessPolicy.defaultTTL),
                     note: nil
                 ),
             ]

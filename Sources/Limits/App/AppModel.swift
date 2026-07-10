@@ -103,8 +103,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var currentClaudeValidatedAt: Date?
     @Published private(set) var currentClaudeLivePayload: ClaudeStatuslineBridgePayload?
     @Published private(set) var currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
-    @Published var isBusy = false
-    @Published var busyMessage: String?
+    @Published private(set) var providerBusyMessages: [ProviderKind: String] = [:]
+    @Published private(set) var providerErrorMessages: [ProviderKind: String] = [:]
     @Published var errorMessage: String?
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
@@ -129,11 +129,30 @@ final class AppModel: ObservableObject {
     private var backgroundRefreshTask: Task<Void, Never>?
     private var presentationClockTask: Task<Void, Never>?
     private var storedCodexAutoRefreshTask: Task<Void, Never>?
+    private var currentValuesRefreshTask: Task<Void, Never>?
+    private var currentValuesRefreshID: UUID?
+    private var currentValuesRefreshIsForced = false
     private var lastStoredCodexAutoRefreshAttempt: [UUID: Date] = [:]
     private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
     private var isRefreshingStoredCodexAccount = false
     private var persistedStateLoaded = false
     private var retiredCredentials: [RetiredCredential] = []
+
+    var isBusy: Bool {
+        !providerBusyMessages.isEmpty
+    }
+
+    var busyMessage: String? {
+        providerBusyMessages[.codex] ?? providerBusyMessages[.claude]
+    }
+
+    func isProviderBusy(_ provider: ProviderKind) -> Bool {
+        providerBusyMessages[provider] != nil
+    }
+
+    func providerErrorMessage(_ provider: ProviderKind) -> String? {
+        providerErrorMessages[provider]
+    }
 
     func invalidateLocalizedText() {
         objectWillChange.send()
@@ -151,6 +170,7 @@ final class AppModel: ObservableObject {
         backgroundRefreshTask?.cancel()
         presentationClockTask?.cancel()
         storedCodexAutoRefreshTask?.cancel()
+        currentValuesRefreshTask?.cancel()
     }
 
     func bootstrap() async {
@@ -160,14 +180,12 @@ final class AppModel: ObservableObject {
         }
 
         do {
-            await refreshCurrentCLIState()
-            await refreshCurrentClaudeState()
+            await refreshCurrentValues(forceProbe: false)
 
             if accounts.isEmpty, globalAuthService.hasGlobalAuth() {
                 try await importCurrentCLIAuthNow()
-                await refreshCurrentCLIState()
+                await refreshCurrentValues(forceProbe: true)
             }
-            await refreshCurrentCLIProbe(force: false)
             await refreshOneStaleStoredCodexAccountInBackground()
         } catch {
             errorMessage = error.localizedDescription
@@ -376,7 +394,7 @@ final class AppModel: ObservableObject {
     }
 
     func addAccount() async {
-        await runBusy(L10n.tr("busy.signing_in")) { [self] in
+        await runBusy(provider: .codex, L10n.tr("busy.signing_in")) { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -387,7 +405,7 @@ final class AppModel: ObservableObject {
     }
 
     func importCurrentCLIAuth() async {
-        await runBusy(L10n.tr("busy.importing_current_cli")) { [self] in
+        await runBusy(provider: .codex, L10n.tr("busy.importing_current_cli")) { [self] in
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
@@ -395,14 +413,14 @@ final class AppModel: ObservableObject {
     }
 
     func importCurrentClaudeAuth() async {
-        await runBusy(L10n.tr("busy.importing_current_claude")) { [self] in
+        await runBusy(provider: .claude, L10n.tr("busy.importing_current_claude")) { [self] in
             try await self.importCurrentClaudeAuthNow()
             await self.refreshCurrentClaudeState()
         }
     }
 
     func activateAccount(_ account: StoredAccount) async {
-        await runBusy(L10n.tr("busy.switching_global_auth")) { [self] in
+        await runBusy(provider: .codex, L10n.tr("busy.switching_global_auth")) { [self] in
             let authData = try self.vault.read(account: account.keychainAccount)
             let transaction = CodexAuthSwitchTransaction(
                 globalStore: self.globalAuthService,
@@ -419,7 +437,7 @@ final class AppModel: ObservableObject {
     }
 
     func reauthenticateAccount(_ account: StoredAccount) async {
-        await runBusy(L10n.tr("busy.reauthenticating", account.label)) { [self] in
+        await runBusy(provider: .codex, L10n.tr("busy.reauthenticating", account.label)) { [self] in
             let result = try await self.codexAccountService.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
@@ -440,7 +458,7 @@ final class AppModel: ObservableObject {
     }
 
     func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
-        await runBusy(L10n.tr("busy.switching_claude")) { [self] in
+        await runBusy(provider: .claude, L10n.tr("busy.switching_claude")) { [self] in
             let credential = try self.vault.read(account: account.keychainAccount)
             let transaction = ClaudeCredentialSwitchTransaction(
                 globalStore: self.globalClaudeCredentialService,
@@ -461,62 +479,43 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentClaudeAccount() async {
-        await runBusy(L10n.tr("busy.refreshing_claude")) { [self] in
+        await runBusy(provider: .claude, L10n.tr("busy.refreshing_claude")) { [self] in
             try await self.refreshStoredClaudeMetadataIfNeeded()
             await self.refreshCurrentClaudeState()
         }
     }
 
     func installClaudeLiveLimitsBridge() async {
-        guard !isBusy else { return }
-        isBusy = true
-        busyMessage = L10n.tr("busy.connecting_claude_live")
-        currentClaudeBridgeError = nil
-
-        defer {
-            isBusy = false
-            busyMessage = nil
-        }
-
-        do {
-            try claudeStatuslineBridgeService.installBridge()
-            refreshClaudeStatuslineBridgeState()
-        } catch {
-            currentClaudeBridgeError = error.localizedDescription
+        await runBusy(provider: .claude, L10n.tr("busy.connecting_claude_live")) { [self] in
+            self.currentClaudeBridgeError = nil
+            do {
+                try self.claudeStatuslineBridgeService.installBridge()
+            } catch {
+                self.currentClaudeBridgeError = error.localizedDescription
+                throw error
+            }
+            self.refreshClaudeStatuslineBridgeState()
         }
     }
 
     func uninstallClaudeLiveLimitsBridge() async {
-        guard !isBusy else { return }
-        isBusy = true
-        busyMessage = L10n.tr("busy.disconnecting_claude_bridge")
-        currentClaudeBridgeError = nil
-
-        defer {
-            isBusy = false
-            busyMessage = nil
-        }
-
-        do {
-            try claudeStatuslineBridgeService.uninstallBridge()
-            refreshClaudeStatuslineBridgeState()
-        } catch {
-            currentClaudeBridgeError = error.localizedDescription
+        await runBusy(provider: .claude, L10n.tr("busy.disconnecting_claude_bridge")) { [self] in
+            self.currentClaudeBridgeError = nil
+            do {
+                try self.claudeStatuslineBridgeService.uninstallBridge()
+            } catch {
+                self.currentClaudeBridgeError = error.localizedDescription
+                throw error
+            }
+            self.refreshClaudeStatuslineBridgeState()
         }
     }
 
     func refreshClaudeLiveLimitsBridge() async {
-        guard !isBusy else { return }
-        isBusy = true
-        busyMessage = L10n.tr("busy.refreshing_claude_bridge")
-        currentClaudeBridgeError = nil
-
-        defer {
-            isBusy = false
-            busyMessage = nil
+        await runBusy(provider: .claude, L10n.tr("busy.refreshing_claude_bridge")) { [self] in
+            self.currentClaudeBridgeError = nil
+            self.refreshClaudeStatuslineBridgeState()
         }
-
-        refreshClaudeStatuslineBridgeState()
     }
 
     func validateAll() async {
@@ -529,8 +528,42 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentValues(forceProbe: Bool = true) async {
-        await refreshCurrentCLIPanel(forceProbe: forceProbe)
-        await refreshCurrentClaudeState()
+        if let activeTask = currentValuesRefreshTask {
+            let needsForcedFollowup = forceProbe && !currentValuesRefreshIsForced
+            await activeTask.value
+            if needsForcedFollowup {
+                await refreshCurrentValues(forceProbe: true)
+            }
+            return
+        }
+
+        let refreshID = UUID()
+        currentValuesRefreshID = refreshID
+        currentValuesRefreshIsForced = forceProbe
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performCurrentValuesRefresh(forceProbe: forceProbe)
+            self.finishCurrentValuesRefresh(id: refreshID)
+        }
+        currentValuesRefreshTask = task
+        await task.value
+    }
+
+    private func finishCurrentValuesRefresh(id: UUID) {
+        if currentValuesRefreshID == id {
+            currentValuesRefreshTask = nil
+            currentValuesRefreshID = nil
+            currentValuesRefreshIsForced = false
+        }
+    }
+
+    private func performCurrentValuesRefresh(forceProbe: Bool) async {
+        if !isProviderBusy(.codex) {
+            await refreshCurrentCLIPanel(forceProbe: forceProbe)
+        }
+        if !isProviderBusy(.claude) {
+            await refreshCurrentClaudeState()
+        }
     }
 
     private func startPresentationClockLoop() {
@@ -592,10 +625,6 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshCurrentSurfacesInBackground() async {
-        guard !isBusy else {
-            return
-        }
-
         await refreshCurrentValues(forceProbe: false)
     }
 
@@ -616,7 +645,7 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshOneStaleStoredCodexAccountInBackground(now: Date = Date()) async {
-        guard !isBusy, !isRefreshingCurrentCLIProbe, !isRefreshingStoredCodexAccount else {
+        guard !isProviderBusy(.codex), !isRefreshingCurrentCLIProbe, !isRefreshingStoredCodexAccount else {
             return
         }
 
@@ -673,7 +702,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteAccount(_ account: StoredAccount) async {
-        await runBusy(L10n.tr("busy.deleting", account.label)) { [self] in
+        await runBusy(provider: .codex, L10n.tr("busy.deleting", account.label)) { [self] in
             try self.vault.delete(account: account.keychainAccount)
             self.accounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
@@ -683,7 +712,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteClaudeAccount(_ account: ClaudeStoredAccount) async {
-        await runBusy(L10n.tr("busy.deleting", account.label)) { [self] in
+        await runBusy(provider: .claude, L10n.tr("busy.deleting", account.label)) { [self] in
             try self.vault.delete(account: account.keychainAccount)
             self.claudeAccounts.removeAll { $0.id == account.id }
             try self.saveAccounts()
@@ -841,8 +870,10 @@ final class AppModel: ObservableObject {
     func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
         let codexOverview = currentCLIOverview()
         let codexLimits = Self.widgetLimitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
+        let codexObservedAt = currentCLIValidatedAt()
         let claudeOverview = currentClaudeOverview()
         let claudeLimits = Self.widgetLimitSnapshots(from: currentClaudeLiveRateLimitSections(), now: now)
+        let claudeObservedAt = claudeLiveBridgeSnapshotUpdatedAt() ?? claudeValidatedAt()
 
         return LimitsWidgetSnapshot(
             generatedAt: now,
@@ -853,7 +884,8 @@ final class AppModel: ObservableObject {
                     subtitle: codexOverview.subtitle,
                     status: widgetCodexStatus(limits: codexLimits),
                     limits: codexLimits,
-                    updatedAt: currentCLIValidatedAt(),
+                    observedAt: codexObservedAt,
+                    freshUntil: Self.compactSurfaceFreshUntil(observedAt: codexObservedAt, limits: codexLimits),
                     note: codexOverview.note ?? currentCLIProbeError
                 ),
                 LimitsWidgetProviderSnapshot(
@@ -862,7 +894,8 @@ final class AppModel: ObservableObject {
                     subtitle: claudeOverview.subtitle,
                     status: widgetClaudeStatus(limits: claudeLimits),
                     limits: claudeLimits,
-                    updatedAt: claudeLiveBridgeSnapshotUpdatedAt() ?? claudeValidatedAt(),
+                    observedAt: claudeObservedAt,
+                    freshUntil: Self.compactSurfaceFreshUntil(observedAt: claudeObservedAt, limits: claudeLimits),
                     note: claudeOverview.note ?? currentClaudeBridgeError ?? currentClaudeError
                 ),
             ]
@@ -884,6 +917,35 @@ final class AppModel: ObservableObject {
                 )
             }
         }
+    }
+
+    nonisolated static func compactSurfaceFreshUntil(
+        observedAt: Date?,
+        limits: [LimitsWidgetLimitSnapshot]
+    ) -> Date? {
+        LimitsFreshnessPolicy.freshUntil(
+            observedAt: observedAt,
+            limitResetDates: limits.compactMap(\.resetDate)
+        )
+    }
+
+    func storedCodexAccountHasFreshCompactLimits(_ account: StoredAccount, now: Date = .now) -> Bool {
+        let limits = Self.widgetLimitSnapshots(
+            from: Self.storedRateLimitSections(
+                primary: account.lastRateLimit,
+                byLimitId: account.lastRateLimitsByLimitId,
+                now: now
+            ),
+            now: now
+        )
+        guard limits.contains(where: { $0.remainingPercent != nil }) else { return false }
+        guard
+            let observedAt = account.lastValidatedAt,
+            let freshUntil = Self.compactSurfaceFreshUntil(observedAt: observedAt, limits: limits)
+        else {
+            return false
+        }
+        return observedAt <= now && now < freshUntil
     }
 
     private func widgetCodexStatus(limits: [LimitsWidgetLimitSnapshot]) -> LimitsWidgetProviderStatus {
@@ -916,8 +978,10 @@ final class AppModel: ObservableObject {
 
     private func publishWidgetSnapshotIfPossible(now: Date = .now) {
         do {
-            try widgetSnapshotPublisher.publish(makeWidgetSnapshot(now: now))
-            RuntimeLog.widget.debug("widget snapshot published")
+            let published = try widgetSnapshotPublisher.publish(makeWidgetSnapshot(now: now))
+            if published {
+                RuntimeLog.widget.debug("widget snapshot published")
+            }
         } catch {
             RuntimeLog.widget.warning("widget snapshot publish failed: \(error.localizedDescription, privacy: .public)")
         }
@@ -1307,21 +1371,23 @@ final class AppModel: ObservableObject {
         return .newAccount
     }
 
-    private func runBusy(_ message: String, operation: @escaping () async throws -> Void) async {
-        guard !isBusy else { return }
-        isBusy = true
-        busyMessage = message
-        errorMessage = nil
+    private func runBusy(
+        provider: ProviderKind,
+        _ message: String,
+        operation: @escaping () async throws -> Void
+    ) async {
+        guard !isProviderBusy(provider) else { return }
+        providerBusyMessages[provider] = message
+        providerErrorMessages.removeValue(forKey: provider)
 
         defer {
-            isBusy = false
-            busyMessage = nil
+            providerBusyMessages.removeValue(forKey: provider)
         }
 
         do {
             try await operation()
         } catch {
-            errorMessage = error.localizedDescription
+            providerErrorMessages[provider] = error.localizedDescription
         }
     }
 

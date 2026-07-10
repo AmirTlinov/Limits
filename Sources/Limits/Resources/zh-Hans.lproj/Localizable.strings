@@ -99,6 +99,7 @@
 "claude.org_limits_note" = "组织：%@。我暂时不绘制 Claude 限额，因为 Anthropic 把它们放在实时会话中，这里无法保证准确性。";
 "claude.reauth_needed" = "此 Claude Code 账户需要在终端重新登录。";
 "claude.settings.parse_failed" = "无法解析 ~/.claude/settings.json。";
+"claude.settings.changed" = "更新桥接时 Claude 设置已发生变化。已保留较新的文件；请重试。";
 "claude.snapshot_empty.long" = "已有快照，但 rate_limits 仍为空。这可能发生在第一次完整回复之前，或当前会话尚未更新 statusLine 时。";
 "claude.snapshot_empty.short" = "已有快照，但 rate_limits 仍为空。这可能发生在第一次完整回复之前。";
 "claude.statusline.unsupported" = "当前 Claude statusLine 格式不受支持。我不会静默破坏它。";

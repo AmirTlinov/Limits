@@ -99,6 +99,7 @@
 "claude.org_limits_note" = "Organization: %@. I do not draw Claude limits yet because Anthropic keeps them inside the live session and accuracy cannot be promised here.";
 "claude.reauth_needed" = "This Claude Code account needs sign-in again in Terminal.";
 "claude.settings.parse_failed" = "Could not parse ~/.claude/settings.json.";
+"claude.settings.changed" = "Claude settings changed while the bridge was being updated. The newer file was preserved; try again.";
 "claude.snapshot_empty.long" = "A snapshot exists, but rate_limits is still empty. This can happen before the first full response or before the current session updates statusLine.";
 "claude.snapshot_empty.short" = "A snapshot exists, but rate_limits is still empty. This can happen before the first full response.";
 "claude.statusline.unsupported" = "Current Claude statusLine has an unsupported format. I will not silently break it.";

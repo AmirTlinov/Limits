@@ -19,7 +19,8 @@ import Testing
                 limits: [
                     LimitsWidgetLimitSnapshot(id: "codex.five_hour", title: "5h", remainingPercent: 72, resetDate: generatedAt.addingTimeInterval(3_600)),
                 ],
-                updatedAt: generatedAt,
+                observedAt: generatedAt,
+                freshUntil: generatedAt.addingTimeInterval(900),
                 note: nil
             ),
         ]
@@ -30,6 +31,55 @@ import Testing
 
     #expect(try store.readSnapshot() == snapshot)
     #expect(try store.snapshotURL().lastPathComponent == LimitsWidgetConstants.snapshotFileName)
+    #expect(posixPermissions(at: try store.snapshotURL().deletingLastPathComponent()) == 0o700)
+    #expect(posixPermissions(at: try store.snapshotURL()) == 0o600)
+}
+
+@Test func widgetV1SnapshotDecodesAsStaleInsteadOfTrustingGeneratedAt() throws {
+    let data = Data(
+        """
+        {
+          "schemaVersion": 1,
+          "generatedAt": "2026-07-10T00:00:00Z",
+          "providers": [{
+            "id": "codex",
+            "title": "Codex",
+            "status": "available",
+            "limits": [{"id":"five","title":"5h","remainingPercent":88}],
+            "updatedAt": "2026-07-10T00:00:00Z"
+          }]
+        }
+        """.utf8
+    )
+
+    let snapshot = try JSONDecoder.limitsWidget.decode(LimitsWidgetSnapshot.self, from: data)
+    let provider = try #require(snapshot.provider(.codex))
+
+    #expect(snapshot.schemaVersion == 1)
+    #expect(provider.observedAt != nil)
+    #expect(provider.freshUntil == nil)
+    #expect(!provider.isFresh(at: Date(timeIntervalSince1970: 1_800_000_000)))
+    #expect(provider.limitsForCompactSurface(at: Date(timeIntervalSince1970: 1_800_000_000)).isEmpty)
+}
+
+@Test func compactSurfaceFreshnessExpiresAtTTLOrFirstReset() {
+    let observedAt = Date(timeIntervalSince1970: 10_000)
+    let earlyReset = observedAt.addingTimeInterval(120)
+
+    #expect(
+        LimitsFreshnessPolicy.freshUntil(
+            observedAt: observedAt,
+            limitResetDates: [earlyReset],
+            ttl: 900
+        ) == earlyReset
+    )
+    #expect(
+        LimitsFreshnessPolicy.freshUntil(
+            observedAt: observedAt,
+            limitResetDates: [],
+            ttl: 900
+        ) == observedAt.addingTimeInterval(900)
+    )
 }
 
 @Test func widgetLimitSnapshotsDoNotPresentExpiredResetAsCurrentPercent() throws {
@@ -71,7 +121,8 @@ import Testing
                 subtitle: "example@example.com",
                 status: .noData,
                 limits: [],
-                updatedAt: nil,
+                observedAt: nil,
+                freshUntil: nil,
                 note: "No live limit data yet."
             ),
         ]
@@ -83,4 +134,54 @@ import Testing
     #expect(!json.contains("authfingerprint"))
     #expect(!json.contains("keychain"))
     #expect(!json.contains("credential"))
+    #expect(!json.contains("updatedat"))
+}
+
+@Test func widgetPublisherReloadsTimelineOnlyWhenProviderEvidenceChanges() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "limits-widget-publisher-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = LimitsWidgetSnapshotStore(baseURL: root)
+    var reloadCount = 0
+    let publisher = LimitsWidgetSnapshotPublisher(store: store) {
+        reloadCount += 1
+    }
+    let observedAt = Date(timeIntervalSince1970: 10_000)
+    let provider = LimitsWidgetProviderSnapshot(
+        id: .codex,
+        title: "Codex",
+        subtitle: nil,
+        status: .available,
+        limits: [LimitsWidgetLimitSnapshot(id: "five", title: "5h", remainingPercent: 80, resetDate: nil)],
+        observedAt: observedAt,
+        freshUntil: observedAt.addingTimeInterval(900),
+        note: nil
+    )
+    let first = LimitsWidgetSnapshot(generatedAt: observedAt, providers: [provider])
+    let sameEvidenceLater = LimitsWidgetSnapshot(generatedAt: observedAt.addingTimeInterval(30), providers: [provider])
+    let changed = LimitsWidgetSnapshot(
+        generatedAt: observedAt.addingTimeInterval(60),
+        providers: [
+            LimitsWidgetProviderSnapshot(
+                id: .codex,
+                title: "Codex",
+                subtitle: nil,
+                status: .error,
+                limits: provider.limits,
+                observedAt: observedAt,
+                freshUntil: observedAt.addingTimeInterval(900),
+                note: "refresh failed"
+            ),
+        ]
+    )
+
+    #expect(try publisher.publish(first))
+    #expect(try !publisher.publish(sameEvidenceLater))
+    #expect(try publisher.publish(changed))
+    #expect(reloadCount == 2)
+}
+
+private func posixPermissions(at url: URL) -> Int {
+    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+    return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
 }

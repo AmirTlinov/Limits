@@ -126,7 +126,7 @@ struct AccountsWindowView: View {
                     Image(systemName: "plus")
                 }
                 .help(L10n.tr("action.add_account"))
-                .disabled(model.isBusy)
+                .disabled(model.isProviderBusy(.codex))
 
                 if model.hasCurrentCLIAuthToImport() {
                     Button {
@@ -135,7 +135,7 @@ struct AccountsWindowView: View {
                         Image(systemName: "arrow.down.doc")
                     }
                     .help(L10n.tr("action.import_current_auth"))
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
                 }
 
                 Button {
@@ -151,10 +151,6 @@ struct AccountsWindowView: View {
         .frame(minWidth: 980, minHeight: 620)
         .onAppear {
             ensureValidSelection()
-            Task {
-                await model.refreshCurrentCLIPanel(forceProbe: false)
-                await model.refreshCurrentClaudeState()
-            }
         }
         .onChange(of: model.accounts) { _, _ in
             ensureValidSelection()
@@ -476,24 +472,24 @@ private struct CurrentCLIDetailPane: View {
                             Task { await model.importCurrentCLIAuth() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.codex))
                     } else if model.shouldOfferAddAccountAsPrimaryAction() {
                         Button(L10n.tr("action.add_account")) {
                             Task { await model.addAccount() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.codex))
                     }
 
                     Button(L10n.tr("action.refresh_values")) {
-                        Task { await model.refreshCurrentCLIPanel(forceProbe: true) }
+                        Task { await model.refreshCurrentValues(forceProbe: true) }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
                 }
             )
 
-            if let errorMessage = model.errorMessage {
+            if let errorMessage = model.providerErrorMessage(.codex) ?? model.errorMessage {
                 MinimalSeparator()
                 InlineWarningCard(text: errorMessage)
             }
@@ -562,7 +558,7 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.importCurrentClaudeAuth() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
                     }
 
                     if model.currentClaudeStatus?.loggedIn == true {
@@ -570,7 +566,7 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.refreshCurrentClaudeAccount() }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
                     }
 
                     if model.claudeLiveBridgeInstalled() {
@@ -578,18 +574,24 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.uninstallClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
                     } else if model.currentClaudeStatus?.loggedIn == true {
                         Button(L10n.tr("action.connect_live_limits")) {
                             Task { await model.installClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
                     }
                 }
             )
 
             MinimalSeparator()
+
+            if let providerError = model.providerErrorMessage(.claude),
+               providerError != model.currentClaudeBridgeError {
+                InlineWarningCard(text: providerError)
+                MinimalSeparator()
+            }
 
             if let bridgeError = model.currentClaudeBridgeError {
                 InlineWarningCard(text: bridgeError)
@@ -696,26 +698,26 @@ private struct StoredClaudeDetailPane: View {
                             Task { await model.activateClaudeAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
                     } else {
                         Button(L10n.tr("action.refresh")) {
                             Task { await model.refreshCurrentClaudeAccount() }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.claude))
 
                         if model.claudeLiveBridgeInstalled() {
                             Button(L10n.tr("action.disconnect_bridge")) {
                                 Task { await model.uninstallClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.bordered)
-                            .disabled(model.isBusy)
+                            .disabled(model.isProviderBusy(.claude))
                         } else if model.currentClaudeStatus?.loggedIn == true {
                             Button(L10n.tr("action.connect_live_limits")) {
                                 Task { await model.installClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isBusy)
+                            .disabled(model.isProviderBusy(.claude))
                         }
                     }
 
@@ -723,11 +725,17 @@ private struct StoredClaudeDetailPane: View {
                         Task { await model.deleteClaudeAccount(account) }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.claude))
                 }
             )
 
             MinimalSeparator()
+
+            if let providerError = model.providerErrorMessage(.claude),
+               providerError != model.currentClaudeBridgeError {
+                InlineWarningCard(text: providerError)
+                MinimalSeparator()
+            }
 
             if isCurrent, let bridgeError = model.currentClaudeBridgeError {
                 InlineWarningCard(text: bridgeError)
@@ -857,26 +865,26 @@ private struct StoredAccountDetailPane: View {
                             Task { await model.activateAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isBusy)
+                        .disabled(model.isProviderBusy(.codex))
                     }
 
                     Button(L10n.tr("action.refresh")) {
                         Task { await model.validateAccount(account) }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
 
                     Button(L10n.tr("action.reauthenticate")) {
                         Task { await model.reauthenticateAccount(account) }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
 
                     Button(L10n.tr("action.delete"), role: .destructive) {
                         Task { await model.deleteAccount(account) }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
                 }
             )
 

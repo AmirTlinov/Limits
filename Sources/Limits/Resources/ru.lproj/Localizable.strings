@@ -99,6 +99,7 @@
 "claude.org_limits_note" = "Организация: %@. Лимиты Claude я пока намеренно не рисую, потому что у Anthropic они живут внутри живой сессии и здесь нельзя честно обещать точность.";
 "claude.reauth_needed" = "Этому аккаунту Claude Code нужен повторный вход в терминале.";
 "claude.settings.parse_failed" = "Не удалось разобрать ~/.claude/settings.json.";
+"claude.settings.changed" = "Настройки Claude изменились во время обновления моста. Более новый файл сохранён; повторите действие.";
 "claude.snapshot_empty.long" = "Снимок уже есть, но поле rate_limits пока пустое. Такое бывает до первого полноценного ответа или когда текущая сессия ещё не успела обновить statusLine.";
 "claude.snapshot_empty.short" = "Snapshot уже есть, но поле rate_limits пока пустое. Такое бывает до первого полноценного ответа.";
 "claude.statusline.unsupported" = "У текущего Claude statusLine неподдерживаемый формат. Я не буду молча ломать его.";

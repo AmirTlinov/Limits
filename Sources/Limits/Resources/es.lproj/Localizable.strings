@@ -99,6 +99,7 @@
 "claude.org_limits_note" = "Organización: %@. Todavía no dibujo límites de Claude porque Anthropic los mantiene dentro de la sesión en vivo y aquí no se puede prometer precisión.";
 "claude.reauth_needed" = "Esta cuenta de Claude Code necesita iniciar sesión otra vez en Terminal.";
 "claude.settings.parse_failed" = "No se pudo analizar ~/.claude/settings.json.";
+"claude.settings.changed" = "La configuración de Claude cambió mientras se actualizaba el puente. Se conservó el archivo más reciente; inténtalo de nuevo.";
 "claude.snapshot_empty.long" = "Existe una instantánea, pero rate_limits sigue vacío. Esto puede pasar antes de la primera respuesta completa o antes de que la sesión actual actualice statusLine.";
 "claude.snapshot_empty.short" = "Existe una instantánea, pero rate_limits sigue vacío. Esto puede pasar antes de la primera respuesta completa.";
 "claude.statusline.unsupported" = "El statusLine actual de Claude tiene un formato no compatible. No lo romperé en silencio.";

@@ -59,6 +59,7 @@ enum ClaudeStatuslineBridgeServiceError: LocalizedError, Equatable {
     case unsupportedExistingStatusLine
     case invalidSettingsShape
     case missingSnapshot
+    case settingsChanged
 
     var errorDescription: String? {
         switch self {
@@ -68,7 +69,54 @@ enum ClaudeStatuslineBridgeServiceError: LocalizedError, Equatable {
             return L10n.tr("claude.settings.parse_failed")
         case .missingSnapshot:
             return "Claude ещё не прислал снимок statusLine."
+        case .settingsChanged:
+            return L10n.tr("claude.settings.changed")
         }
+    }
+}
+
+struct ClaudeSettingsDocument {
+    let data: Data?
+    let object: [String: Any]
+}
+
+struct ClaudeSettingsDocumentStore {
+    let fileManager: FileManager
+    let settingsURL: URL
+
+    init(fileManager: FileManager = .default, settingsURL: URL) {
+        self.fileManager = fileManager
+        self.settingsURL = settingsURL
+    }
+
+    func read() throws -> ClaudeSettingsDocument {
+        guard fileManager.fileExists(atPath: settingsURL.path) else {
+            return ClaudeSettingsDocument(data: nil, object: [:])
+        }
+        let data = try Data(contentsOf: settingsURL)
+        guard !data.isEmpty else {
+            return ClaudeSettingsDocument(data: data, object: [:])
+        }
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ClaudeStatuslineBridgeServiceError.invalidSettingsShape
+        }
+        return ClaudeSettingsDocument(data: data, object: object)
+    }
+
+    func commit(_ object: [String: Any], expectedData: Data?) throws {
+        let currentData = fileManager.fileExists(atPath: settingsURL.path)
+            ? try Data(contentsOf: settingsURL)
+            : nil
+        guard currentData == expectedData else {
+            throw ClaudeStatuslineBridgeServiceError.settingsChanged
+        }
+
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: settingsURL, options: .atomic)
+        try fileManager.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: settingsURL.path
+        )
     }
 }
 
@@ -122,7 +170,7 @@ struct ClaudeStatuslineBridgeService {
     }
 
     func bridgeStatus() throws -> ClaudeStatuslineBridgeStatus {
-        let settings = try readSettingsObject()
+        let settings = try settingsStore.read().object
         let installed = isBridgeConfigured(in: settings)
         let hasSnapshot = fileManager.fileExists(atPath: snapshotURL.path)
         let preservingOriginal = try loadOriginalStatusLine()?.hadStatusLine ?? false
@@ -135,9 +183,12 @@ struct ClaudeStatuslineBridgeService {
 
     func installBridge() throws {
         try ensureDirectories()
+        let document = try settingsStore.read()
+        let scriptExisted = fileManager.fileExists(atPath: scriptURL.path)
+        let backupExisted = fileManager.fileExists(atPath: originalStatusLineBackupURL.path)
         try writeBridgeScript()
 
-        var settings = try readSettingsObject()
+        var settings = document.object
         let existingStatusLine = settings["statusLine"]
 
         if isBridgeConfigured(in: settings) {
@@ -173,11 +224,18 @@ struct ClaudeStatuslineBridgeService {
             settings["statusLine"] = makeBridgeStatusLineObject()
         }
 
-        try writeSettingsObject(settings)
+        do {
+            try settingsStore.commit(settings, expectedData: document.data)
+        } catch {
+            if !scriptExisted { try? fileManager.removeItem(at: scriptURL) }
+            if !backupExisted { try? fileManager.removeItem(at: originalStatusLineBackupURL) }
+            throw error
+        }
     }
 
     func uninstallBridge() throws {
-        var settings = try readSettingsObject()
+        let document = try settingsStore.read()
+        var settings = document.object
         guard isBridgeConfigured(in: settings) else {
             return
         }
@@ -190,7 +248,7 @@ struct ClaudeStatuslineBridgeService {
             settings.removeValue(forKey: "statusLine")
         }
 
-        try writeSettingsObject(settings)
+        try settingsStore.commit(settings, expectedData: document.data)
         try? fileManager.removeItem(at: originalStatusLineBackupURL)
         try? fileManager.removeItem(at: scriptURL)
     }
@@ -210,30 +268,17 @@ struct ClaudeStatuslineBridgeService {
     }
 
     private func ensureDirectories() throws {
-        try fileManager.createDirectory(at: appSupportDirectory, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(
+            at: appSupportDirectory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: appSupportDirectory.path)
         try fileManager.createDirectory(at: claudeSettingsURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
     }
 
-    private func readSettingsObject() throws -> [String: Any] {
-        guard fileManager.fileExists(atPath: claudeSettingsURL.path) else {
-            return [:]
-        }
-
-        let data = try Data(contentsOf: claudeSettingsURL)
-        if data.isEmpty {
-            return [:]
-        }
-
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ClaudeStatuslineBridgeServiceError.invalidSettingsShape
-        }
-
-        return object
-    }
-
-    private func writeSettingsObject(_ object: [String: Any]) throws {
-        let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-        try data.write(to: claudeSettingsURL, options: .atomic)
+    private var settingsStore: ClaudeSettingsDocumentStore {
+        ClaudeSettingsDocumentStore(fileManager: fileManager, settingsURL: claudeSettingsURL)
     }
 
     private func makeBridgeStatusLineObject() -> [String: Any] {
@@ -262,6 +307,7 @@ struct ClaudeStatuslineBridgeService {
         let content = """
         #!/bin/zsh
         set -euo pipefail
+        umask 077
 
         SNAPSHOT_PATH=\(shellQuoted(snapshotURL.path))
         ORIGINAL_PATH=\(shellQuoted(originalStatusLineBackupURL.path))
@@ -304,12 +350,13 @@ struct ClaudeStatuslineBridgeService {
         """
 
         try content.write(to: scriptURL, atomically: true, encoding: .utf8)
-        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: scriptURL.path)
     }
 
     private func storeOriginalStatusLine(_ payload: StoredOriginalStatusLine) throws {
         let data = try JSONEncoder.limits.encode(payload)
         try data.write(to: originalStatusLineBackupURL, options: .atomic)
+        try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: originalStatusLineBackupURL.path)
     }
 
     private func loadOriginalStatusLine() throws -> StoredOriginalStatusLine? {

@@ -57,9 +57,16 @@ public struct LimitsWidgetSnapshotStore {
 
     public func writeSnapshot(_ snapshot: LimitsWidgetSnapshot) throws {
         let url = try snapshotURL()
-        try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let directory = url.deletingLastPathComponent()
+        try fileManager.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let data = try JSONEncoder.limitsWidget.encode(snapshot)
         try data.write(to: url, options: .atomic)
+        try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
     public func snapshotURL() throws -> URL {

@@ -63,7 +63,6 @@ struct MenuBarContentView: View {
             panelActionButton(L10n.tr("action.open_window")) {
                 openAccountsWindow()
             }
-            .disabled(model.isBusy)
 
             Spacer(minLength: 0)
         }
@@ -126,12 +125,6 @@ struct MenuBarContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: 326)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.98))
-        .onAppear {
-            Task {
-                await model.refreshCurrentCLIPanel(forceProbe: false)
-                await model.refreshCurrentClaudeState()
-            }
-        }
     }
 
     @ViewBuilder
@@ -204,7 +197,7 @@ struct MenuBarContentView: View {
                     ) {
                         Task { await model.activateAccount(account) }
                     }
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.codex))
                 }
             }
         }
@@ -251,7 +244,7 @@ struct MenuBarContentView: View {
                     ) {
                         Task { await model.activateClaudeAccount(account) }
                     }
-                    .disabled(model.isBusy)
+                    .disabled(model.isProviderBusy(.claude))
                 }
             }
         }
@@ -264,7 +257,7 @@ struct MenuBarContentView: View {
                 panelActionButton(L10n.tr("action.add"), primary: true) {
                     Task { await model.addAccount() }
                 }
-                .disabled(model.isBusy)
+                .disabled(model.isProviderBusy(.codex))
             }
 
             Spacer(minLength: 0)

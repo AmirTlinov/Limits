@@ -36,6 +36,11 @@ import Testing
     #expect(installedStatusLine["padding"] as? Int == 2)
     #expect(FileManager.default.fileExists(atPath: service.scriptURL.path))
     #expect(FileManager.default.fileExists(atPath: service.originalStatusLineBackupURL.path))
+    #expect(bridgePermissions(at: appSupport) == 0o700)
+    #expect(bridgePermissions(at: service.scriptURL) == 0o700)
+    #expect(bridgePermissions(at: service.originalStatusLineBackupURL) == 0o600)
+    #expect(bridgePermissions(at: settingsURL) == 0o600)
+    #expect(try String(contentsOf: service.scriptURL, encoding: .utf8).contains("umask 077"))
 
     let status = try service.bridgeStatus()
     #expect(status.installed)
@@ -47,6 +52,29 @@ import Testing
     let restoredSettings = try #require(JSONSerialization.jsonObject(with: restoredSettingsData) as? [String: Any])
     let restoredStatusLine = try #require(restoredSettings["statusLine"] as? [String: Any])
     #expect(restoredStatusLine["command"] as? String == "echo original-statusline")
+}
+
+@Test func claudeSettingsCommitPreservesConcurrentExternalChange() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "limits-claude-settings-cas-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let settingsURL = root.appending(path: "settings.json")
+    let original = Data("{\"language\":\"Russian\"}".utf8)
+    let external = Data("{\"language\":\"English\"}".utf8)
+    try original.write(to: settingsURL)
+    let store = ClaudeSettingsDocumentStore(settingsURL: settingsURL)
+    let snapshot = try store.read()
+    try external.write(to: settingsURL, options: .atomic)
+
+    do {
+        try store.commit(["language": "French"], expectedData: snapshot.data)
+        Issue.record("Expected concurrent settings change")
+    } catch ClaudeStatuslineBridgeServiceError.settingsChanged {
+        // Expected.
+    }
+
+    #expect(try Data(contentsOf: settingsURL) == external)
 }
 
 @Test func claudeBridgeRejectsUnsupportedExistingStatusLine() throws {
@@ -114,4 +142,9 @@ import Testing
     #expect(payload.snapshot.sessionID == "session_123")
     #expect(payload.snapshot.rateLimits?.fiveHour?.usedPercentage == 23.5)
     #expect(payload.snapshot.rateLimits?.sevenDay?.usedPercentage == 41.2)
+}
+
+private func bridgePermissions(at url: URL) -> Int {
+    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+    return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
 }
