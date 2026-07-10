@@ -1,0 +1,1268 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		D0000000000000000000001B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001A /* Cocoa.framework */; };
+		D00000000000000000000025 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001A /* Cocoa.framework */; };
+		D0000000000000000000002E /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001A /* Cocoa.framework */; };
+		D00000000000000000000037 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001A /* Cocoa.framework */; };
+		D00000000000000000000040 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001A /* Cocoa.framework */; };
+		D00000000000000000000042 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000041 /* AppModel.swift */; };
+		D00000000000000000000044 /* ApplicationSceneRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000043 /* ApplicationSceneRouter.swift */; };
+		D00000000000000000000046 /* FirstLaunchPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000045 /* FirstLaunchPolicy.swift */; };
+		D00000000000000000000048 /* LimitsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000047 /* LimitsApp.swift */; };
+		D0000000000000000000004A /* LimitsWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000049 /* LimitsWidgetSnapshotPublisher.swift */; };
+		D0000000000000000000004C /* RuntimeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004B /* RuntimeLog.swift */; };
+		D0000000000000000000004E /* TrayStatusIconAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004D /* TrayStatusIconAsset.swift */; };
+		D00000000000000000000050 /* TrayStatusIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004F /* TrayStatusIconRenderer.swift */; };
+		D00000000000000000000052 /* WindowActivationTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000051 /* WindowActivationTracker.swift */; };
+		D00000000000000000000054 /* AccountsPresentationLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000053 /* AccountsPresentationLogic.swift */; };
+		D00000000000000000000056 /* AppServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000055 /* AppServerModels.swift */; };
+		D00000000000000000000058 /* ClaudeStoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000057 /* ClaudeStoredAccount.swift */; };
+		D0000000000000000000005A /* ProviderPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000059 /* ProviderPresentation.swift */; };
+		D0000000000000000000005C /* RateLimitDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005B /* RateLimitDisplay.swift */; };
+		D0000000000000000000005E /* StoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005D /* StoredAccount.swift */; };
+		D00000000000000000000060 /* TrayStatusPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005F /* TrayStatusPresentation.swift */; };
+		D00000000000000000000062 /* AccountsPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000061 /* AccountsPersistence.swift */; };
+		D00000000000000000000064 /* AsyncCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000063 /* AsyncCommandRunner.swift */; };
+		D00000000000000000000066 /* ClaudeAuthStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000065 /* ClaudeAuthStatusService.swift */; };
+		D00000000000000000000068 /* ClaudeCredentialSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000067 /* ClaudeCredentialSwitchTransaction.swift */; };
+		D0000000000000000000006A /* ClaudeStatuslineBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000069 /* ClaudeStatuslineBridgeService.swift */; };
+		D0000000000000000000006C /* CodexAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006B /* CodexAccountService.swift */; };
+		D0000000000000000000006E /* CodexAppServerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006D /* CodexAppServerTransport.swift */; };
+		D00000000000000000000070 /* CodexAuthBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006F /* CodexAuthBlob.swift */; };
+		D00000000000000000000072 /* CodexAuthSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000071 /* CodexAuthSwitchTransaction.swift */; };
+		D00000000000000000000074 /* CodexExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000073 /* CodexExecutableLocator.swift */; };
+		D00000000000000000000076 /* GlobalClaudeCredentialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000075 /* GlobalClaudeCredentialService.swift */; };
+		D00000000000000000000078 /* GlobalCodexAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000077 /* GlobalCodexAuthService.swift */; };
+		D0000000000000000000007A /* KeychainAuthVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000079 /* KeychainAuthVault.swift */; };
+		D0000000000000000000007C /* PersistedStateMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007B /* PersistedStateMigrator.swift */; };
+		D0000000000000000000007E /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007D /* L10n.swift */; };
+		D00000000000000000000080 /* AccountsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007F /* AccountsWindowView.swift */; };
+		D00000000000000000000082 /* CLIStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000081 /* CLIStateBadge.swift */; };
+		D00000000000000000000084 /* CompactLimitBarsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000083 /* CompactLimitBarsView.swift */; };
+		D00000000000000000000086 /* GlassPanelChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000085 /* GlassPanelChrome.swift */; };
+		D00000000000000000000088 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000087 /* MenuBarContentView.swift */; };
+		D0000000000000000000008A /* NativeMenuBarScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000089 /* NativeMenuBarScene.swift */; };
+		D0000000000000000000008C /* ProviderAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008B /* ProviderAccent.swift */; };
+		D0000000000000000000008E /* ProviderFilterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008D /* ProviderFilterPicker.swift */; };
+		D00000000000000000000090 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008F /* SettingsView.swift */; };
+		D00000000000000000000092 /* WindowChromeConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000091 /* WindowChromeConfigurator.swift */; };
+		D00000000000000000000094 /* LimitsWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000093 /* LimitsWidgetSnapshot.swift */; };
+		D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000095 /* LimitsWidgetSnapshotStore.swift */; };
+		D00000000000000000000098 /* LimitsCurrentLimitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000097 /* LimitsCurrentLimitsWidget.swift */; };
+		D0000000000000000000009A /* AccountsPresentationLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000099 /* AccountsPresentationLogicTests.swift */; };
+		D0000000000000000000009C /* ApplicationSceneRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009B /* ApplicationSceneRouterTests.swift */; };
+		D0000000000000000000009E /* AsyncCommandRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009D /* AsyncCommandRunnerTests.swift */; };
+		D000000000000000000000A0 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009F /* ClaudeCredentialSwitchTransactionTests.swift */; };
+		D000000000000000000000A2 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A1 /* ClaudeStatuslineBridgeServiceTests.swift */; };
+		D000000000000000000000A4 /* CodexAuthBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A3 /* CodexAuthBlobTests.swift */; };
+		D000000000000000000000A6 /* CodexAuthSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A5 /* CodexAuthSwitchTransactionTests.swift */; };
+		D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A7 /* CodexRuntimeEnvironmentTests.swift */; };
+		D000000000000000000000AA /* FirstLaunchPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A9 /* FirstLaunchPolicyTests.swift */; };
+		D000000000000000000000AC /* KeychainAuthVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AB /* KeychainAuthVaultTests.swift */; };
+		D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AD /* LimitsWidgetSnapshotTests.swift */; };
+		D000000000000000000000B0 /* PersistedStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AF /* PersistedStateMigrationTests.swift */; };
+		D000000000000000000000B2 /* RateLimitDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B1 /* RateLimitDisplayTests.swift */; };
+		D000000000000000000000B4 /* ReauthenticationResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B3 /* ReauthenticationResolutionTests.swift */; };
+		D000000000000000000000B6 /* LimitsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B5 /* LimitsUITests.swift */; };
+		D000000000000000000000BE /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B8 /* Localizable.strings */; };
+		D000000000000000000000C1 /* claude.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C0 /* claude.svg */; };
+		D000000000000000000000C3 /* codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C2 /* codex.svg */; };
+		D000000000000000000000C5 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C4 /* AppIcon.icns */; };
+		D000000000000000000000D6 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; };
+		D000000000000000000000D7 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; };
+		D000000000000000000000D8 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; };
+		D000000000000000000000DA /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000020 /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000DC /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002A /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D000000000000000000000CA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0000000000000000000001C;
+			remoteInfo = LimitsShared;
+		};
+		D000000000000000000000CC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D00000000000000000000026;
+			remoteInfo = LimitsWidgetExtension;
+		};
+		D000000000000000000000CE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0000000000000000000001C;
+			remoteInfo = LimitsShared;
+		};
+		D000000000000000000000D0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D00000000000000000000011;
+			remoteInfo = Limits;
+		};
+		D000000000000000000000D2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0000000000000000000001C;
+			remoteInfo = LimitsShared;
+		};
+		D000000000000000000000D4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D00000000000000000000011;
+			remoteInfo = Limits;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D000000000000000000000D9 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D000000000000000000000DA /* LimitsShared.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D000000000000000000000DB /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D000000000000000000000DC /* LimitsWidgetExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		D00000000000000000000015 /* Limits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Limits.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0000000000000000000001A /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		D00000000000000000000020 /* LimitsShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LimitsShared.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0000000000000000000002A /* LimitsWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LimitsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D00000000000000000000033 /* LimitsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LimitsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0000000000000000000003C /* LimitsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LimitsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D00000000000000000000041 /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppModel.swift; path = App/AppModel.swift; sourceTree = "<group>"; };
+		D00000000000000000000043 /* ApplicationSceneRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApplicationSceneRouter.swift; path = App/ApplicationSceneRouter.swift; sourceTree = "<group>"; };
+		D00000000000000000000045 /* FirstLaunchPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FirstLaunchPolicy.swift; path = App/FirstLaunchPolicy.swift; sourceTree = "<group>"; };
+		D00000000000000000000047 /* LimitsApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsApp.swift; path = App/LimitsApp.swift; sourceTree = "<group>"; };
+		D00000000000000000000049 /* LimitsWidgetSnapshotPublisher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsWidgetSnapshotPublisher.swift; path = App/LimitsWidgetSnapshotPublisher.swift; sourceTree = "<group>"; };
+		D0000000000000000000004B /* RuntimeLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RuntimeLog.swift; path = App/RuntimeLog.swift; sourceTree = "<group>"; };
+		D0000000000000000000004D /* TrayStatusIconAsset.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconAsset.swift; path = App/TrayStatusIconAsset.swift; sourceTree = "<group>"; };
+		D0000000000000000000004F /* TrayStatusIconRenderer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconRenderer.swift; path = App/TrayStatusIconRenderer.swift; sourceTree = "<group>"; };
+		D00000000000000000000051 /* WindowActivationTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowActivationTracker.swift; path = App/WindowActivationTracker.swift; sourceTree = "<group>"; };
+		D00000000000000000000053 /* AccountsPresentationLogic.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPresentationLogic.swift; path = Models/AccountsPresentationLogic.swift; sourceTree = "<group>"; };
+		D00000000000000000000055 /* AppServerModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppServerModels.swift; path = Models/AppServerModels.swift; sourceTree = "<group>"; };
+		D00000000000000000000057 /* ClaudeStoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStoredAccount.swift; path = Models/ClaudeStoredAccount.swift; sourceTree = "<group>"; };
+		D00000000000000000000059 /* ProviderPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderPresentation.swift; path = Models/ProviderPresentation.swift; sourceTree = "<group>"; };
+		D0000000000000000000005B /* RateLimitDisplay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RateLimitDisplay.swift; path = Models/RateLimitDisplay.swift; sourceTree = "<group>"; };
+		D0000000000000000000005D /* StoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StoredAccount.swift; path = Models/StoredAccount.swift; sourceTree = "<group>"; };
+		D0000000000000000000005F /* TrayStatusPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusPresentation.swift; path = Models/TrayStatusPresentation.swift; sourceTree = "<group>"; };
+		D00000000000000000000061 /* AccountsPersistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPersistence.swift; path = Services/AccountsPersistence.swift; sourceTree = "<group>"; };
+		D00000000000000000000063 /* AsyncCommandRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AsyncCommandRunner.swift; path = Services/AsyncCommandRunner.swift; sourceTree = "<group>"; };
+		D00000000000000000000065 /* ClaudeAuthStatusService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeAuthStatusService.swift; path = Services/ClaudeAuthStatusService.swift; sourceTree = "<group>"; };
+		D00000000000000000000067 /* ClaudeCredentialSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeCredentialSwitchTransaction.swift; path = Services/ClaudeCredentialSwitchTransaction.swift; sourceTree = "<group>"; };
+		D00000000000000000000069 /* ClaudeStatuslineBridgeService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStatuslineBridgeService.swift; path = Services/ClaudeStatuslineBridgeService.swift; sourceTree = "<group>"; };
+		D0000000000000000000006B /* CodexAccountService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountService.swift; path = Services/CodexAccountService.swift; sourceTree = "<group>"; };
+		D0000000000000000000006D /* CodexAppServerTransport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAppServerTransport.swift; path = Services/CodexAppServerTransport.swift; sourceTree = "<group>"; };
+		D0000000000000000000006F /* CodexAuthBlob.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthBlob.swift; path = Services/CodexAuthBlob.swift; sourceTree = "<group>"; };
+		D00000000000000000000071 /* CodexAuthSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthSwitchTransaction.swift; path = Services/CodexAuthSwitchTransaction.swift; sourceTree = "<group>"; };
+		D00000000000000000000073 /* CodexExecutableLocator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexExecutableLocator.swift; path = Services/CodexExecutableLocator.swift; sourceTree = "<group>"; };
+		D00000000000000000000075 /* GlobalClaudeCredentialService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalClaudeCredentialService.swift; path = Services/GlobalClaudeCredentialService.swift; sourceTree = "<group>"; };
+		D00000000000000000000077 /* GlobalCodexAuthService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalCodexAuthService.swift; path = Services/GlobalCodexAuthService.swift; sourceTree = "<group>"; };
+		D00000000000000000000079 /* KeychainAuthVault.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainAuthVault.swift; path = Services/KeychainAuthVault.swift; sourceTree = "<group>"; };
+		D0000000000000000000007B /* PersistedStateMigrator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersistedStateMigrator.swift; path = Services/PersistedStateMigrator.swift; sourceTree = "<group>"; };
+		D0000000000000000000007D /* L10n.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = Support/L10n.swift; sourceTree = "<group>"; };
+		D0000000000000000000007F /* AccountsWindowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsWindowView.swift; path = Views/AccountsWindowView.swift; sourceTree = "<group>"; };
+		D00000000000000000000081 /* CLIStateBadge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CLIStateBadge.swift; path = Views/CLIStateBadge.swift; sourceTree = "<group>"; };
+		D00000000000000000000083 /* CompactLimitBarsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CompactLimitBarsView.swift; path = Views/CompactLimitBarsView.swift; sourceTree = "<group>"; };
+		D00000000000000000000085 /* GlassPanelChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlassPanelChrome.swift; path = Views/GlassPanelChrome.swift; sourceTree = "<group>"; };
+		D00000000000000000000087 /* MenuBarContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = Views/MenuBarContentView.swift; sourceTree = "<group>"; };
+		D00000000000000000000089 /* NativeMenuBarScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NativeMenuBarScene.swift; path = Views/NativeMenuBarScene.swift; sourceTree = "<group>"; };
+		D0000000000000000000008B /* ProviderAccent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderAccent.swift; path = Views/ProviderAccent.swift; sourceTree = "<group>"; };
+		D0000000000000000000008D /* ProviderFilterPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderFilterPicker.swift; path = Views/ProviderFilterPicker.swift; sourceTree = "<group>"; };
+		D0000000000000000000008F /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
+		D00000000000000000000091 /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowChromeConfigurator.swift; path = Views/WindowChromeConfigurator.swift; sourceTree = "<group>"; };
+		D00000000000000000000093 /* LimitsWidgetSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshot.swift; sourceTree = "<group>"; };
+		D00000000000000000000095 /* LimitsWidgetSnapshotStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotStore.swift; sourceTree = "<group>"; };
+		D00000000000000000000097 /* LimitsCurrentLimitsWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsCurrentLimitsWidget.swift; sourceTree = "<group>"; };
+		D00000000000000000000099 /* AccountsPresentationLogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsPresentationLogicTests.swift; sourceTree = "<group>"; };
+		D0000000000000000000009B /* ApplicationSceneRouterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApplicationSceneRouterTests.swift; sourceTree = "<group>"; };
+		D0000000000000000000009D /* AsyncCommandRunnerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AsyncCommandRunnerTests.swift; sourceTree = "<group>"; };
+		D0000000000000000000009F /* ClaudeCredentialSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialSwitchTransactionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A1 /* ClaudeStatuslineBridgeServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeStatuslineBridgeServiceTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A3 /* CodexAuthBlobTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthBlobTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A5 /* CodexAuthSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthSwitchTransactionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A7 /* CodexRuntimeEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexRuntimeEnvironmentTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A9 /* FirstLaunchPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FirstLaunchPolicyTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AB /* KeychainAuthVaultTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeychainAuthVaultTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AD /* LimitsWidgetSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AF /* PersistedStateMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PersistedStateMigrationTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B1 /* RateLimitDisplayTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateLimitDisplayTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B3 /* ReauthenticationResolutionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReauthenticationResolutionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B5 /* LimitsUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsUITests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B9 /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BA /* es */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BB /* fr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BC /* ru */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BD /* zh-Hans */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		D000000000000000000000C0 /* claude.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = claude.svg; sourceTree = "<group>"; };
+		D000000000000000000000C2 /* codex.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = codex.svg; sourceTree = "<group>"; };
+		D000000000000000000000C4 /* AppIcon.icns */ = {isa = PBXFileReference; includeInIndex = 1; path = AppIcon.icns; sourceTree = "<group>"; };
+		D000000000000000000000C6 /* Limits-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Limits-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000C7 /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000C8 /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
+		D000000000000000000000C9 /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D00000000000000000000017 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0000000000000000000001B /* Cocoa.framework in Frameworks */,
+				D000000000000000000000D6 /* LimitsShared.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000023 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000025 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000002C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0000000000000000000002E /* Cocoa.framework in Frameworks */,
+				D000000000000000000000D7 /* LimitsShared.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000035 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000037 /* Cocoa.framework in Frameworks */,
+				D000000000000000000000D8 /* LimitsShared.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000003E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000040 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D00000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				D0000000000000000000000B /* Assets */,
+				D0000000000000000000000A /* Config */,
+				D00000000000000000000007 /* Frameworks */,
+				D00000000000000000000003 /* Products */,
+				D00000000000000000000008 /* Sources */,
+				D00000000000000000000009 /* Tests */,
+			);
+			sourceTree = "<group>";
+		};
+		D00000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000015 /* Limits.app */,
+				D00000000000000000000020 /* LimitsShared.framework */,
+				D00000000000000000000033 /* LimitsTests.xctest */,
+				D0000000000000000000003C /* LimitsUITests.xctest */,
+				D0000000000000000000002A /* LimitsWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000007 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000019 /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000008 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				D0000000000000000000000C /* Limits */,
+				D0000000000000000000000D /* LimitsShared */,
+				D0000000000000000000000E /* LimitsWidgetExtension */,
+			);
+			name = Sources;
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000009 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				D0000000000000000000000F /* LimitsTests */,
+				D00000000000000000000010 /* LimitsUITests */,
+			);
+			name = Tests;
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000A /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000C8 /* Limits.entitlements */,
+				D000000000000000000000C6 /* Limits-Info.plist */,
+				D000000000000000000000C9 /* LimitsWidgetExtension.entitlements */,
+				D000000000000000000000C7 /* LimitsWidgetExtension-Info.plist */,
+			);
+			name = Config;
+			path = Config;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000B /* Assets */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000C4 /* AppIcon.icns */,
+			);
+			name = Assets;
+			path = Assets;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000C /* Limits */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000061 /* AccountsPersistence.swift */,
+				D00000000000000000000053 /* AccountsPresentationLogic.swift */,
+				D0000000000000000000007F /* AccountsWindowView.swift */,
+				D00000000000000000000043 /* ApplicationSceneRouter.swift */,
+				D00000000000000000000041 /* AppModel.swift */,
+				D00000000000000000000055 /* AppServerModels.swift */,
+				D00000000000000000000063 /* AsyncCommandRunner.swift */,
+				D00000000000000000000065 /* ClaudeAuthStatusService.swift */,
+				D00000000000000000000067 /* ClaudeCredentialSwitchTransaction.swift */,
+				D00000000000000000000069 /* ClaudeStatuslineBridgeService.swift */,
+				D00000000000000000000057 /* ClaudeStoredAccount.swift */,
+				D00000000000000000000081 /* CLIStateBadge.swift */,
+				D0000000000000000000006B /* CodexAccountService.swift */,
+				D0000000000000000000006D /* CodexAppServerTransport.swift */,
+				D0000000000000000000006F /* CodexAuthBlob.swift */,
+				D00000000000000000000071 /* CodexAuthSwitchTransaction.swift */,
+				D00000000000000000000073 /* CodexExecutableLocator.swift */,
+				D00000000000000000000083 /* CompactLimitBarsView.swift */,
+				D00000000000000000000045 /* FirstLaunchPolicy.swift */,
+				D00000000000000000000085 /* GlassPanelChrome.swift */,
+				D00000000000000000000075 /* GlobalClaudeCredentialService.swift */,
+				D00000000000000000000077 /* GlobalCodexAuthService.swift */,
+				D00000000000000000000079 /* KeychainAuthVault.swift */,
+				D0000000000000000000007D /* L10n.swift */,
+				D00000000000000000000047 /* LimitsApp.swift */,
+				D00000000000000000000049 /* LimitsWidgetSnapshotPublisher.swift */,
+				D00000000000000000000087 /* MenuBarContentView.swift */,
+				D00000000000000000000089 /* NativeMenuBarScene.swift */,
+				D0000000000000000000007B /* PersistedStateMigrator.swift */,
+				D0000000000000000000008B /* ProviderAccent.swift */,
+				D0000000000000000000008D /* ProviderFilterPicker.swift */,
+				D00000000000000000000059 /* ProviderPresentation.swift */,
+				D0000000000000000000005B /* RateLimitDisplay.swift */,
+				D000000000000000000000B7 /* Resources */,
+				D0000000000000000000004B /* RuntimeLog.swift */,
+				D0000000000000000000008F /* SettingsView.swift */,
+				D0000000000000000000005D /* StoredAccount.swift */,
+				D0000000000000000000004D /* TrayStatusIconAsset.swift */,
+				D0000000000000000000004F /* TrayStatusIconRenderer.swift */,
+				D0000000000000000000005F /* TrayStatusPresentation.swift */,
+				D00000000000000000000051 /* WindowActivationTracker.swift */,
+				D00000000000000000000091 /* WindowChromeConfigurator.swift */,
+			);
+			name = Limits;
+			path = Limits;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000D /* LimitsShared */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000093 /* LimitsWidgetSnapshot.swift */,
+				D00000000000000000000095 /* LimitsWidgetSnapshotStore.swift */,
+			);
+			name = LimitsShared;
+			path = LimitsShared;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000E /* LimitsWidgetExtension */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000097 /* LimitsCurrentLimitsWidget.swift */,
+			);
+			name = LimitsWidgetExtension;
+			path = LimitsWidgetExtension;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000000F /* LimitsTests */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000099 /* AccountsPresentationLogicTests.swift */,
+				D0000000000000000000009B /* ApplicationSceneRouterTests.swift */,
+				D0000000000000000000009D /* AsyncCommandRunnerTests.swift */,
+				D0000000000000000000009F /* ClaudeCredentialSwitchTransactionTests.swift */,
+				D000000000000000000000A1 /* ClaudeStatuslineBridgeServiceTests.swift */,
+				D000000000000000000000A3 /* CodexAuthBlobTests.swift */,
+				D000000000000000000000A5 /* CodexAuthSwitchTransactionTests.swift */,
+				D000000000000000000000A7 /* CodexRuntimeEnvironmentTests.swift */,
+				D000000000000000000000A9 /* FirstLaunchPolicyTests.swift */,
+				D000000000000000000000AB /* KeychainAuthVaultTests.swift */,
+				D000000000000000000000AD /* LimitsWidgetSnapshotTests.swift */,
+				D000000000000000000000AF /* PersistedStateMigrationTests.swift */,
+				D000000000000000000000B1 /* RateLimitDisplayTests.swift */,
+				D000000000000000000000B3 /* ReauthenticationResolutionTests.swift */,
+			);
+			name = LimitsTests;
+			path = LimitsTests;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000010 /* LimitsUITests */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000B5 /* LimitsUITests.swift */,
+			);
+			name = LimitsUITests;
+			path = LimitsUITests;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000019 /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				D0000000000000000000001A /* Cocoa.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
+		D000000000000000000000B7 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000B8 /* Localizable.strings */,
+				D000000000000000000000BF /* TrayIcons */,
+			);
+			name = Resources;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		D000000000000000000000BF /* TrayIcons */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000C0 /* claude.svg */,
+				D000000000000000000000C2 /* codex.svg */,
+			);
+			name = TrayIcons;
+			path = TrayIcons;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		D00000000000000000000021 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		D00000000000000000000011 /* Limits */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D00000000000000000000012 /* Build configuration list for PBXNativeTarget "Limits" */;
+			buildPhases = (
+				D00000000000000000000016 /* Sources */,
+				D00000000000000000000017 /* Frameworks */,
+				D00000000000000000000018 /* Resources */,
+				D000000000000000000000D9 /* Embed Frameworks */,
+				D000000000000000000000DB /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D000000000000000000000CB /* PBXTargetDependency */,
+				D000000000000000000000CD /* PBXTargetDependency */,
+			);
+			name = Limits;
+			productName = Limits;
+			productReference = D00000000000000000000015 /* Limits.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D0000000000000000000001C /* LimitsShared */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D0000000000000000000001D /* Build configuration list for PBXNativeTarget "LimitsShared" */;
+			buildPhases = (
+				D00000000000000000000021 /* Headers */,
+				D00000000000000000000022 /* Sources */,
+				D00000000000000000000023 /* Frameworks */,
+				D00000000000000000000024 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LimitsShared;
+			productName = LimitsShared;
+			productReference = D00000000000000000000020 /* LimitsShared.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		D00000000000000000000026 /* LimitsWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D00000000000000000000027 /* Build configuration list for PBXNativeTarget "LimitsWidgetExtension" */;
+			buildPhases = (
+				D0000000000000000000002B /* Sources */,
+				D0000000000000000000002C /* Frameworks */,
+				D0000000000000000000002D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D000000000000000000000CF /* PBXTargetDependency */,
+			);
+			name = LimitsWidgetExtension;
+			productName = LimitsWidgetExtension;
+			productReference = D0000000000000000000002A /* LimitsWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		D0000000000000000000002F /* LimitsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D00000000000000000000030 /* Build configuration list for PBXNativeTarget "LimitsTests" */;
+			buildPhases = (
+				D00000000000000000000034 /* Sources */,
+				D00000000000000000000035 /* Frameworks */,
+				D00000000000000000000036 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D000000000000000000000D1 /* PBXTargetDependency */,
+				D000000000000000000000D3 /* PBXTargetDependency */,
+			);
+			name = LimitsTests;
+			productName = LimitsTests;
+			productReference = D00000000000000000000033 /* LimitsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D00000000000000000000038 /* LimitsUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D00000000000000000000039 /* Build configuration list for PBXNativeTarget "LimitsUITests" */;
+			buildPhases = (
+				D0000000000000000000003D /* Sources */,
+				D0000000000000000000003E /* Frameworks */,
+				D0000000000000000000003F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D000000000000000000000D5 /* PBXTargetDependency */,
+			);
+			name = LimitsUITests;
+			productName = LimitsUITests;
+			productReference = D0000000000000000000003C /* LimitsUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					D00000000000000000000011 = {
+						CreatedOnToolsVersion = 26.0;
+						DevelopmentTeam = M94V58FCVP;
+						ProvisioningStyle = Automatic;
+					};
+					D0000000000000000000001C = {
+						CreatedOnToolsVersion = 26.0;
+						DevelopmentTeam = M94V58FCVP;
+						ProvisioningStyle = Automatic;
+					};
+					D00000000000000000000026 = {
+						CreatedOnToolsVersion = 26.0;
+						DevelopmentTeam = M94V58FCVP;
+						ProvisioningStyle = Automatic;
+					};
+					D0000000000000000000002F = {
+						CreatedOnToolsVersion = 26.0;
+						DevelopmentTeam = M94V58FCVP;
+						ProvisioningStyle = Automatic;
+					};
+					D00000000000000000000038 = {
+						CreatedOnToolsVersion = 26.0;
+						DevelopmentTeam = M94V58FCVP;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D00000000000000000000004 /* Build configuration list for PBXProject "Limits" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D00000000000000000000002;
+			minimizedProjectReferenceProxies = 0;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D00000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D00000000000000000000011 /* Limits */,
+				D0000000000000000000001C /* LimitsShared */,
+				D0000000000000000000002F /* LimitsTests */,
+				D00000000000000000000038 /* LimitsUITests */,
+				D00000000000000000000026 /* LimitsWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D00000000000000000000018 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D000000000000000000000C5 /* AppIcon.icns in Resources */,
+				D000000000000000000000C1 /* claude.svg in Resources */,
+				D000000000000000000000C3 /* codex.svg in Resources */,
+				D000000000000000000000BE /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000024 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000002D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000036 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000003F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D00000000000000000000016 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000062 /* AccountsPersistence.swift in Sources */,
+				D00000000000000000000054 /* AccountsPresentationLogic.swift in Sources */,
+				D00000000000000000000080 /* AccountsWindowView.swift in Sources */,
+				D00000000000000000000044 /* ApplicationSceneRouter.swift in Sources */,
+				D00000000000000000000042 /* AppModel.swift in Sources */,
+				D00000000000000000000056 /* AppServerModels.swift in Sources */,
+				D00000000000000000000064 /* AsyncCommandRunner.swift in Sources */,
+				D00000000000000000000066 /* ClaudeAuthStatusService.swift in Sources */,
+				D00000000000000000000068 /* ClaudeCredentialSwitchTransaction.swift in Sources */,
+				D0000000000000000000006A /* ClaudeStatuslineBridgeService.swift in Sources */,
+				D00000000000000000000058 /* ClaudeStoredAccount.swift in Sources */,
+				D00000000000000000000082 /* CLIStateBadge.swift in Sources */,
+				D0000000000000000000006C /* CodexAccountService.swift in Sources */,
+				D0000000000000000000006E /* CodexAppServerTransport.swift in Sources */,
+				D00000000000000000000070 /* CodexAuthBlob.swift in Sources */,
+				D00000000000000000000072 /* CodexAuthSwitchTransaction.swift in Sources */,
+				D00000000000000000000074 /* CodexExecutableLocator.swift in Sources */,
+				D00000000000000000000084 /* CompactLimitBarsView.swift in Sources */,
+				D00000000000000000000046 /* FirstLaunchPolicy.swift in Sources */,
+				D00000000000000000000086 /* GlassPanelChrome.swift in Sources */,
+				D00000000000000000000076 /* GlobalClaudeCredentialService.swift in Sources */,
+				D00000000000000000000078 /* GlobalCodexAuthService.swift in Sources */,
+				D0000000000000000000007A /* KeychainAuthVault.swift in Sources */,
+				D0000000000000000000007E /* L10n.swift in Sources */,
+				D00000000000000000000048 /* LimitsApp.swift in Sources */,
+				D0000000000000000000004A /* LimitsWidgetSnapshotPublisher.swift in Sources */,
+				D00000000000000000000088 /* MenuBarContentView.swift in Sources */,
+				D0000000000000000000008A /* NativeMenuBarScene.swift in Sources */,
+				D0000000000000000000007C /* PersistedStateMigrator.swift in Sources */,
+				D0000000000000000000008C /* ProviderAccent.swift in Sources */,
+				D0000000000000000000008E /* ProviderFilterPicker.swift in Sources */,
+				D0000000000000000000005A /* ProviderPresentation.swift in Sources */,
+				D0000000000000000000005C /* RateLimitDisplay.swift in Sources */,
+				D0000000000000000000004C /* RuntimeLog.swift in Sources */,
+				D00000000000000000000090 /* SettingsView.swift in Sources */,
+				D0000000000000000000005E /* StoredAccount.swift in Sources */,
+				D0000000000000000000004E /* TrayStatusIconAsset.swift in Sources */,
+				D00000000000000000000050 /* TrayStatusIconRenderer.swift in Sources */,
+				D00000000000000000000060 /* TrayStatusPresentation.swift in Sources */,
+				D00000000000000000000052 /* WindowActivationTracker.swift in Sources */,
+				D00000000000000000000092 /* WindowChromeConfigurator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000022 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000094 /* LimitsWidgetSnapshot.swift in Sources */,
+				D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000002B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D00000000000000000000098 /* LimitsCurrentLimitsWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D00000000000000000000034 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0000000000000000000009A /* AccountsPresentationLogicTests.swift in Sources */,
+				D0000000000000000000009C /* ApplicationSceneRouterTests.swift in Sources */,
+				D0000000000000000000009E /* AsyncCommandRunnerTests.swift in Sources */,
+				D000000000000000000000A0 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */,
+				D000000000000000000000A2 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */,
+				D000000000000000000000A4 /* CodexAuthBlobTests.swift in Sources */,
+				D000000000000000000000A6 /* CodexAuthSwitchTransactionTests.swift in Sources */,
+				D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift in Sources */,
+				D000000000000000000000AA /* FirstLaunchPolicyTests.swift in Sources */,
+				D000000000000000000000AC /* KeychainAuthVaultTests.swift in Sources */,
+				D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift in Sources */,
+				D000000000000000000000B0 /* PersistedStateMigrationTests.swift in Sources */,
+				D000000000000000000000B2 /* RateLimitDisplayTests.swift in Sources */,
+				D000000000000000000000B4 /* ReauthenticationResolutionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0000000000000000000003D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D000000000000000000000B6 /* LimitsUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D000000000000000000000CB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsShared;
+			target = D0000000000000000000001C /* LimitsShared */;
+			targetProxy = D000000000000000000000CA /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000CD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsWidgetExtension;
+			target = D00000000000000000000026 /* LimitsWidgetExtension */;
+			targetProxy = D000000000000000000000CC /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000CF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsShared;
+			target = D0000000000000000000001C /* LimitsShared */;
+			targetProxy = D000000000000000000000CE /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000D1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Limits;
+			target = D00000000000000000000011 /* Limits */;
+			targetProxy = D000000000000000000000D0 /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsShared;
+			target = D0000000000000000000001C /* LimitsShared */;
+			targetProxy = D000000000000000000000D2 /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Limits;
+			target = D00000000000000000000011 /* Limits */;
+			targetProxy = D000000000000000000000D4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		D000000000000000000000B8 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				D000000000000000000000B9 /* en */,
+				D000000000000000000000BA /* es */,
+				D000000000000000000000BB /* fr */,
+				D000000000000000000000BC /* ru */,
+				D000000000000000000000BD /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		D00000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		D00000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D00000000000000000000013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Limits.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/Limits-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits;
+				PRODUCT_NAME = Limits;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D00000000000000000000014 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Limits.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/Limits-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits;
+				PRODUCT_NAME = Limits;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		D0000000000000000000001E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.Shared;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		D0000000000000000000001F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.Shared;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		D00000000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/LimitsWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/LimitsWidgetExtension-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.WidgetExtension;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D00000000000000000000029 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/LimitsWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/LimitsWidgetExtension-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.WidgetExtension;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		D00000000000000000000031 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.Tests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Limits.app/Contents/MacOS/Limits";
+			};
+			name = Release;
+		};
+		D00000000000000000000032 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.Tests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Limits.app/Contents/MacOS/Limits";
+			};
+			name = Debug;
+		};
+		D0000000000000000000003A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.UITests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Limits;
+			};
+			name = Release;
+		};
+		D0000000000000000000003B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M94V58FCVP;
+				GENERATE_INFOPLIST_FILE = YES;
+				LIMITS_APP_GROUP_ID = M94V58FCVP.com.amir.Limits.shared;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.amir.Limits.UITests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Limits;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D00000000000000000000004 /* Build configuration list for PBXProject "Limits" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D00000000000000000000005 /* Debug */,
+				D00000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D00000000000000000000012 /* Build configuration list for PBXNativeTarget "Limits" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D00000000000000000000014 /* Debug */,
+				D00000000000000000000013 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D0000000000000000000001D /* Build configuration list for PBXNativeTarget "LimitsShared" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0000000000000000000001F /* Debug */,
+				D0000000000000000000001E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D00000000000000000000027 /* Build configuration list for PBXNativeTarget "LimitsWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D00000000000000000000029 /* Debug */,
+				D00000000000000000000028 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D00000000000000000000030 /* Build configuration list for PBXNativeTarget "LimitsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D00000000000000000000032 /* Debug */,
+				D00000000000000000000031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D00000000000000000000039 /* Build configuration list for PBXNativeTarget "LimitsUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0000000000000000000003B /* Debug */,
+				D0000000000000000000003A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D00000000000000000000001 /* Project object */;
+}

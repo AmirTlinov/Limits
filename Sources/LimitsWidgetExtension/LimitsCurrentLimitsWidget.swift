@@ -331,6 +331,8 @@ private extension LimitsWidgetProviderSnapshot {
             ProviderAppearance(displayTitle: "Codex CLI", shortTitle: "Codex", color: .blue)
         case .claude:
             ProviderAppearance(displayTitle: "Claude Code", shortTitle: "Claude", color: Color(red: 0.86, green: 0.39, blue: 0.24))
+        @unknown default:
+            ProviderAppearance(displayTitle: title, shortTitle: title, color: .secondary)
         }
     }
 
@@ -356,6 +358,8 @@ private extension LimitsWidgetProviderSnapshot {
             return note ?? "No live limit data yet."
         case .error:
             return note ?? "Cannot read limits."
+        @unknown default:
+            return note ?? "No live limit data yet."
         }
     }
 

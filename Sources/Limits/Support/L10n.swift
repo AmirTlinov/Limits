@@ -269,16 +269,6 @@ enum L10n {
     }
 
     private static var resourceBundle: Bundle {
-        if Bundle.main.path(forResource: "en", ofType: "lproj") != nil {
-            return .main
-        }
-
-        #if DEBUG
-        if Bundle.main.bundleURL.pathExtension.lowercased() != "app" {
-            return .module
-        }
-        #endif
-
         return .main
     }
 

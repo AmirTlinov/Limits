@@ -42,17 +42,24 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 ## Build locally
 
 ```bash
-swift test
-./script/package_release.sh 0.1.0
+xcodebuild -project Limits.xcodeproj -scheme Limits \
+  -destination 'platform=macOS,arch=arm64' test
+./script/build_and_run.sh
 ```
 
-The packaged app and zip are written to `dist/`.
+Limits targets macOS 26 on Apple silicon. `Limits.xcodeproj` owns the app, shared framework, widget extension, unit tests, and UI tests.
+
+The packaged app and zip are written to `dist/` by the release command:
+
+```bash
+./script/package_release.sh 1.0.0
+```
 
 For a widget-visible distribution build, store Apple notary credentials once and package with notarization:
 
 ```bash
 ./script/store_notary_credentials.sh LimitsNotary
-./script/package_release.sh 0.1.0 --notarize
+./script/package_release.sh 1.0.0 --notarize
 ```
 
 When prompted, enter the Apple ID email for the developer account, not the Team ID. The notarized path submits a temporary zip, staples the ticket onto `dist/Limits.app`, validates it, then recreates the final release zip.

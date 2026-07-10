@@ -867,6 +867,22 @@ final class AppModel: ObservableObject {
         publishWidgetSnapshotIfPossible()
     }
 
+    func trayStatusSnapshot(
+        filter: AccountsSidebarFilter,
+        now: Date = .now
+    ) -> TrayStatusSnapshot {
+        let sharedSnapshot = makeWidgetSnapshot(now: now)
+        let codexLimit = trayFiveHourLimitSnapshot(provider: sharedSnapshot.provider(.codex), now: now)
+        let claudeLimit = trayFiveHourLimitSnapshot(provider: sharedSnapshot.provider(.claude), now: now)
+        return TrayStatusPresentation.snapshot(
+            filter: filter,
+            codex: trayProviderAvailability(for: .codex, limit: codexLimit, now: now),
+            claude: trayProviderAvailability(for: .claude, limit: claudeLimit, now: now),
+            codexLimit: codexLimit,
+            claudeLimit: claudeLimit
+        )
+    }
+
     func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
         let codexOverview = currentCLIOverview()
         let codexLimits = Self.widgetLimitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
@@ -974,6 +990,65 @@ final class AppModel: ObservableObject {
             }
             return currentClaudeBridgeError == nil ? .noData : .error
         }
+    }
+
+    private func trayProviderAvailability(
+        for provider: TrayStatusProvider,
+        limit: TrayLimitSnapshot,
+        now: Date
+    ) -> TrayProviderAvailability {
+        switch provider {
+        case .codex:
+            let currentIsAvailable: Bool = {
+                guard limit.remainingPercent != nil else { return false }
+                return currentCLIReferenceAccount()?.status == .ok || currentCLIReferenceAccount() == nil
+            }()
+            let storedAvailable = accounts.filter { account in
+                !isCurrentCLIAccount(account)
+                    && account.status == .ok
+                    && storedCodexAccountHasFreshCompactLimits(account, now: now)
+            }.count
+            return TrayProviderAvailability(
+                remainingPercent: limit.remainingPercent,
+                availableAccounts: (currentIsAvailable ? 1 : 0) + storedAvailable,
+                totalAccounts: visibleCodexAccountCount()
+            )
+        case .claude:
+            return TrayProviderAvailability(
+                remainingPercent: limit.remainingPercent,
+                availableAccounts: limit.remainingPercent == nil ? 0 : 1,
+                totalAccounts: visibleClaudeAccountCount()
+            )
+        }
+    }
+
+    private func trayFiveHourLimitSnapshot(
+        provider: LimitsWidgetProviderSnapshot?,
+        now: Date
+    ) -> TrayLimitSnapshot {
+        guard let provider else {
+            return TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
+        }
+        let freshLimits = provider.limitsForCompactSurface(at: now)
+        let limit = freshLimits
+            .first(where: { $0.id.contains("five_hour") || $0.title == L10n.tr("limit.five_hour") })
+            ?? freshLimits.first
+        return TrayLimitSnapshot(
+            remainingPercent: limit?.remainingPercent,
+            resetText: limit?.resetDate.map { RateLimitResetFormatter.compactText(for: $0, now: now) }
+        )
+    }
+
+    private func visibleCodexAccountCount() -> Int {
+        let currentCountsAsAccount = ProviderPresentation.currentCodexCountsAsAccount(currentCLIState.source)
+        let storedOtherCount = accounts.filter { !isCurrentCLIAccount($0) }.count
+        return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
+    }
+
+    private func visibleClaudeAccountCount() -> Int {
+        let currentCountsAsAccount = ProviderPresentation.currentClaudeCountsAsAccount(currentClaudeState.source)
+        let storedOtherCount = claudeAccounts.filter { !isCurrentClaudeAccount($0) }.count
+        return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
     }
 
     private func publishWidgetSnapshotIfPossible(now: Date = .now) {

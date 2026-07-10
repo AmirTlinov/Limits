@@ -27,13 +27,6 @@ enum TrayStatusIconAsset {
             return url
         }
 
-        #if DEBUG
-        if shouldUseSwiftPMResourceBundle,
-           let url = resourceURL(named: resourceName, in: .module) {
-            return url
-        }
-        #endif
-
         return nil
     }
 
@@ -47,15 +40,5 @@ enum TrayStatusIconAsset {
         }
 
         return bundle.url(forResource: resourceName, withExtension: "svg")
-    }
-
-    private static var shouldUseSwiftPMResourceBundle: Bool {
-        #if DEBUG
-        // Packaged apps copy resources into Bundle.main. Bundle.module is a
-        // SwiftPM sidecar lookup and traps if that sidecar is not shipped.
-        return Bundle.main.bundleURL.pathExtension.lowercased() != "app"
-        #else
-        return false
-        #endif
     }
 }
