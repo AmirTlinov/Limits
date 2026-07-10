@@ -11,7 +11,9 @@ import Testing
 
     #expect(segments.first == "/custom/bin")
     #expect(segments.contains("/base/bin"))
+    #expect(segments.contains(FileManager.default.homeDirectoryForCurrentUser.appending(path: ".local/share/fnm/aliases/default/bin").path))
     #expect(segments.contains(FileManager.default.homeDirectoryForCurrentUser.appending(path: ".volta/bin").path))
+    #expect(segments.allSatisfy { !$0.contains("/.local/state/fnm_multishells") })
     #expect(segments.contains("/opt/homebrew/bin"))
     #expect(segments.contains("/usr/local/bin"))
     #expect(segments.contains("/usr/bin"))

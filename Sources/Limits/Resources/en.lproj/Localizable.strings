@@ -131,6 +131,7 @@
 "limit.one_hour" = "1h limit";
 "limit.percent_remaining" = "%d%% remaining";
 "limit.used_five_hours" = "%d%% used in 5 hours";
+"migration.duplicates_merged" = "Safely merged %d duplicate account records.";
 "limit.weekly" = "Weekly limit";
 "limit.window" = "Window";
 "limits.empty.account.subtitle" = "Click “Refresh” to get current data for this account.";

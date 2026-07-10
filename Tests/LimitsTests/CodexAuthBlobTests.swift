@@ -144,7 +144,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
 }
 
 @MainActor
-@Test func storedAccountMatchRequiresSameFingerprintWhenAccountIdMatches() {
+@Test func storedAccountMatchUsesStableAccountIdWhenCredentialRotates() {
     let id = UUID()
     let stored = StoredAccount(
         id: id,
@@ -169,7 +169,62 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         accounts: [stored]
     )
 
-    #expect(match == nil)
+    #expect(match?.id == id)
+}
+
+@MainActor
+@Test func storedAccountMatchRefusesAmbiguousStableIdentityWithoutExactCredential() {
+    let firstID = UUID()
+    let secondID = UUID()
+    let baseDate = Date(timeIntervalSince1970: 100)
+    let accounts = [
+        StoredAccount(
+            id: firstID,
+            label: "First",
+            email: "user@example.com",
+            accountId: "acct_123",
+            planType: "pro",
+            createdAt: baseDate,
+            updatedAt: baseDate,
+            lastValidatedAt: baseDate,
+            status: .ok,
+            statusMessage: nil,
+            lastRateLimit: nil,
+            lastRateLimitsByLimitId: nil,
+            authFingerprint: "first",
+            keychainAccount: "account.\(firstID.uuidString)"
+        ),
+        StoredAccount(
+            id: secondID,
+            label: "Second",
+            email: "user@example.com",
+            accountId: "acct_123",
+            planType: "pro",
+            createdAt: baseDate,
+            updatedAt: baseDate,
+            lastValidatedAt: baseDate,
+            status: .ok,
+            statusMessage: nil,
+            lastRateLimit: nil,
+            lastRateLimitsByLimitId: nil,
+            authFingerprint: "second",
+            keychainAccount: "account.\(secondID.uuidString)"
+        ),
+    ]
+
+    let ambiguous = AppModel.resolveStoredAccountMatch(
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
+        fingerprint: "rotated",
+        accounts: accounts
+    )
+    let exact = AppModel.resolveStoredAccountMatch(
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
+        fingerprint: "second",
+        accounts: accounts
+    )
+
+    #expect(ambiguous == nil)
+    #expect(exact?.id == secondID)
 }
 
 @MainActor

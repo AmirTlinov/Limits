@@ -1,5 +1,34 @@
 import Foundation
 
+enum ProviderKind: String, Codable, Hashable, Sendable, CaseIterable {
+    case codex
+    case claude
+}
+
+struct CodexAccountIdentity: Codable, Hashable, Sendable {
+    let accountId: String
+
+    init?(_ accountId: String?) {
+        guard let accountId = accountId?.trimmingCharacters(in: .whitespacesAndNewlines), !accountId.isEmpty else {
+            return nil
+        }
+        self.accountId = accountId
+    }
+}
+
+struct ClaudeAccountIdentity: Codable, Hashable, Sendable {
+    let normalizedEmail: String
+    let organizationId: String?
+
+    init?(email: String?, organizationId: String?) {
+        guard let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty else {
+            return nil
+        }
+        normalizedEmail = email.lowercased()
+        self.organizationId = organizationId?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+}
+
 enum AccountStatus: String, Codable, Hashable {
     case unknown
     case ok
@@ -59,6 +88,10 @@ struct StoredAccount: Identifiable, Codable, Hashable {
     var authFingerprint: String
     var keychainAccount: String
 
+    var stableIdentity: CodexAccountIdentity? {
+        CodexAccountIdentity(accountId)
+    }
+
     var shortStatusText: String {
         switch status {
         case .unknown:
@@ -75,24 +108,49 @@ struct StoredAccount: Identifiable, Codable, Hashable {
     }
 }
 
+struct RetiredCredential: Codable, Hashable, Identifiable {
+    let id: UUID
+    let provider: ProviderKind
+    let sourceRecordID: UUID
+    let keychainAccount: String
+    let stableIdentity: String?
+    let retiredAt: Date
+    let purgeAfter: Date
+}
+
 struct PersistedState: Codable {
+    static let currentSchemaVersion = 2
+
+    var schemaVersion: Int
     var accounts: [StoredAccount]
     var claudeAccounts: [ClaudeStoredAccount]
+    var retiredCredentials: [RetiredCredential]
 
-    init(accounts: [StoredAccount], claudeAccounts: [ClaudeStoredAccount] = []) {
+    init(
+        schemaVersion: Int = Self.currentSchemaVersion,
+        accounts: [StoredAccount],
+        claudeAccounts: [ClaudeStoredAccount] = [],
+        retiredCredentials: [RetiredCredential] = []
+    ) {
+        self.schemaVersion = schemaVersion
         self.accounts = accounts
         self.claudeAccounts = claudeAccounts
+        self.retiredCredentials = retiredCredentials
     }
 
     private enum CodingKeys: String, CodingKey {
+        case schemaVersion
         case accounts
         case claudeAccounts
+        case retiredCredentials
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         accounts = try container.decodeIfPresent([StoredAccount].self, forKey: .accounts) ?? []
         claudeAccounts = try container.decodeIfPresent([ClaudeStoredAccount].self, forKey: .claudeAccounts) ?? []
+        retiredCredentials = try container.decodeIfPresent([RetiredCredential].self, forKey: .retiredCredentials) ?? []
     }
 }
 
@@ -110,4 +168,10 @@ struct AccountValidationResult {
     let planType: String
     let rateLimit: RateLimitSnapshotModel?
     let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
 }

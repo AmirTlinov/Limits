@@ -131,6 +131,7 @@
 "limit.one_hour" = "1小时限额";
 "limit.percent_remaining" = "剩余 %d%%";
 "limit.used_five_hours" = "5小时内已用 %d%%";
+"migration.duplicates_merged" = "已安全合并 %d 个重复账户记录。";
 "limit.weekly" = "每周限额";
 "limit.window" = "窗口";
 "limits.empty.account.subtitle" = "点击“刷新”获取此账户的最新数据。";

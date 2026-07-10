@@ -131,6 +131,7 @@
 "limit.one_hour" = "1ч лимит";
 "limit.percent_remaining" = "%d%% осталось";
 "limit.used_five_hours" = "За 5 часов использовано %d%%";
+"migration.duplicates_merged" = "Безопасно объединено дубликатов аккаунтов: %d.";
 "limit.weekly" = "Недельный лимит";
 "limit.window" = "Окно";
 "limits.empty.account.subtitle" = "Нажмите «Обновить», чтобы получить актуальные данные по этому аккаунту.";

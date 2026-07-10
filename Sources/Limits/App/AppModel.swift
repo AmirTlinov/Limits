@@ -103,6 +103,7 @@ final class AppModel: ObservableObject {
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
     @Published var currentClaudeBridgeError: String?
+    @Published private(set) var migrationNotice: String?
     @Published private(set) var presentationNow = Date()
 
     private let persistence = AccountsPersistence()
@@ -126,6 +127,7 @@ final class AppModel: ObservableObject {
     private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
     private var isRefreshingStoredCodexAccount = false
     private var persistedStateLoaded = false
+    private var retiredCredentials: [RetiredCredential] = []
 
     func invalidateLocalizedText() {
         objectWillChange.send()
@@ -168,9 +170,31 @@ final class AppModel: ObservableObject {
 
     private func loadPersistedState() {
         do {
-            let state = try persistence.load()
-            accounts = state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
-            claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            let originalData = try persistence.loadData()
+            let state = try originalData.map { try JSONDecoder.limits.decode(PersistedState.self, from: $0) }
+                ?? PersistedState(accounts: [])
+            let currentCodexFingerprint = (try? globalAuthService.readGlobalAuth())
+                .map { CodexAuthBlob.fingerprint(for: $0) }
+            let migration = PersistedStateMigrator.migrate(
+                state,
+                currentCodexFingerprint: currentCodexFingerprint,
+                currentClaudeFingerprint: nil
+            )
+
+            if migration.receipt.didChange {
+                if let originalData {
+                    try persistence.backupBeforeV2Migration(originalData)
+                }
+                try persistence.save(migration.state)
+                if migration.receipt.retiredCredentialCount > 0 {
+                    migrationNotice = L10n.tr("migration.duplicates_merged", migration.receipt.retiredCredentialCount)
+                }
+            }
+
+            accounts = migration.state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            claudeAccounts = migration.state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            retiredCredentials = migration.state.retiredCredentials
+            try purgeExpiredRetiredCredentials()
             persistedStateLoaded = true
         } catch {
             errorMessage = error.localizedDescription
@@ -927,14 +951,14 @@ final class AppModel: ObservableObject {
     }
 
     private func resolveCurrentClaudeAccount(status: ClaudeAuthStatus) -> ClaudeStoredAccount? {
-        guard let email = status.email, !email.isEmpty else {
+        guard let identity = ClaudeAccountIdentity(email: status.email, organizationId: status.orgId) else {
             return nil
         }
 
-        return claudeAccounts.first {
-            $0.email.caseInsensitiveCompare(email) == .orderedSame ||
-            $0.label.caseInsensitiveCompare(email) == .orderedSame
-        }
+        return claudeAccounts.first { $0.stableIdentity == identity }
+            ?? claudeAccounts.first {
+                $0.orgId == nil && $0.email.caseInsensitiveCompare(identity.normalizedEmail) == .orderedSame
+            }
     }
 
     private func importCurrentClaudeAuthNow() throws {
@@ -1104,6 +1128,7 @@ final class AppModel: ObservableObject {
             email: status.email ?? preferredLabel,
             subscriptionType: status.subscriptionType ?? "unknown",
             authMethod: status.authMethod,
+            orgId: status.orgId,
             orgName: status.orgName,
             createdAt: createdAt,
             updatedAt: Date(),
@@ -1133,11 +1158,44 @@ final class AppModel: ObservableObject {
     }
 
     private func saveAccounts() throws {
-        try persistence.save(PersistedState(accounts: accounts, claudeAccounts: claudeAccounts))
+        try persistence.save(
+            PersistedState(
+                accounts: accounts,
+                claudeAccounts: claudeAccounts,
+                retiredCredentials: retiredCredentials
+            )
+        )
+    }
+
+    private func purgeExpiredRetiredCredentials(now: Date = .now) throws {
+        let expired = retiredCredentials.filter { $0.purgeAfter <= now }
+        guard !expired.isEmpty else { return }
+
+        var deleted = Set<UUID>()
+        for credential in expired {
+            do {
+                try vault.delete(account: credential.keychainAccount)
+                deleted.insert(credential.id)
+            } catch {
+                RuntimeLog.lifecycle.warning("retired credential cleanup deferred provider=\(credential.provider.rawValue, privacy: .public)")
+            }
+        }
+
+        guard !deleted.isEmpty else { return }
+        retiredCredentials.removeAll { deleted.contains($0.id) }
+        try saveAccounts()
     }
 
     static func resolveStoredAccountMatch(identity: AuthIdentity, fingerprint: String, accounts: [StoredAccount]) -> StoredAccount? {
-        accounts.first(where: { matches(identity: identity, fingerprint: fingerprint, account: $0) })
+        if let exact = accounts.first(where: { $0.authFingerprint == fingerprint }) {
+            return exact
+        }
+
+        guard let stableIdentity = CodexAccountIdentity(identity.accountId) else {
+            return nil
+        }
+        let stableMatches = accounts.filter { $0.stableIdentity == stableIdentity }
+        return stableMatches.count == 1 ? stableMatches[0] : nil
     }
 
     static func resolveImportedAccount(
@@ -1225,16 +1283,6 @@ final class AppModel: ObservableObject {
         case .validationFailed, .unknown, .ok, .limitReached:
             return error.localizedDescription
         }
-    }
-
-    private static func matches(identity: AuthIdentity, fingerprint: String, account: StoredAccount) -> Bool {
-        if let accountId = identity.accountId, let storedAccountId = account.accountId {
-            guard accountId == storedAccountId else {
-                return false
-            }
-            return fingerprint == account.authFingerprint
-        }
-        return fingerprint == account.authFingerprint
     }
 
     private func makeUniqueLabel(base: String) -> String {
@@ -1906,6 +1954,7 @@ final class AppModel: ObservableObject {
                 stored.email = email
                 stored.subscriptionType = status.subscriptionType ?? stored.subscriptionType
                 stored.authMethod = status.authMethod
+                stored.orgId = status.orgId
                 stored.orgName = status.orgName
                 stored.authFingerprint = fingerprint
                 stored.updatedAt = Date()

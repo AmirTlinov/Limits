@@ -131,6 +131,7 @@
 "limit.one_hour" = "Limite 1 h";
 "limit.percent_remaining" = "%d%% restant";
 "limit.used_five_hours" = "%d%% utilisé sur 5 heures";
+"migration.duplicates_merged" = "%d comptes en double ont été fusionnés en toute sécurité.";
 "limit.weekly" = "Limite hebdomadaire";
 "limit.window" = "Fenêtre";
 "limits.empty.account.subtitle" = "Cliquez sur « Actualiser » pour obtenir les données actuelles de ce compte.";

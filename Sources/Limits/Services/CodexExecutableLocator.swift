@@ -55,7 +55,7 @@ enum CodexExecutableLocator {
     static func resolvedPath(shellPath: String?, basePath: String?) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let fallbackSegments = [
-            "\(home)/.local/state/fnm_multishells",
+            "\(home)/.local/share/fnm/aliases/default/bin",
             "\(home)/.volta/bin",
             "\(home)/.local/bin",
             "\(home)/.cargo/bin",
@@ -70,17 +70,8 @@ enum CodexExecutableLocator {
             "/Applications/Codex.app/Contents/Resources",
         ]
 
-        let directSegments = pathSegments(shellPath) + pathSegments(basePath) + fallbackSegments
-        let expandedSegments = directSegments.flatMap { segment -> [String] in
-            if segment.hasSuffix("/.local/state/fnm_multishells") {
-                let childDirectories = latestExecutableChildDirectories(in: URL(fileURLWithPath: segment))
-                let childBinDirectories = childDirectories.map { URL(fileURLWithPath: $0).appending(path: "bin").path }
-                return childBinDirectories + childDirectories + [segment]
-            }
-            return [segment]
-        }
-
-        return deduplicated(expandedSegments).joined(separator: ":")
+        return deduplicated(pathSegments(shellPath) + pathSegments(basePath) + fallbackSegments)
+            .joined(separator: ":")
     }
 
     private static func shellResolution() -> ShellResolution {
@@ -159,27 +150,6 @@ enum CodexExecutableLocator {
         let shellURLs = nonEmpty(shellPath).map { [URL(fileURLWithPath: $0)] } ?? []
         let pathURLs = pathSegments(environmentPath).map { URL(fileURLWithPath: $0).appending(path: executableName) }
         return shellURLs + fallbackURLs + pathURLs
-    }
-
-    private static func latestExecutableChildDirectories(in directory: URL) -> [String] {
-        guard let children = try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
-        return children
-            .filter { url in
-                ((try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false)
-            }
-            .sorted { lhs, rhs in
-                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-                return lhsDate > rhsDate
-            }
-            .map(\.path)
     }
 
     private static func pathSegments(_ value: String?) -> [String] {
