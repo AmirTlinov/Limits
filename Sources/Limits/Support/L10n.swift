@@ -241,6 +241,18 @@ enum L10n {
         return formatter.string(from: date)
     }
 
+    static func shortTime(_ date: Date) -> String {
+        shortTimeFormatter.string(from: date)
+    }
+
+    static func shortDayTime(_ date: Date) -> String {
+        shortDayTimeFormatter.string(from: date)
+    }
+
+    static func updatedAtShort(_ date: Date) -> String {
+        updatedAt(shortTime(date))
+    }
+
     private static var activeBundle: Bundle {
         let base = resourceBundle
         let language = resolvedLanguage
@@ -260,7 +272,14 @@ enum L10n {
         if Bundle.main.path(forResource: "en", ofType: "lproj") != nil {
             return .main
         }
-        return .module
+
+        #if DEBUG
+        if Bundle.main.bundleURL.pathExtension.lowercased() != "app" {
+            return .module
+        }
+        #endif
+
+        return .main
     }
 
     private static var languageFamily: String {
@@ -298,6 +317,13 @@ enum L10n {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.dateFormat = "HH:mm"
+        return formatter
+    }
+
+    private static var shortDayTimeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.dateFormat = "d MMM, HH:mm"
         return formatter
     }
 

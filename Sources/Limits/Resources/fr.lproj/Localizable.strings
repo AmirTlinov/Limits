@@ -29,6 +29,7 @@
 "action.import_current_auth" = "Importer l’autorisation actuelle";
 "action.import_current_claude" = "Importer le Claude Code actuel";
 "action.make_current" = "Définir comme actuel";
+"action.more" = "Autres actions";
 "action.open_window" = "Comptes…";
 "action.settings" = "Réglages…";
 "action.quit" = "Quitter";
@@ -113,7 +114,8 @@
 "cli.summary.missing" = "L’autorisation CLI est manquante";
 "cli.summary.stored" = "Un compte enregistré est actif";
 "cli.summary.unreadable" = "Impossible de lire l’autorisation CLI";
-"codex.auth.keychain_missing" = "L’autorisation Claude Code actuelle est introuvable dans le trousseau.";
+"claude.auth.keychain_error" = "Le trousseau Claude Code a renvoyé l’erreur %d.";
+"claude.auth.keychain_missing" = "L’autorisation Claude Code actuelle est introuvable dans le trousseau.";
 "duration.days.short" = "%dj";
 "duration.days_hours" = "%dj %dh";
 "duration.hours.short" = "%dh";

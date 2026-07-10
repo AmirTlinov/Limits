@@ -29,6 +29,7 @@
 "action.import_current_auth" = "导入当前授权";
 "action.import_current_claude" = "导入当前 Claude Code";
 "action.make_current" = "设为当前";
+"action.more" = "更多操作";
 "action.open_window" = "账户…";
 "action.settings" = "设置…";
 "action.quit" = "退出";
@@ -113,7 +114,8 @@
 "cli.summary.missing" = "缺少 CLI 授权";
 "cli.summary.stored" = "已保存账户处于激活状态";
 "cli.summary.unreadable" = "无法读取 CLI 授权";
-"codex.auth.keychain_missing" = "在 Keychain 中找不到当前 Claude Code 授权。";
+"claude.auth.keychain_error" = "Claude Code Keychain 返回错误 %d。";
+"claude.auth.keychain_missing" = "在 Keychain 中找不到当前 Claude Code 授权。";
 "duration.days.short" = "%d天";
 "duration.days_hours" = "%d天 %d小时";
 "duration.hours.short" = "%d小时";

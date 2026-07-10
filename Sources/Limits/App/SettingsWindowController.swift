@@ -132,14 +132,14 @@ struct SettingsView: View {
 
                     TrayLegendRow(
                         provider: .claude,
-                        color: Color(red: 0.86, green: 0.39, blue: 0.24),
+                        color: ProviderAccent.claude,
                         sample: "95% 1/2",
                         title: L10n.tr("settings.tray_legend.claude.title"),
                         subtitle: L10n.tr("settings.tray_legend.claude.subtitle")
                     )
                 }
                 .padding(14)
-                .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
 
             Spacer(minLength: 0)

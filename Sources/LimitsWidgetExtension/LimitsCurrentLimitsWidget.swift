@@ -320,7 +320,7 @@ private extension LimitsWidgetProviderSnapshot {
         case .codex:
             ProviderAppearance(displayTitle: "Codex CLI", shortTitle: "Codex", color: .blue)
         case .claude:
-            ProviderAppearance(displayTitle: "Claude Code", shortTitle: "Claude", color: .orange)
+            ProviderAppearance(displayTitle: "Claude Code", shortTitle: "Claude", color: Color(red: 0.86, green: 0.39, blue: 0.24))
         }
     }
 

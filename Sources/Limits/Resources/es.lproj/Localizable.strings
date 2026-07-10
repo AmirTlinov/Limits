@@ -29,6 +29,7 @@
 "action.import_current_auth" = "Importar autorización actual";
 "action.import_current_claude" = "Importar Claude Code actual";
 "action.make_current" = "Hacer actual";
+"action.more" = "Más acciones";
 "action.open_window" = "Cuentas…";
 "action.settings" = "Ajustes…";
 "action.quit" = "Salir";
@@ -113,7 +114,8 @@
 "cli.summary.missing" = "Falta la autorización CLI";
 "cli.summary.stored" = "Una cuenta guardada está activa";
 "cli.summary.unreadable" = "No se pudo leer la autorización CLI";
-"codex.auth.keychain_missing" = "La autorización actual de Claude Code no se encontró en Keychain.";
+"claude.auth.keychain_error" = "Keychain de Claude Code devolvió el error %d.";
+"claude.auth.keychain_missing" = "La autorización actual de Claude Code no se encontró en Keychain.";
 "duration.days.short" = "%dd";
 "duration.days_hours" = "%dd %dh";
 "duration.hours.short" = "%dh";

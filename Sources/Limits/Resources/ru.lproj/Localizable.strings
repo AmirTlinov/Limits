@@ -29,6 +29,7 @@
 "action.import_current_auth" = "Импортировать текущую авторизацию";
 "action.import_current_claude" = "Импортировать текущий Claude Code";
 "action.make_current" = "Сделать текущим";
+"action.more" = "Другие действия";
 "action.open_window" = "Аккаунты…";
 "action.settings" = "Настройки…";
 "action.quit" = "Выход";
@@ -113,7 +114,8 @@
 "cli.summary.missing" = "CLI-авторизация отсутствует";
 "cli.summary.stored" = "Активен сохранённый аккаунт";
 "cli.summary.unreadable" = "Не удалось прочитать CLI-авторизацию";
-"codex.auth.keychain_missing" = "Текущая авторизация Claude Code не найдена в Keychain.";
+"claude.auth.keychain_error" = "Keychain Claude Code вернул ошибку %d.";
+"claude.auth.keychain_missing" = "Текущая авторизация Claude Code не найдена в Keychain.";
 "duration.days.short" = "%dд";
 "duration.days_hours" = "%dд %dч";
 "duration.hours.short" = "%dч";

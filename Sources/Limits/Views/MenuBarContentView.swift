@@ -51,20 +51,11 @@ struct MenuBarContentView: View {
     }
 
     private var codexAccountCount: Int {
-        (currentCodexCountsAsAccount ? 1 : 0) + storedCodexAccounts.count
+        (ProviderPresentation.currentCodexCountsAsAccount(model.currentCLIState.source) ? 1 : 0) + storedCodexAccounts.count
     }
 
     private var claudeAccountCount: Int {
-        (currentClaudeCountsAsAccount ? 1 : 0) + storedClaudeAccounts.count
-    }
-
-    private var currentCodexCountsAsAccount: Bool {
-        switch model.currentCLIState.source {
-        case .stored, .external:
-            return true
-        case .missing, .unreadable:
-            return false
-        }
+        (ProviderPresentation.currentClaudeCountsAsAccount(model.currentClaudeState.source) ? 1 : 0) + storedClaudeAccounts.count
     }
 
     private var header: some View {
@@ -75,15 +66,6 @@ struct MenuBarContentView: View {
             .disabled(model.isBusy)
 
             Spacer(minLength: 0)
-        }
-    }
-
-    private var currentClaudeCountsAsAccount: Bool {
-        switch model.currentClaudeState.source {
-        case .stored, .external:
-            return true
-        case .loggedOut, .notInstalled, .unreadable:
-            return false
         }
     }
 
@@ -199,8 +181,8 @@ struct MenuBarContentView: View {
                     detailText: codexCurrentDetailText,
                     metaText: updatedAtText(for: model.currentCLIValidatedAt()),
                     accent: codexAccent,
-                    badgeText: codexBadgeText,
-                    badgeColor: codexAccent,
+                    badgeText: codexBadge.text,
+                    badgeColor: codexBadge.tone.color,
                     interactive: false,
                     style: .current,
                     action: nil
@@ -214,7 +196,7 @@ struct MenuBarContentView: View {
                         compactRows: compactRows(from: model.rateLimitSections(for: account)),
                         detailText: storedCodexDetail(for: account),
                         metaText: nil,
-                        accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.codex),
+                        accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
                         badgeText: nil,
                         badgeColor: .secondary,
                         interactive: true,
@@ -245,8 +227,8 @@ struct MenuBarContentView: View {
                         detailText: claudeCurrentDetailText,
                         metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
                         accent: claudeAccent,
-                        badgeText: claudeBadgeText,
-                        badgeColor: claudeAccent,
+                        badgeText: claudeBadge.text,
+                        badgeColor: claudeBadge.tone.color,
                         interactive: false,
                         style: .current,
                         action: nil
@@ -261,7 +243,7 @@ struct MenuBarContentView: View {
                         compactRows: [],
                         detailText: account.shortStatusText,
                         metaText: nil,
-                        accent: statusColor(for: account.status, isCurrent: false, providerAccent: ProviderAccent.claude),
+                        accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .claude).color,
                         badgeText: nil,
                         badgeColor: .secondary,
                         interactive: true,
@@ -339,6 +321,8 @@ struct MenuBarContentView: View {
                     .frame(width: 32, height: 32)
             }
             .menuStyle(.borderlessButton)
+            .help(L10n.tr("action.more"))
+            .accessibilityLabel(L10n.tr("action.more"))
         }
     }
 
@@ -404,28 +388,12 @@ struct MenuBarContentView: View {
         }
     }
 
-    private var codexBadgeText: String {
-        switch model.currentCLIState.source {
-        case .stored, .external:
-            return L10n.tr("account.current")
-        case .missing:
-            return L10n.tr("account.no_login")
-        case .unreadable:
-            return L10n.tr("account.error")
-        }
+    private var codexBadge: ProviderBadgePresentation {
+        ProviderPresentation.trayCodexBadge(source: model.currentCLIState.source)
     }
 
-    private var claudeBadgeText: String {
-        switch model.currentClaudeState.source {
-        case .stored, .external:
-            return L10n.tr("account.current")
-        case .loggedOut:
-            return L10n.tr("account.no_login")
-        case .notInstalled:
-            return L10n.tr("account.no_cli")
-        case .unreadable:
-            return L10n.tr("account.error")
-        }
+    private var claudeBadge: ProviderBadgePresentation {
+        ProviderPresentation.trayClaudeBadge(source: model.currentClaudeState.source)
     }
 
     private var codexAccent: Color {
@@ -447,23 +415,6 @@ struct MenuBarContentView: View {
             return .red
         case .notInstalled:
             return .secondary
-        }
-    }
-
-    private func statusColor(for status: AccountStatus, isCurrent: Bool, providerAccent: Color) -> Color {
-        if isCurrent {
-            return providerAccent
-        }
-
-        switch status {
-        case .ok:
-            return .green
-        case .limitReached:
-            return .orange
-        case .needsReauth, .validationFailed:
-            return .red
-        case .unknown:
-            return .gray
         }
     }
 
@@ -497,16 +448,8 @@ struct MenuBarContentView: View {
 
     private func updatedAtText(for date: Date?) -> String? {
         guard let date else { return nil }
-        return L10n.updatedAt(Self.updatedAtFormatter.string(from: date))
+        return L10n.updatedAtShort(date)
     }
-
-    private static let updatedAtFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
 }
 
 private struct TrayScrollView<Content: View>: NSViewRepresentable {
@@ -566,6 +509,8 @@ private final class TrayScrollContainer<Content: View>: NSScrollView {
 }
 
 private struct TrayProviderSection<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let title: String
     let countText: String
     let accent: Color
@@ -589,8 +534,12 @@ private struct TrayProviderSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
-                withAnimation(.snappy(duration: 0.18)) {
+                if reduceMotion {
                     isExpanded.toggle()
+                } else {
+                    withAnimation(.snappy(duration: 0.18)) {
+                        isExpanded.toggle()
+                    }
                 }
             } label: {
                 HStack(spacing: 8) {
@@ -602,7 +551,6 @@ private struct TrayProviderSection<Content: View>: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                        .tracking(0.4)
 
                     Spacer(minLength: 8)
 

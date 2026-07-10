@@ -125,12 +125,14 @@ final class AppModel: ObservableObject {
     private var lastStoredCodexAutoRefreshAttempt: [UUID: Date] = [:]
     private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
     private var isRefreshingStoredCodexAccount = false
+    private var persistedStateLoaded = false
 
     func invalidateLocalizedText() {
         objectWillChange.send()
     }
 
     init() {
+        loadPersistedState()
         Task { await bootstrap() }
         startPresentationClockLoop()
         startBackgroundRefreshLoop()
@@ -145,10 +147,11 @@ final class AppModel: ObservableObject {
 
     func bootstrap() async {
         defer { publishWidgetSnapshotIfPossible() }
+        guard persistedStateLoaded else {
+            return
+        }
+
         do {
-            let state = try persistence.load()
-            accounts = state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
-            claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
             await refreshCurrentCLIState()
             await refreshCurrentClaudeState()
 
@@ -160,6 +163,18 @@ final class AppModel: ObservableObject {
             await refreshOneStaleStoredCodexAccountInBackground()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadPersistedState() {
+        do {
+            let state = try persistence.load()
+            accounts = state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            claudeAccounts = state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            persistedStateLoaded = true
+        } catch {
+            errorMessage = error.localizedDescription
+            persistedStateLoaded = false
         }
     }
 

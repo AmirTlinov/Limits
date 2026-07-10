@@ -301,6 +301,59 @@ import Testing
     #expect(TrayStatusPresentation.title(filter: .codex, codex: noData, claude: claude) == "Codex — 0/8")
 }
 
+@Test func providerPresentationKeepsBadgesAndAccountCountsConsistent() {
+    #expect(ProviderPresentation.currentCodexCountsAsAccount(.stored(UUID())))
+    #expect(ProviderPresentation.currentCodexCountsAsAccount(.external("acct_123")))
+    #expect(!ProviderPresentation.currentCodexCountsAsAccount(.missing))
+    #expect(!ProviderPresentation.currentCodexCountsAsAccount(.unreadable))
+
+    #expect(ProviderPresentation.currentClaudeCountsAsAccount(.stored(UUID())))
+    #expect(ProviderPresentation.currentClaudeCountsAsAccount(.external("user@example.com")))
+    #expect(!ProviderPresentation.currentClaudeCountsAsAccount(.loggedOut))
+    #expect(!ProviderPresentation.currentClaudeCountsAsAccount(.notInstalled))
+    #expect(!ProviderPresentation.currentClaudeCountsAsAccount(.unreadable))
+
+    #expect(ProviderPresentation.codexBadge(source: .stored(UUID())).tone == .codex)
+    #expect(ProviderPresentation.codexBadge(source: .unreadable).tone == .danger)
+    #expect(ProviderPresentation.claudeBadge(source: .external("user@example.com")).tone == .claude)
+    #expect(ProviderPresentation.accountBadge(status: .limitReached, isCurrent: false, provider: .codex).tone == .warning)
+    #expect(ProviderPresentation.accountBadge(status: .ok, isCurrent: true, provider: .claude).tone == .claude)
+}
+
+@Test func trayStatusSnapshotCarriesMetricTooltipAndAccessibilityText() {
+    let codex = TrayProviderAvailability(remainingPercent: 96, availableAccounts: 1, totalAccounts: 8)
+    let claude = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 2)
+    let snapshot = TrayStatusPresentation.snapshot(
+        filter: .all,
+        codex: codex,
+        claude: claude,
+        codexLimit: TrayLimitSnapshot(remainingPercent: 96, resetText: "Reset 18:00"),
+        claudeLimit: TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
+    )
+
+    #expect(snapshot.title == "Codex 96% 1/8 · Claude — 0/2")
+    #expect(snapshot.tooltip.contains("Codex"))
+    #expect(snapshot.tooltip.contains("Reset 18:00"))
+    #expect(snapshot.tooltip.contains("1/8"))
+    #expect(snapshot.accessibilityLabel.contains("Codex"))
+    #expect(snapshot.accessibilityLabel.contains("Claude"))
+    #expect(snapshot == TrayStatusPresentation.snapshot(
+        filter: .all,
+        codex: codex,
+        claude: claude,
+        codexLimit: TrayLimitSnapshot(remainingPercent: 96, resetText: "Reset 18:00"),
+        claudeLimit: TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
+    ))
+}
+
+@Test func claudeMissingCredentialUsesClaudeSpecificLocalizationKey() {
+    L10n.withLanguage("en") {
+        #expect(GlobalClaudeCredentialServiceError.missingCredential.localizedDescription == "Current Claude Code authorization was not found in Keychain.")
+        #expect(GlobalClaudeCredentialServiceError.unexpectedStatus(-50).localizedDescription == "Claude Code Keychain returned error -50.")
+        #expect(L10n.tr("codex.auth.keychain_missing") == "codex.auth.keychain_missing")
+    }
+}
+
 @Test func trayProviderIconsAreRealSvgResources() throws {
     for provider in [TrayStatusProvider.codex, .claude] {
         let url = try #require(TrayStatusIconAsset.resourceURL(for: provider))

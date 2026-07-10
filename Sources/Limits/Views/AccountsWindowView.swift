@@ -119,7 +119,7 @@ struct AccountsWindowView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar {
-            ToolbarItemGroup {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     Task { await model.addAccount() }
                 } label: {
@@ -533,11 +533,7 @@ private struct CurrentCLIDetailPane: View {
     }
 
     private func formatted(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        L10n.localizedDateTime(date)
     }
 }
 
@@ -669,11 +665,7 @@ private struct CurrentClaudeDetailPane: View {
     }
 
     private func formatted(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        L10n.localizedDateTime(date)
     }
 }
 
@@ -695,7 +687,7 @@ private struct StoredClaudeDetailPane: View {
             DetailHeroCard(
                 title: account.label,
                 subtitle: account.email,
-                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent, currentAccent: ProviderAccent.claude)),
+                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)),
                 note: accountNote,
                 metaLine: accountMetaLine,
                 actions: {
@@ -835,11 +827,7 @@ private struct StoredClaudeDetailPane: View {
     }
 
     private func formatted(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        L10n.localizedDateTime(date)
     }
 }
 
@@ -928,11 +916,7 @@ private struct StoredAccountDetailPane: View {
         parts.append(model.localizedPlan(account.planType))
 
         if let date = account.lastValidatedAt {
-            let formatter = DateFormatter()
-            formatter.locale = L10n.locale
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            parts.append(L10n.checkedAt(formatter.string(from: date)))
+            parts.append(L10n.checkedAt(L10n.localizedDateTime(date)))
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
@@ -1140,79 +1124,38 @@ private struct ClaudeStateBadge: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        Text(label)
+        Text(presentation.text)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color.opacity(0.16), in: Capsule())
-            .foregroundStyle(color)
+            .background(presentation.tone.color.opacity(0.16), in: Capsule())
+            .foregroundStyle(presentation.tone.color)
     }
 
-    private var label: String {
-        switch model.currentClaudeState.source {
-        case .stored:
-            return L10n.tr("account.current")
-        case .external:
-            return L10n.tr("account.external")
-        case .loggedOut:
-            return L10n.tr("account.no_login")
-        case .notInstalled:
-            return L10n.tr("account.not_installed")
-        case .unreadable:
-            return L10n.tr("account.error")
-        }
-    }
-
-    private var color: Color {
-        switch model.currentClaudeState.source {
-        case .stored:
-            return ProviderAccent.claude
-        case .external:
-            return ProviderAccent.claude
-        case .loggedOut, .unreadable:
-            return .red
-        case .notInstalled:
-            return .secondary
-        }
+    private var presentation: ProviderBadgePresentation {
+        ProviderPresentation.claudeBadge(source: model.currentClaudeState.source)
     }
 }
 
 private struct AccountStatusBadge: View {
     let status: AccountStatus
     let isCurrent: Bool
-    var currentAccent: Color = ProviderAccent.codex
+    var provider: TrayStatusProvider = .codex
 
     var body: some View {
-        Text(label)
+        Text(presentation.text)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color.opacity(0.16), in: Capsule())
-            .foregroundStyle(color)
+            .background(presentation.tone.color.opacity(0.16), in: Capsule())
+            .foregroundStyle(presentation.tone.color)
     }
 
-    private var label: String {
-        if isCurrent {
-            return L10n.tr("account.current")
-        }
-        return switch status {
-        case .ok: L10n.tr("account.ready")
-        case .limitReached: L10n.tr("account.limit")
-        case .needsReauth: L10n.tr("account.needs_login")
-        case .validationFailed: L10n.tr("account.error")
-        case .unknown: L10n.tr("account.unknown")
-        }
-    }
-
-    private var color: Color {
-        if isCurrent {
-            return currentAccent
-        }
-        return switch status {
-        case .ok: .green
-        case .limitReached: .orange
-        case .needsReauth, .validationFailed: .red
-        case .unknown: .secondary
-        }
+    private var presentation: ProviderBadgePresentation {
+        ProviderPresentation.accountBadge(
+            status: status,
+            isCurrent: isCurrent,
+            provider: provider
+        )
     }
 }

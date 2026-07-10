@@ -67,7 +67,7 @@ optional "spctl widget extension" spctl -a -vvv "$WIDGET_PATH"
 
 # shellcheck disable=SC2016
 required "pluginkit registration" bash -c \
-  'pluginkit -m -A -D -v -p com.apple.widgetkit-extension -i "$1" | tee /dev/stderr | grep -q "$1"' \
+  'last_output=""; for _attempt in 1 2 3 4 5 6 7 8 9 10; do last_output="$(pluginkit -m -A -D -v -p com.apple.widgetkit-extension -i "$1" 2>&1)"; if printf "%s\n" "$last_output" | grep -q "$1"; then printf "%s\n" "$last_output" >&2; exit 0; fi; sleep 0.5; done; printf "%s\n" "$last_output" >&2; exit 1' \
   _ "$WIDGET_BUNDLE_ID"
 
 if [[ "$REFRESH_CHRONOD" == "true" ]]; then
@@ -77,7 +77,7 @@ fi
 
 # shellcheck disable=SC2016
 required "chronod ingestion" bash -c \
-  '[[ -f "$1" ]] && sqlite3 "$1" "select bundleIdentifier, version from ExtensionMetadata where bundleIdentifier = '\''$2'\'';" | tee /dev/stderr | grep -q "$2"' \
+  '[[ -f "$1" ]] || exit 1; last_output=""; for _attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do last_output="$(sqlite3 "$1" "select bundleIdentifier, version from ExtensionMetadata where bundleIdentifier = '\''$2'\'' or bundleIdentifier like '\''%::'\'' || '\''$2'\'';")"; if printf "%s\n" "$last_output" | grep -F -q "$2"; then printf "%s\n" "$last_output" >&2; exit 0; fi; sleep 1; done; printf "%s\n" "$last_output" >&2; exit 1' \
   _ "$CHRONOD_DB" "$WIDGET_BUNDLE_ID"
 
 if [[ "$FAILURES" -gt 0 ]]; then

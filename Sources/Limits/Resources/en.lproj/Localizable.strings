@@ -29,6 +29,7 @@
 "action.import_current_auth" = "Import current authorization";
 "action.import_current_claude" = "Import current Claude Code";
 "action.make_current" = "Make current";
+"action.more" = "More actions";
 "action.open_window" = "Accounts…";
 "action.settings" = "Settings…";
 "action.quit" = "Quit";
@@ -113,7 +114,8 @@
 "cli.summary.missing" = "CLI authorization is missing";
 "cli.summary.stored" = "A saved account is active";
 "cli.summary.unreadable" = "Could not read CLI authorization";
-"codex.auth.keychain_missing" = "Current Claude Code authorization was not found in Keychain.";
+"claude.auth.keychain_error" = "Claude Code Keychain returned error %d.";
+"claude.auth.keychain_missing" = "Current Claude Code authorization was not found in Keychain.";
 "duration.days.short" = "%dd";
 "duration.days_hours" = "%dd %dh";
 "duration.hours.short" = "%dh";

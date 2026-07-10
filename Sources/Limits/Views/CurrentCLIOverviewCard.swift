@@ -125,24 +125,10 @@ struct CurrentCLIOverviewCard: View {
     private static func updatedAtText(for date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
-            return timeFormatter.string(from: date)
+            return L10n.shortTime(date)
         }
-        return dayTimeFormatter.string(from: date)
+        return L10n.shortDayTime(date)
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    private static let dayTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.dateFormat = "d MMM, HH:mm"
-        return formatter
-    }()
 }
 
 struct CompactLimitBarsView: View {

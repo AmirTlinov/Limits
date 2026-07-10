@@ -8,9 +8,9 @@ enum GlobalClaudeCredentialServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingCredential:
-            return L10n.tr("codex.auth.keychain_missing")
+            return L10n.tr("claude.auth.keychain_missing")
         case .unexpectedStatus(let status):
-            return "Keychain Claude Code вернул ошибку \(status)."
+            return L10n.tr("claude.auth.keychain_error", status)
         }
     }
 }

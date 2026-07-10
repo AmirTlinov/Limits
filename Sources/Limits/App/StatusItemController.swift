@@ -26,6 +26,8 @@ final class StatusItemController: NSObject {
     private var localEventMonitor: Any?
     private var globalEventMonitor: Any?
     private var trayPanelResizeTask: Task<Void, Never>?
+    private var lastStatusSnapshot: TrayStatusSnapshot?
+    private var lastObservedTrayFilter: AccountsSidebarFilter?
 
     init(model: AppModel, openAccountsWindow: @escaping () -> Void, openSettingsWindow: @escaping () -> Void) {
         self.model = model
@@ -52,6 +54,7 @@ final class StatusItemController: NSObject {
         }
 
         rebuildTrayPanelContent()
+        lastObservedTrayFilter = currentTrayFilter()
         startObservingModel()
         refreshStatusItemAppearance()
 
@@ -73,6 +76,7 @@ final class StatusItemController: NSObject {
     }
 
     func refreshLocalizedText() {
+        lastStatusSnapshot = nil
         rebuildTrayPanelContent(screen: trayPanel?.screen)
         refreshStatusItemAppearance()
     }
@@ -157,12 +161,14 @@ final class StatusItemController: NSObject {
         return min(640, max(360, visibleHeight - 120))
     }
 
-    private func handleProviderFilterDidChange(_: AccountsSidebarFilter) {
+    private func handleProviderFilterDidChange(_ filter: AccountsSidebarFilter) {
+        lastObservedTrayFilter = filter
         refreshStatusItemAppearance()
         scheduleVisibleTrayPanelResize()
     }
 
     private func scheduleVisibleTrayPanelResize() {
+        guard trayPanel?.isVisible == true else { return }
         trayPanelResizeTask?.cancel()
         trayPanelResizeTask = Task { @MainActor [weak self] in
             await Task.yield()
@@ -305,8 +311,12 @@ final class StatusItemController: NSObject {
         defaultsCancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    self?.refreshStatusItemAppearance()
-                    self?.scheduleVisibleTrayPanelResize()
+                    guard let self else { return }
+                    let filter = self.currentTrayFilter()
+                    guard filter != self.lastObservedTrayFilter else { return }
+                    self.lastObservedTrayFilter = filter
+                    self.refreshStatusItemAppearance()
+                    self.scheduleVisibleTrayPanelResize()
                 }
             }
 
@@ -320,49 +330,42 @@ final class StatusItemController: NSObject {
     }
 
     private func refreshStatusItemAppearance() {
-        let filter = currentTrayFilter()
-        let codexSnapshot = currentFiveHourLimitSnapshot(for: .codex)
-        let claudeSnapshot = currentFiveHourLimitSnapshot(for: .claude)
-        let codexAvailability = providerAvailability(for: .codex, snapshot: codexSnapshot)
-        let claudeAvailability = providerAvailability(for: .claude, snapshot: claudeSnapshot)
-        let segments = TrayStatusPresentation.segments(filter: filter, codex: codexAvailability, claude: claudeAvailability)
-        let title = TrayStatusPresentation.title(filter: filter, codex: codexAvailability, claude: claudeAvailability)
-        let tooltip = tooltipText(
-            codexSnapshot: codexSnapshot,
-            claudeSnapshot: claudeSnapshot,
-            codexAvailability: codexAvailability,
-            claudeAvailability: claudeAvailability
-        )
-
         guard let button = statusItem?.button else {
             RuntimeLog.tray.error("cannot refresh status item because button is missing")
             return
         }
 
-        syncStatusButton(
-            segments: segments,
-            title: title,
-            codexSnapshot: codexSnapshot,
-            claudeSnapshot: claudeSnapshot,
-            codexAvailability: codexAvailability,
-            claudeAvailability: claudeAvailability,
-            tooltip: tooltip,
-            on: button
+        let snapshot = currentTrayStatusSnapshot()
+        guard snapshot != lastStatusSnapshot else {
+            RuntimeLog.tray.debug("status item refresh skipped because snapshot is unchanged")
+            return
+        }
+
+        syncStatusButton(snapshot: snapshot, on: button)
+        lastStatusSnapshot = snapshot
+        RuntimeLog.tray.debug("status item refreshed filter=\(snapshot.filter.rawValue, privacy: .public) label=\(snapshot.title, privacy: .public)")
+    }
+
+    private func currentTrayStatusSnapshot() -> TrayStatusSnapshot {
+        let filter = currentTrayFilter()
+        let codexLimit = currentFiveHourLimitSnapshot(for: .codex)
+        let claudeLimit = currentFiveHourLimitSnapshot(for: .claude)
+        let codexAvailability = providerAvailability(for: .codex, limit: codexLimit)
+        let claudeAvailability = providerAvailability(for: .claude, limit: claudeLimit)
+        return TrayStatusPresentation.snapshot(
+            filter: filter,
+            codex: codexAvailability,
+            claude: claudeAvailability,
+            codexLimit: codexLimit,
+            claudeLimit: claudeLimit
         )
-        RuntimeLog.tray.debug("status item refreshed filter=\(filter.rawValue, privacy: .public) codexKnown=\(codexSnapshot.remainingPercent != nil, privacy: .public) claudeKnown=\(claudeSnapshot.remainingPercent != nil, privacy: .public) label=\(title, privacy: .public)")
     }
 
     private func syncStatusButton(
-        segments: [TrayStatusPresentationSegment],
-        title: String,
-        codexSnapshot: FiveHourLimitSnapshot,
-        claudeSnapshot: FiveHourLimitSnapshot,
-        codexAvailability: TrayProviderAvailability,
-        claudeAvailability: TrayProviderAvailability,
-        tooltip: String,
+        snapshot: TrayStatusSnapshot,
         on button: NSStatusBarButton
     ) {
-        if let image = trayIconRenderer.image(for: segments) {
+        if let image = trayIconRenderer.image(for: snapshot.segments) {
             statusItem?.length = ceil(image.size.width + 10)
             button.image = image
             button.imagePosition = .imageOnly
@@ -374,75 +377,19 @@ final class StatusItemController: NSObject {
             button.image = nil
             button.imagePosition = .noImage
             button.imageScaling = .scaleProportionallyDown
-            button.title = title
+            button.title = snapshot.title
             button.attributedTitle = NSAttributedString(
-                string: title,
+                string: snapshot.title,
                 attributes: [
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 11.2, weight: .semibold),
                     .foregroundColor: NSColor.labelColor,
                 ]
             )
         }
-        button.toolTip = tooltip
-        button.setAccessibilityLabel(accessibilityLabel(
-            codexSnapshot: codexSnapshot,
-            claudeSnapshot: claudeSnapshot,
-            codexAvailability: codexAvailability,
-            claudeAvailability: claudeAvailability
-        ))
+        button.toolTip = snapshot.tooltip
+        button.setAccessibilityLabel(snapshot.accessibilityLabel)
         button.setAccessibilityTitle("Limits")
         button.needsDisplay = true
-    }
-
-    private func tooltipText(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> String {
-        if let remainingPercent = snapshot.remainingPercent {
-            var tooltip = L10n.tr("tray.tooltip.five_hour", provider.displayTitle, remainingPercent)
-            if let resetText = snapshot.resetText {
-                tooltip += " · \(resetText)"
-            }
-            return tooltip
-        }
-
-        return L10n.tr("tray.tooltip.five_hour.no_data", provider.displayTitle)
-    }
-
-    private func tooltipText(
-        codexSnapshot: FiveHourLimitSnapshot,
-        claudeSnapshot: FiveHourLimitSnapshot,
-        codexAvailability: TrayProviderAvailability,
-        claudeAvailability: TrayProviderAvailability
-    ) -> String {
-        [
-            tooltipText(provider: .codex, snapshot: codexSnapshot, availability: codexAvailability),
-            tooltipText(provider: .claude, snapshot: claudeSnapshot, availability: claudeAvailability),
-        ].joined(separator: " · ")
-    }
-
-    private func tooltipText(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, availability: TrayProviderAvailability) -> String {
-        var tooltip = tooltipText(provider: provider, snapshot: snapshot)
-        tooltip += " · \(L10n.limitAvailability(available: availability.availableAccounts, total: availability.totalAccounts))"
-        return tooltip
-    }
-
-    private func accessibilitySegment(provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot, availability: TrayProviderAvailability) -> String {
-        let base: String = if let remainingPercent = snapshot.remainingPercent {
-            L10n.tr("tray.accessibility.five_hour", provider.displayTitle, remainingPercent)
-        } else {
-            L10n.tr("tray.accessibility.five_hour.no_data", provider.displayTitle)
-        }
-        return "\(base), \(L10n.limitAvailability(available: availability.availableAccounts, total: availability.totalAccounts))"
-    }
-
-    private func accessibilityLabel(
-        codexSnapshot: FiveHourLimitSnapshot,
-        claudeSnapshot: FiveHourLimitSnapshot,
-        codexAvailability: TrayProviderAvailability,
-        claudeAvailability: TrayProviderAvailability
-    ) -> String {
-        [
-            accessibilitySegment(provider: .codex, snapshot: codexSnapshot, availability: codexAvailability),
-            accessibilitySegment(provider: .claude, snapshot: claudeSnapshot, availability: claudeAvailability),
-        ].joined(separator: " · ")
     }
 
     private func installSnapshot(for item: NSStatusItem, isNewInstall: Bool) -> StatusItemInstallSnapshot {
@@ -463,41 +410,29 @@ final class StatusItemController: NSObject {
     }
 
     private func visibleCodexAccountCount() -> Int {
-        let currentCountsAsAccount = switch model.currentCLIState.source {
-        case .stored, .external:
-            true
-        case .missing, .unreadable:
-            false
-        }
-
+        let currentCountsAsAccount = ProviderPresentation.currentCodexCountsAsAccount(model.currentCLIState.source)
         let storedOtherCount = model.accounts.filter { !model.isCurrentCLIAccount($0) }.count
         return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
     }
 
     private func visibleClaudeAccountCount() -> Int {
-        let currentCountsAsAccount = switch model.currentClaudeState.source {
-        case .stored, .external:
-            true
-        case .loggedOut, .notInstalled, .unreadable:
-            false
-        }
-
+        let currentCountsAsAccount = ProviderPresentation.currentClaudeCountsAsAccount(model.currentClaudeState.source)
         let storedOtherCount = model.claudeAccounts.filter { !model.isCurrentClaudeAccount($0) }.count
         return (currentCountsAsAccount ? 1 : 0) + storedOtherCount
     }
 
-    private func providerAvailability(for provider: TrayStatusProvider, snapshot: FiveHourLimitSnapshot) -> TrayProviderAvailability {
+    private func providerAvailability(for provider: TrayStatusProvider, limit: TrayLimitSnapshot) -> TrayProviderAvailability {
         switch provider {
         case .codex:
             return TrayProviderAvailability(
-                remainingPercent: snapshot.remainingPercent,
+                remainingPercent: limit.remainingPercent,
                 availableAccounts: availableCodexAccountCountWithLimits(),
                 totalAccounts: visibleCodexAccountCount()
             )
         case .claude:
             return TrayProviderAvailability(
-                remainingPercent: snapshot.remainingPercent,
-                availableAccounts: snapshot.remainingPercent == nil ? 0 : 1,
+                remainingPercent: limit.remainingPercent,
+                availableAccounts: limit.remainingPercent == nil ? 0 : 1,
                 totalAccounts: visibleClaudeAccountCount()
             )
         }
@@ -525,7 +460,7 @@ final class StatusItemController: NSObject {
         return account.status == .ok
     }
 
-    private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> FiveHourLimitSnapshot {
+    private func currentFiveHourLimitSnapshot(for provider: TrayStatusProvider) -> TrayLimitSnapshot {
         let sections: [RateLimitDisplaySection] = switch provider {
         case .codex:
             model.currentCLIRateLimitSections()
@@ -538,11 +473,10 @@ final class StatusItemController: NSObject {
             .first(where: isFiveHourLimitRow)
 
         guard let row else {
-            return FiveHourLimitSnapshot(remainingProgress: nil, remainingPercent: nil, resetText: nil)
+            return TrayLimitSnapshot(remainingPercent: nil, resetText: nil)
         }
 
-        return FiveHourLimitSnapshot(
-            remainingProgress: row.remainingProgressValue,
+        return TrayLimitSnapshot(
             remainingPercent: row.remainingPercent,
             resetText: row.resetText
         )
@@ -551,12 +485,6 @@ final class StatusItemController: NSObject {
     private func isFiveHourLimitRow(_ row: RateLimitDisplayRow) -> Bool {
         row.title == L10n.tr("limit.five_hour") || row.id.contains("five_hour")
     }
-}
-
-private struct FiveHourLimitSnapshot {
-    let remainingProgress: Double?
-    let remainingPercent: Int?
-    let resetText: String?
 }
 
 private struct TrayPanelChromeView<Content: View>: View {
