@@ -29,6 +29,34 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
+    func testTrayShowsSavedAccountsWhenContentBecomesScrollable() throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-scroll-(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try writeCodexFixture(to: isolatedRoot, accountCount: 6)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchArguments += [
+            "-limits.tray.codex.expanded", "YES",
+            "-limits.tray.provider.filter", "all",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Demo Codex 1"].waitForExistence(timeout: 8))
+        let statusItem = app.menuBars.statusItems.firstMatch
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
+        statusItem.click()
+        XCTAssertTrue(app.dialogs.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Codex CLI"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Demo Codex 6"].waitForExistence(timeout: 3))
+        app.terminate()
+    }
+
+    @MainActor
     func testCaptureDocumentationScreenshots() throws {
         let repositoryRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -40,7 +68,7 @@ final class LimitsUITests: XCTestCase {
         }
         let isolatedRoot = FileManager.default.temporaryDirectory.appending(path: "limits-screenshot-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: isolatedRoot) }
-        try writeDocumentationFixture(to: isolatedRoot)
+        try writeCodexFixture(to: isolatedRoot, accountCount: 1)
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
@@ -77,19 +105,18 @@ final class LimitsUITests: XCTestCase {
         return try Data(contentsOf: url)
     }
 
-    private func writeDocumentationFixture(to root: URL) throws {
+    private func writeCodexFixture(to root: URL, accountCount: Int) throws {
         let now = Date()
         let formatter = ISO8601DateFormatter()
         let stateDirectory = root.appending(path: "Application Support/Limits")
         try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
-        let state: [String: Any] = [
-            "schemaVersion": 3,
-            "revision": 1,
-            "accounts": [[
+        let accounts: [[String: Any]] = (1...accountCount).map { index in
+            let label = accountCount == 1 ? "Demo Codex" : "Demo Codex \(index)"
+            return [
                 "id": UUID().uuidString,
-                "label": "Demo Codex",
-                "email": "demo@example.com",
-                "accountId": "fixture-account",
+                "label": label,
+                "email": "demo\(index)@example.com",
+                "accountId": "fixture-account-\(index)",
                 "planType": "pro",
                 "createdAt": formatter.string(from: now.addingTimeInterval(-86_400)),
                 "updatedAt": formatter.string(from: now),
@@ -109,9 +136,14 @@ final class LimitsUITests: XCTestCase {
                         "windowDurationMins": 10_080,
                     ],
                 ],
-                "authFingerprint": "fixture-fingerprint",
-                "keychainAccount": "fixture-keychain-reference",
-            ]],
+                "authFingerprint": "fixture-fingerprint-\(index)",
+                "keychainAccount": "fixture-keychain-reference-\(index)",
+            ]
+        }
+        let state: [String: Any] = [
+            "schemaVersion": 3,
+            "revision": 1,
+            "accounts": accounts,
             "claudeAccounts": [],
             "retiredCredentials": [],
         ]

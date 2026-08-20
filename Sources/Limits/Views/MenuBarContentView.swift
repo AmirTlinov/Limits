@@ -76,8 +76,8 @@ struct MenuBarContentView: View {
 
     private var shouldScrollAccountContent: Bool {
         AccountsPresentationLogic.needsStoredAccountsScroll(
-            storedCodexCount: providerFilter.includesCodex ? storedCodexAccounts.count : 0,
-            storedClaudeCount: providerFilter.includesClaude ? storedClaudeAccounts.count : 0
+            storedCodexCount: providerFilter.includesCodex && codexExpanded ? storedCodexAccounts.count : 0,
+            storedClaudeCount: providerFilter.includesClaude && claudeExpanded ? storedClaudeAccounts.count : 0
         )
     }
 
@@ -140,7 +140,7 @@ struct MenuBarContentView: View {
             TrayScrollView {
                 accountSections
             }
-            .frame(maxHeight: maxScrollableContentHeight)
+            .frame(height: maxScrollableContentHeight)
         } else {
             accountSections
         }
