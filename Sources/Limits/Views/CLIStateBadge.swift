@@ -1,4 +1,5 @@
 import SwiftUI
+import LimitsCore
 
 struct CLIStateBadge: View {
     let source: AppModel.CurrentCLIState.Source

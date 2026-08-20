@@ -1,4 +1,6 @@
 import SwiftUI
+import LimitsCore
+import LimitsShared
 
 struct CompactLimitBarsView: View {
     let rows: [RateLimitDisplayRow]

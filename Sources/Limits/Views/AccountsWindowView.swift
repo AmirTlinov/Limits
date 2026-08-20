@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import LimitsCore
+import LimitsShared
 
 private enum AccountsSidebarSelection: Hashable {
     case currentCodexCLI
@@ -62,7 +64,7 @@ struct AccountsWindowView: View {
     }
 
     private var sidebarFilter: AccountsSidebarFilter {
-        AccountsSidebarFilter(rawValue: sidebarFilterRaw) ?? .all
+        model.providerCatalog.normalized(AccountsSidebarFilter(rawValue: sidebarFilterRaw) ?? .all)
     }
 
     private var selectionBinding: Binding<AccountsSidebarSelection?> {
@@ -105,10 +107,7 @@ struct AccountsWindowView: View {
     }
 
     private var shouldShowCurrentClaudeSidebarRow: Bool {
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: model.currentClaudeState.source,
-            storedClaudeCount: model.claudeAccounts.count
-        )
+        model.providerCatalog.contains(.claude)
     }
 
     var body: some View {
@@ -118,6 +117,9 @@ struct AccountsWindowView: View {
             detail
         }
         .navigationSplitViewStyle(.balanced)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            operationBanners
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -150,6 +152,7 @@ struct AccountsWindowView: View {
         .background(WindowChromeConfigurator())
         .frame(minWidth: 980, minHeight: 620)
         .onAppear {
+            sidebarFilterRaw = sidebarFilter.rawValue
             ensureValidSelection()
         }
         .onChange(of: model.accounts) { _, _ in
@@ -161,14 +164,51 @@ struct AccountsWindowView: View {
         .onChange(of: model.currentClaudeState.source) { _, _ in
             ensureValidSelection()
         }
+        .onChange(of: model.providerCatalog) { _, _ in
+            let normalized = model.providerCatalog.normalized(sidebarFilter)
+            sidebarFilterRaw = normalized.rawValue
+            ensureValidSelection(for: normalized)
+        }
         .onChange(of: sidebarFilterRaw) { _, _ in
             ensureValidSelection()
+        }
+        .confirmationDialog(
+            L10n.tr("delete.confirm.title", model.pendingCredentialDeletion?.accountName ?? ""),
+            isPresented: Binding(
+                get: { model.pendingCredentialDeletion != nil },
+                set: { if !$0 { model.cancelCredentialDeletion() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(L10n.tr("action.delete"), role: .destructive) {
+                Task { await model.confirmCredentialDeletion() }
+            }
+            Button(L10n.tr("action.cancel"), role: .cancel) {
+                model.cancelCredentialDeletion()
+            }
+        } message: {
+            Text(L10n.tr("delete.confirm.message"))
+        }
+    }
+
+    private var operationBanners: some View {
+        VStack(spacing: 0) {
+            ForEach(model.providerCatalog.providers, id: \.self) { provider in
+                let state = model.providerOperationState(provider)
+                if state.phase == .running || state.notice != nil || state.error != nil {
+                    ProviderOperationBanner(
+                        provider: provider,
+                        state: state,
+                        cancel: { model.cancelOperation(for: provider) }
+                    )
+                }
+            }
         }
     }
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            ProviderFilterPicker(selection: sidebarFilterBinding)
+            ProviderFilterPicker(selection: sidebarFilterBinding, catalog: model.providerCatalog)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
@@ -227,7 +267,7 @@ struct AccountsWindowView: View {
                                 Divider()
 
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
-                                    Task { await model.deleteAccount(account) }
+                                    model.requestDeleteAccount(account)
                                 }
                             }
                         }
@@ -259,7 +299,7 @@ struct AccountsWindowView: View {
                                 Divider()
 
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
-                                    Task { await model.deleteClaudeAccount(account) }
+                                    model.requestDeleteClaudeAccount(account)
                                 }
                             }
                         }
@@ -371,9 +411,9 @@ struct AccountsWindowView: View {
             claudeAccountIDs: Set(model.claudeAccounts.map(\.id))
         )
 
-        guard AccountsPresentationLogic.isVisible(destination: destination, filter: activeFilter) else {
+        guard AccountsPresentationLogic.isVisible(destination: destination, filter: activeFilter, catalog: model.providerCatalog) else {
             sidebarSelectionRaw = sidebarSelection(
-                for: AccountsPresentationLogic.defaultDestination(for: activeFilter)
+                for: AccountsPresentationLogic.defaultDestination(for: activeFilter, catalog: model.providerCatalog)
             ).rawValue
             return
         }
@@ -395,6 +435,35 @@ struct AccountsWindowView: View {
         case .claudeAccount(let id):
             return .claudeAccount(id)
         }
+    }
+}
+
+private struct ProviderOperationBanner: View {
+    let provider: ProviderKind
+    let state: ProviderOperationState
+    let cancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if state.phase == .running {
+                ProgressView().controlSize(.small)
+            }
+            Text(provider == .codex ? "Codex" : "Claude")
+                .font(.caption.weight(.semibold))
+            Text(state.progress ?? state.notice ?? state.error ?? "")
+                .font(.caption)
+                .foregroundStyle(state.error == nil ? Color.secondary : Color.red)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            if state.canCancel {
+                Button(L10n.tr("action.cancel"), action: cancel)
+                    .buttonStyle(.borderless)
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .background(.ultraThinMaterial)
     }
 }
 
@@ -722,7 +791,7 @@ private struct StoredClaudeDetailPane: View {
                     }
 
                     Button(L10n.tr("action.delete"), role: .destructive) {
-                        Task { await model.deleteClaudeAccount(account) }
+                        model.requestDeleteClaudeAccount(account)
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.isProviderBusy(.claude))
@@ -881,7 +950,7 @@ private struct StoredAccountDetailPane: View {
                     .disabled(model.isProviderBusy(.codex))
 
                     Button(L10n.tr("action.delete"), role: .destructive) {
-                        Task { await model.deleteAccount(account) }
+                        model.requestDeleteAccount(account)
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.isProviderBusy(.codex))

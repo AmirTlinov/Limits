@@ -1,4 +1,5 @@
 import AppKit
+import LimitsCore
 
 @MainActor
 final class TrayStatusIconRenderer {

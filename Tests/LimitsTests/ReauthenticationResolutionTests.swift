@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @MainActor
 @Test func reauthenticationReplacesRequestedRecordOnlyForSameStableIdentity() {
@@ -8,7 +8,7 @@ import Testing
     let result = makeReauthenticationResult(accountID: "acct_requested", fingerprint: "rotated")
 
     #expect(
-        AppModel.reauthenticationTarget(requested: requested, result: result, accounts: [requested])
+        AccountResolution.reauthenticationTarget(requested: requested, result: result, accounts: [requested])
             == .requestedAccount(requested.id)
     )
 }
@@ -20,7 +20,7 @@ import Testing
     let result = makeReauthenticationResult(accountID: "acct_other", fingerprint: "other-new")
 
     #expect(
-        AppModel.reauthenticationTarget(requested: requested, result: result, accounts: [requested, other])
+        AccountResolution.reauthenticationTarget(requested: requested, result: result, accounts: [requested, other])
             == .existingAccount(other.id)
     )
 }
@@ -31,7 +31,7 @@ import Testing
     let result = makeReauthenticationResult(accountID: "acct_new", fingerprint: "new")
 
     #expect(
-        AppModel.reauthenticationTarget(requested: requested, result: result, accounts: [requested])
+        AccountResolution.reauthenticationTarget(requested: requested, result: result, accounts: [requested])
             == .newAccount
     )
 }

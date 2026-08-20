@@ -1,6 +1,7 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
+import LimitsShared
 
 @Test func resetFormatterShowsTodayOtherDayAndStaleState() throws {
     let calendar = Calendar.current
@@ -133,9 +134,9 @@ import Testing
     )
 
     L10n.withLanguage("ru") {
-        #expect(AppModel.storedRateLimitSections(primary: staleSnapshot, byLimitId: nil, now: now).isEmpty)
-        #expect(AppModel.storedRateLimitSummary(primary: staleSnapshot, byLimitId: nil, now: now) == "Сброс прошёл · автообновление")
-        #expect(AppModel.storedRemainingPercent(primary: staleSnapshot, byLimitId: nil, now: now) == nil)
+        #expect(CodexAccountsPresentationPolicy.storedRateLimitSections(primary: staleSnapshot, byLimitId: nil, observedAt: now, now: now).isEmpty)
+        #expect(CodexAccountsPresentationPolicy.storedRateLimitSummary(primary: staleSnapshot, byLimitId: nil, observedAt: now, now: now) == "Сброс прошёл · автообновление")
+        #expect(CodexAccountsPresentationPolicy.storedRemainingPercent(primary: staleSnapshot, byLimitId: nil, observedAt: now, now: now) == nil)
     }
 }
 
@@ -155,16 +156,16 @@ import Testing
     )
 
     L10n.withLanguage("ru") {
-        let sections = AppModel.storedRateLimitSections(primary: snapshot, byLimitId: nil, now: now)
+        let sections = CodexAccountsPresentationPolicy.storedRateLimitSections(primary: snapshot, byLimitId: nil, observedAt: now, now: now)
         #expect(sections.count == 1)
         #expect(sections.first?.rows.map(\.title) == ["Недельный лимит"])
         #expect(sections.first?.rows.first?.usedPercent == 81)
 
-        let summary = AppModel.sidebarLimitSummary(primary: snapshot, byLimitId: nil, now: now)
+        let summary = CodexAccountsPresentationPolicy.sidebarLimitSummary(primary: snapshot, byLimitId: nil, observedAt: now, now: now)
         #expect(summary?.fiveHourRemainingPercent == nil)
         #expect(summary?.weeklyRemainingPercent == 19)
         #expect(summary?.compactLimitText() == "7д 19%")
-        #expect(AppModel.storedRemainingPercent(primary: snapshot, byLimitId: nil, now: now) == nil)
+        #expect(CodexAccountsPresentationPolicy.storedRemainingPercent(primary: snapshot, byLimitId: nil, observedAt: now, now: now) == nil)
     }
 }
 
@@ -192,7 +193,7 @@ import Testing
         secondary: nil
     )
 
-    let sections = AppModel.storedRateLimitSections(primary: aggregate, byLimitId: ["codex": expiredCodex], now: now)
+    let sections = CodexAccountsPresentationPolicy.storedRateLimitSections(primary: aggregate, byLimitId: ["codex": expiredCodex], observedAt: now, now: now)
     #expect(sections.isEmpty)
 }
 
@@ -220,6 +221,51 @@ import Testing
         secondary: nil
     )
 
-    #expect(AppModel.storedRateLimitSections(primary: primary, byLimitId: ["codex": expiredCodex], now: now).isEmpty)
-    #expect(AppModel.storedRemainingPercent(primary: primary, byLimitId: ["codex": expiredCodex], now: now) == nil)
+    #expect(CodexAccountsPresentationPolicy.storedRateLimitSections(primary: primary, byLimitId: ["codex": expiredCodex], observedAt: now, now: now).isEmpty)
+    #expect(CodexAccountsPresentationPolicy.storedRemainingPercent(primary: primary, byLimitId: ["codex": expiredCodex], observedAt: now, now: now) == nil)
+}
+
+@Test func everyCodexPresentationSurfaceExpiresAtTheSharedFifteenMinuteTTL() throws {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let observedAt = now.addingTimeInterval(-LimitsFreshnessPolicy.defaultTTL - 1)
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.addingTimeInterval(3_600).timeIntervalSince1970),
+            usedPercent: 20,
+            windowDurationMins: 300
+        ),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let probe = CodexSessionProbe(
+        fingerprint: "fingerprint",
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: snapshot,
+        rateLimitsByLimitId: nil,
+        validatedAt: observedAt
+    )
+
+    #expect(CodexSessionPresentation.rateLimitSections(probe: probe, now: now).isEmpty)
+    #expect(CodexSessionPresentation.panelSummary(probe: probe, now: now) == nil)
+    #expect(
+        CodexAccountsPresentationPolicy.storedRateLimitSections(
+            primary: snapshot,
+            byLimitId: nil,
+            observedAt: observedAt,
+            now: now
+        ).isEmpty
+    )
+    #expect(
+        CodexAccountsPresentationPolicy.sidebarLimitSummary(
+            primary: snapshot,
+            byLimitId: nil,
+            observedAt: observedAt,
+            now: now
+        ) == nil
+    )
 }

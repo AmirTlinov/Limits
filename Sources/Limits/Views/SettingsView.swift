@@ -1,12 +1,16 @@
 import SwiftUI
+import LimitsCore
+import LimitsShared
 
 struct SettingsView: View {
+    let catalog: ProviderCatalogSnapshot
     let languageDidChange: () -> Void
     let checkForUpdates: () -> Void
     @State private var selectedLanguage: String
     @StateObject private var launchAtLogin = LaunchAtLoginController()
 
-    init(languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
+    init(catalog: ProviderCatalogSnapshot, languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
+        self.catalog = catalog
         self.languageDidChange = languageDidChange
         self.checkForUpdates = checkForUpdates
         _selectedLanguage = State(initialValue: L10n.selectedLanguageOverride ?? "")
@@ -86,20 +90,15 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 9) {
-                    TrayLegendRow(
-                        provider: .codex,
-                        color: .blue,
-                        sample: "90% 2/8",
-                        title: L10n.tr("settings.tray_legend.codex.title"),
-                        subtitle: L10n.tr("settings.tray_legend.codex.subtitle")
-                    )
-                    TrayLegendRow(
-                        provider: .claude,
-                        color: ProviderAccent.claude,
-                        sample: "95% 1/2",
-                        title: L10n.tr("settings.tray_legend.claude.title"),
-                        subtitle: L10n.tr("settings.tray_legend.claude.subtitle")
-                    )
+                    ForEach(catalog.trayProviders, id: \.self) { provider in
+                        TrayLegendRow(
+                            provider: provider,
+                            color: provider == .codex ? .blue : ProviderAccent.claude,
+                            sample: provider == .codex ? "90% 2/8" : "95% 1/2",
+                            title: L10n.tr(provider == .codex ? "settings.tray_legend.codex.title" : "settings.tray_legend.claude.title"),
+                            subtitle: L10n.tr(provider == .codex ? "settings.tray_legend.codex.subtitle" : "settings.tray_legend.claude.subtitle")
+                        )
+                    }
                 }
                 .padding(14)
                 .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))

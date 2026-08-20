@@ -15,7 +15,7 @@ public enum LimitsWidgetSnapshotStoreError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .missingAppGroupContainer(let identifier):
-            return "App Group container is unavailable: \(identifier)"
+            return L10n.tr("widget.app_group_unavailable", identifier)
         }
     }
 }

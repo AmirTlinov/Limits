@@ -1,6 +1,6 @@
 import ServiceManagement
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @MainActor
 @Test func launchAtLoginControllerRegistersAndUnregistersMainApp() {

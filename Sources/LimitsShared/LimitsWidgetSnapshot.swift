@@ -132,6 +132,15 @@ public struct LimitsWidgetSnapshot: Codable, Hashable, Sendable {
 public enum LimitsFreshnessPolicy {
     public static let defaultTTL: TimeInterval = 15 * 60
 
+    public static func isFresh(
+        observedAt: Date?,
+        at date: Date,
+        ttl: TimeInterval = defaultTTL
+    ) -> Bool {
+        guard let observedAt else { return false }
+        return observedAt <= date && date < observedAt.addingTimeInterval(ttl)
+    }
+
     public static func freshUntil(
         observedAt: Date?,
         limitResetDates: [Date],

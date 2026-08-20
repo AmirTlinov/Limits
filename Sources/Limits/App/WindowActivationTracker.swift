@@ -45,10 +45,7 @@ final class ApplicationActivationController {
                 NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated {
                         if name == NSWindow.willCloseNotification {
-                            Task { @MainActor [weak self] in
-                                await Task.yield()
-                                self?.synchronize()
-                            }
+                            self?.removeWindow(id: id)
                         } else {
                             self?.synchronize()
                         }

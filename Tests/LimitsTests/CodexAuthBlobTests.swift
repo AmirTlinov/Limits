@@ -1,6 +1,7 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
+import LimitsShared
 
 @Test func readsChatGPTIdentityFromAuthBlob() throws {
     let data = """
@@ -130,19 +131,14 @@ private func base64URLJSON(_ object: [String: String]) -> String {
     #expect(resolved.planType == "pro")
 }
 
-@Test func codexValidationRejectsAccountOnlySuccessWithoutLiveRateLimits() {
-    do {
-        _ = try CodexAccountService.resolveValidatedIdentity(
-            account: AppServerAccountPayload(type: "chatgpt", email: "user@example.com", planType: "pro"),
-            identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
-            rateLimitsResponse: nil
-        )
-        #expect(Bool(false), "Validation should fail when live rate limits are unavailable.")
-    } catch CodexAccountServiceError.missingRateLimits {
-        #expect(Bool(true))
-    } catch {
-        #expect(Bool(false), "Unexpected error: \(error)")
-    }
+@Test func codexAccountValidationSucceedsWhenOnlyLimitsAreUnavailable() throws {
+    let resolved = try CodexAccountService.resolveValidatedIdentity(
+        account: AppServerAccountPayload(type: "chatgpt", email: "user@example.com", planType: "pro"),
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+        rateLimitsResponse: nil
+    )
+    #expect(resolved.email == "user@example.com")
+    #expect(resolved.planType == "pro")
 }
 
 @MainActor
@@ -165,7 +161,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         keychainAccount: "account.\(id.uuidString)"
     )
 
-    let match = AppModel.resolveStoredAccountMatch(
+    let match = AccountResolution.storedCodexMatch(
         identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "different-fingerprint",
         accounts: [stored]
@@ -214,12 +210,12 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         ),
     ]
 
-    let ambiguous = AppModel.resolveStoredAccountMatch(
+    let ambiguous = AccountResolution.storedCodexMatch(
         identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "rotated",
         accounts: accounts
     )
-    let exact = AppModel.resolveStoredAccountMatch(
+    let exact = AccountResolution.storedCodexMatch(
         identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "second",
         accounts: accounts
@@ -249,7 +245,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         keychainAccount: "account.\(id.uuidString)"
     )
 
-    let match = AppModel.resolveStoredAccountMatch(
+    let match = AccountResolution.storedCodexMatch(
         identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: nil),
         fingerprint: "same-fingerprint",
         accounts: [stored]
@@ -278,7 +274,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         keychainAccount: "account.\(id.uuidString)"
     )
 
-    let match = AppModel.resolveImportedAccount(
+    let match = AccountResolution.importedCodexAccount(
         fingerprint: "new-fingerprint",
         accountId: "acct_123",
         email: nil,
@@ -308,7 +304,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
         keychainAccount: "account.\(id.uuidString)"
     )
 
-    let match = AppModel.resolveImportedAccount(
+    let match = AccountResolution.importedCodexAccount(
         fingerprint: "new-fingerprint",
         accountId: nil,
         email: "USER@example.com",
@@ -325,7 +321,7 @@ private func base64URLJSON(_ object: [String: String]) -> String {
     }
     """.data(using: .utf8)!
 
-    let state = try JSONDecoder.limits.decode(PersistedState.self, from: data)
+    let state = try JSONDecoder.limits.decode(PersistedStateV3.self, from: data)
 
     #expect(state.accounts.isEmpty)
     #expect(state.claudeAccounts.isEmpty)

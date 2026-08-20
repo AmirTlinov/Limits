@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func keychainVaultCachesSuccessfulReadsForSession() throws {
     let store = CountingKeychainAuthStore(readData: Data("secret".utf8))

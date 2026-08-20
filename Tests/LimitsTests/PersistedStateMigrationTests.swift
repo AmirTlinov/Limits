@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func v1MigrationMergesStableIdentityAndRetainsLosingCredential() throws {
     let now = Date(timeIntervalSince1970: 10_000)
@@ -18,7 +18,7 @@ import Testing
         status: .ok,
         validatedAt: now
     )
-    let source = PersistedState(
+    let source = PersistedStateV3(
         schemaVersion: 1,
         accounts: [duplicate, current]
     )
@@ -30,7 +30,7 @@ import Testing
         now: now
     )
 
-    #expect(result.state.schemaVersion == 2)
+    #expect(result.state.schemaVersion == 3)
     #expect(result.state.accounts.map(\.id) == [current.id])
     #expect(result.state.retiredCredentials.count == 1)
     #expect(result.state.retiredCredentials[0].keychainAccount == duplicate.keychainAccount)
@@ -56,7 +56,7 @@ import Testing
     )
 
     let result = PersistedStateMigrator.migrate(
-        PersistedState(schemaVersion: 1, accounts: [failed, healthy]),
+        PersistedStateV3(schemaVersion: 1, accounts: [failed, healthy]),
         currentCodexFingerprint: nil,
         currentClaudeFingerprint: nil,
         now: now
@@ -66,7 +66,7 @@ import Testing
     #expect(result.state.retiredCredentials.map(\.sourceRecordID) == [failed.id])
 }
 
-@Test func v2MigrationIsIdempotent() {
+@Test func v3MigrationIsIdempotent() {
     let account = makeMigrationAccount(
         label: "Only",
         accountId: "acct_only",
@@ -74,7 +74,7 @@ import Testing
         status: .ok,
         validatedAt: .now
     )
-    let source = PersistedState(accounts: [account])
+    let source = PersistedStateV3(accounts: [account])
 
     let result = PersistedStateMigrator.migrate(
         source,
@@ -85,6 +85,28 @@ import Testing
     #expect(!result.receipt.didChange)
     #expect(result.state.accounts == source.accounts)
     #expect(result.state.retiredCredentials.isEmpty)
+}
+
+@Test func v2MigrationAdvancesSchemaAndKeepsExistingRevisionForRepositoryCommit() {
+    let account = makeMigrationAccount(
+        label: "Version two",
+        accountId: "acct_v2",
+        fingerprint: "v2-fingerprint",
+        status: .ok,
+        validatedAt: .now
+    )
+    let source = PersistedStateV3(schemaVersion: 2, revision: 7, accounts: [account])
+
+    let result = PersistedStateMigrator.migrate(
+        source,
+        currentCodexFingerprint: account.authFingerprint,
+        currentClaudeFingerprint: nil
+    )
+
+    #expect(result.receipt.didChange)
+    #expect(result.state.schemaVersion == 3)
+    #expect(result.state.revision == 7)
+    #expect(result.state.accounts == [account])
 }
 
 @Test func migrationNeverRetiresAKeychainEntryStillUsedByWinner() {
@@ -106,7 +128,7 @@ import Testing
     second.keychainAccount = first.keychainAccount
 
     let result = PersistedStateMigrator.migrate(
-        PersistedState(schemaVersion: 1, accounts: [first, second]),
+        PersistedStateV3(schemaVersion: 1, accounts: [first, second]),
         currentCodexFingerprint: first.authFingerprint,
         currentClaudeFingerprint: nil,
         now: now
@@ -123,13 +145,13 @@ import Testing
     let persistence = AccountsPersistence(baseURL: root)
     let legacyData = Data("{\"accounts\":[]}".utf8)
 
-    try persistence.backupBeforeV2Migration(legacyData)
-    try persistence.save(PersistedState(accounts: []))
+    try persistence.backupBeforeV3Migration(legacyData)
+    try persistence.save(PersistedStateV3(accounts: []))
 
-    #expect(try Data(contentsOf: persistence.preV2BackupURL) == legacyData)
+    #expect(try Data(contentsOf: persistence.preV3BackupURL) == legacyData)
     #expect(posixPermissions(at: persistence.stateDirectoryURL) == 0o700)
     #expect(posixPermissions(at: persistence.stateURL) == 0o600)
-    #expect(posixPermissions(at: persistence.preV2BackupURL) == 0o600)
+    #expect(posixPermissions(at: persistence.preV3BackupURL) == 0o600)
 }
 
 private func makeMigrationAccount(

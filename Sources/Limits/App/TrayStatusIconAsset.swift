@@ -1,4 +1,5 @@
 import AppKit
+import LimitsCore
 import Foundation
 
 enum TrayStatusIconAsset {

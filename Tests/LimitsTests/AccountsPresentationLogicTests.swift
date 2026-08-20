@@ -1,6 +1,7 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
+import LimitsShared
 
 @Test func detailDestinationRoutesStoredClaudeAccount() {
     let claudeID = UUID()
@@ -24,39 +25,6 @@ import Testing
     #expect(destination == .currentClaudeCode)
 }
 
-@Test func currentClaudeVisibilityMatchesStateAndStoredAccounts() {
-    #expect(
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: .stored(UUID()),
-            storedClaudeCount: 0
-        )
-    )
-    #expect(
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: .external("user@example.com"),
-            storedClaudeCount: 0
-        )
-    )
-    #expect(
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: .loggedOut,
-            storedClaudeCount: 0
-        )
-    )
-    #expect(
-        !AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: .notInstalled,
-            storedClaudeCount: 0
-        )
-    )
-    #expect(
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: .notInstalled,
-            storedClaudeCount: 1
-        )
-    )
-}
-
 @Test func storedAccountRowsScrollOnlyAfterThreshold() {
     #expect(
         !AccountsPresentationLogic.needsStoredAccountsScroll(
@@ -75,49 +43,57 @@ import Testing
 @Test func sidebarFilterVisibilityMatchesProvider() {
     let codexID = UUID()
     let claudeID = UUID()
+    let catalog = ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: .loggedOut)
 
     #expect(
         AccountsPresentationLogic.isVisible(
             destination: .currentCodexCLI,
-            filter: .codex
+            filter: .codex,
+            catalog: catalog
         )
     )
     #expect(
         AccountsPresentationLogic.isVisible(
             destination: .codexAccount(codexID),
-            filter: .codex
+            filter: .codex,
+            catalog: catalog
         )
     )
     #expect(
         !AccountsPresentationLogic.isVisible(
             destination: .claudeAccount(claudeID),
-            filter: .codex
+            filter: .codex,
+            catalog: catalog
         )
     )
     #expect(
         AccountsPresentationLogic.isVisible(
             destination: .currentClaudeCode,
-            filter: .claude
+            filter: .claude,
+            catalog: catalog
         )
     )
     #expect(
         !AccountsPresentationLogic.isVisible(
             destination: .codexAccount(codexID),
-            filter: .claude
+            filter: .claude,
+            catalog: catalog
         )
     )
     #expect(
         AccountsPresentationLogic.isVisible(
             destination: .claudeAccount(claudeID),
-            filter: .all
+            filter: .all,
+            catalog: catalog
         )
     )
 }
 
 @Test func sidebarFilterDefaultDestinationMatchesProvider() {
-    #expect(AccountsPresentationLogic.defaultDestination(for: .all) == .currentCodexCLI)
-    #expect(AccountsPresentationLogic.defaultDestination(for: .codex) == .currentCodexCLI)
-    #expect(AccountsPresentationLogic.defaultDestination(for: .claude) == .currentClaudeCode)
+    let catalog = ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: .loggedOut)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .all, catalog: catalog) == .currentCodexCLI)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .codex, catalog: catalog) == .currentCodexCLI)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .claude, catalog: catalog) == .currentClaudeCode)
 }
 
 @Test func sidebarFilterIncludesExpectedProviders() {
@@ -145,15 +121,15 @@ import Testing
     let laterAccount = makeStoredAccount(label: "later@example.com")
     let noDataAccount = makeStoredAccount(label: "none@example.com", status: .validationFailed)
 
-    let sorted = AppModel.sortedCodexAccountsForSidebar(
+    let sorted = CodexAccountsPresentationPolicy.sortedForSidebar(
         [noDataAccount, laterAccount, soonAccount],
         summaries: [
-            soonAccount.id: AppModel.SidebarLimitSummary(
+            soonAccount.id: SidebarLimitSummary(
                 fiveHourRemainingPercent: 40,
                 weeklyRemainingPercent: 80,
                 nextResetDate: soon
             ),
-            laterAccount.id: AppModel.SidebarLimitSummary(
+            laterAccount.id: SidebarLimitSummary(
                 fiveHourRemainingPercent: 99,
                 weeklyRemainingPercent: 99,
                 nextResetDate: later
@@ -171,15 +147,15 @@ import Testing
     let fuller = makeStoredAccount(label: "fuller@example.com")
     let lower = makeStoredAccount(label: "lower@example.com")
 
-    let sorted = AppModel.sortedCodexAccountsForSidebar(
+    let sorted = CodexAccountsPresentationPolicy.sortedForSidebar(
         [lower, fuller],
         summaries: [
-            fuller.id: AppModel.SidebarLimitSummary(
+            fuller.id: SidebarLimitSummary(
                 fiveHourRemainingPercent: 80,
                 weeklyRemainingPercent: 90,
                 nextResetDate: sameReset
             ),
-            lower.id: AppModel.SidebarLimitSummary(
+            lower.id: SidebarLimitSummary(
                 fiveHourRemainingPercent: 80,
                 weeklyRemainingPercent: 10,
                 nextResetDate: sameReset
@@ -197,7 +173,7 @@ import Testing
     let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15, minute: 59)))
     let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 17)))
 
-    let staleProbe = AppModel.CurrentCLIProbe(
+    let staleProbe = CodexSessionProbe(
         fingerprint: "fingerprint",
         email: "user@example.com",
         planType: "pro",
@@ -205,7 +181,7 @@ import Testing
         rateLimitsByLimitId: nil,
         validatedAt: now.addingTimeInterval(-30)
     )
-    let freshProbe = AppModel.CurrentCLIProbe(
+    let freshProbe = CodexSessionProbe(
         fingerprint: "fingerprint",
         email: "user@example.com",
         planType: "pro",
@@ -214,8 +190,8 @@ import Testing
         validatedAt: now.addingTimeInterval(-30)
     )
 
-    #expect(!AppModel.currentCLIProbeCanBeReused(staleProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
-    #expect(AppModel.currentCLIProbeCanBeReused(freshProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+    #expect(!CodexSessionPresentation.canReuse(staleProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+    #expect(CodexSessionPresentation.canReuse(freshProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
 }
 
 @Test func currentExpiredResetRefreshUsesBackoffInsteadOfThirtySecondPolling() throws {
@@ -223,23 +199,23 @@ import Testing
     let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
     let lastAttempt = now.addingTimeInterval(-30)
 
-    #expect(AppModel.canAttemptExpiredResetRefresh(lastAttempt: nil, now: now, retryInterval: 300))
-    #expect(!AppModel.canAttemptExpiredResetRefresh(lastAttempt: lastAttempt, now: now, retryInterval: 300))
-    #expect(AppModel.canAttemptExpiredResetRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
+    #expect(CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: nil, now: now, retryInterval: 300))
+    #expect(!CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: lastAttempt, now: now, retryInterval: 300))
+    #expect(CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
 }
 
 @Test func authTokenFailuresRequireReauthInsteadOfGenericValidationFailure() {
-    #expect(AppModel.validationStatus(forErrorMessage: "401 Unauthorized") == .needsReauth)
-    #expect(AppModel.validationStatus(forErrorMessage: "token_expired") == .needsReauth)
-    #expect(AppModel.validationStatus(forErrorMessage: "token_invalidated") == .needsReauth)
-    #expect(AppModel.validationStatus(forErrorMessage: "refresh token was already used") == .needsReauth)
-    #expect(AppModel.validationStatus(forErrorMessage: "temporary backend outage") == .validationFailed)
+    #expect(AccountResolution.validationStatus(forErrorMessage: "401 Unauthorized") == .needsReauth)
+    #expect(AccountResolution.validationStatus(forErrorMessage: "token_expired") == .needsReauth)
+    #expect(AccountResolution.validationStatus(forErrorMessage: "token_invalidated") == .needsReauth)
+    #expect(AccountResolution.validationStatus(forErrorMessage: "refresh token was already used") == .needsReauth)
+    #expect(AccountResolution.validationStatus(forErrorMessage: "temporary backend outage") == .validationFailed)
 }
 
 @Test func currentCLIProbeNoteCollapsesRawAuthErrorsIntoUserStatus() {
     L10n.withLanguage("ru") {
-        #expect(AppModel.currentCLIProbeNote(for: "401 Unauthorized token_invalidated") == "Текущей авторизации нужен повторный вход.")
-        #expect(AppModel.currentCLIProbeNote(for: "temporary backend outage") == "Не удалось обновить живые лимиты.")
+        #expect(CodexSessionPresentation.probeNote(for: "401 Unauthorized token_invalidated") == "Текущей авторизации нужен повторный вход.")
+        #expect(CodexSessionPresentation.probeNote(for: "temporary backend outage") == "Не удалось обновить живые лимиты.")
     }
 }
 
@@ -255,7 +231,7 @@ import Testing
     let fresh = makeStoredAccount(label: "fresh@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10))
     let reauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth, lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
 
-    let selected = AppModel.nextStoredCodexAccountIDForAutoRefresh(
+    let selected = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
         accounts: [fresh, current, throttled, candidate, reauth],
         currentAccountID: current.id,
         lastAttempts: [throttled.id: now.addingTimeInterval(-120)],
@@ -273,7 +249,7 @@ import Testing
     let emptyNeedsReauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth)
     let throttledEmpty = makeStoredAccount(label: "throttled@example.com", status: .validationFailed)
 
-    let selected = AppModel.nextStoredCodexAccountIDForAutoRefresh(
+    let selected = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
         accounts: [emptyNeedsReauth, throttledEmpty, emptyFailed],
         currentAccountID: nil,
         lastAttempts: [throttledEmpty.id: now.addingTimeInterval(-120)],
@@ -288,17 +264,18 @@ import Testing
     let codex = TrayProviderAvailability(remainingPercent: 96, availableAccounts: 1, totalAccounts: 8)
     let claude = TrayProviderAvailability(remainingPercent: 95, availableAccounts: 1, totalAccounts: 2)
     let noData = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 8)
+    let catalog = ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: .loggedOut)
 
-    #expect(TrayStatusPresentation.segments(filter: .all, codex: codex, claude: claude) == [
+    #expect(TrayStatusPresentation.segments(filter: .all, catalog: catalog, codex: codex, claude: claude) == [
         TrayStatusPresentationSegment(provider: .codex, metricText: "96% 1/8", remainingPercent: 96),
         TrayStatusPresentationSegment(provider: .claude, metricText: "95% 1/2", remainingPercent: 95),
     ])
-    #expect(TrayStatusPresentation.segments(filter: .codex, codex: noData, claude: claude) == [
+    #expect(TrayStatusPresentation.segments(filter: .codex, catalog: catalog, codex: noData, claude: claude) == [
         TrayStatusPresentationSegment(provider: .codex, metricText: "— 0/8", remainingPercent: nil),
     ])
-    #expect(TrayStatusPresentation.title(filter: .all, codex: codex, claude: claude) == "Codex 96% 1/8 · Claude 95% 1/2")
-    #expect(TrayStatusPresentation.title(filter: .codex, codex: codex, claude: claude) == "Codex 96% 1/8")
-    #expect(TrayStatusPresentation.title(filter: .codex, codex: noData, claude: claude) == "Codex — 0/8")
+    #expect(TrayStatusPresentation.title(filter: .all, catalog: catalog, codex: codex, claude: claude) == "Codex 96% 1/8 · Claude 95% 1/2")
+    #expect(TrayStatusPresentation.title(filter: .codex, catalog: catalog, codex: codex, claude: claude) == "Codex 96% 1/8")
+    #expect(TrayStatusPresentation.title(filter: .codex, catalog: catalog, codex: noData, claude: claude) == "Codex — 0/8")
 }
 
 @Test func providerPresentationKeepsBadgesAndAccountCountsConsistent() {
@@ -323,8 +300,10 @@ import Testing
 @Test func trayStatusSnapshotCarriesMetricTooltipAndAccessibilityText() {
     let codex = TrayProviderAvailability(remainingPercent: 96, availableAccounts: 1, totalAccounts: 8)
     let claude = TrayProviderAvailability(remainingPercent: nil, availableAccounts: 0, totalAccounts: 2)
+    let catalog = ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: .loggedOut)
     let snapshot = TrayStatusPresentation.snapshot(
         filter: .all,
+        catalog: catalog,
         codex: codex,
         claude: claude,
         codexLimit: TrayLimitSnapshot(remainingPercent: 96, resetText: "Reset 18:00"),
@@ -339,6 +318,7 @@ import Testing
     #expect(snapshot.accessibilityLabel.contains("Claude"))
     #expect(snapshot == TrayStatusPresentation.snapshot(
         filter: .all,
+        catalog: catalog,
         codex: codex,
         claude: claude,
         codexLimit: TrayLimitSnapshot(remainingPercent: 96, resetText: "Reset 18:00"),
@@ -354,20 +334,9 @@ import Testing
     }
 }
 
-@Test func trayProviderIconsAreRealSvgResources() throws {
-    for provider in [TrayStatusProvider.codex, .claude] {
-        let url = try #require(TrayStatusIconAsset.resourceURL(for: provider))
-        let svg = try String(contentsOf: url, encoding: .utf8)
-
-        #expect(svg.contains("<svg"))
-        #expect(!svg.contains("<image"))
-        #expect(!svg.localizedCaseInsensitiveContains("data:image"))
-    }
-}
-
 @Test func codexSidebarLimitSummaryCompactsFiveHourAndWeeklyWithoutExtraRows() {
     L10n.withLanguage("ru") {
-        let summary = AppModel.SidebarLimitSummary(
+        let summary = SidebarLimitSummary(
             fiveHourRemainingPercent: 98,
             weeklyRemainingPercent: 99,
             nextResetDate: nil

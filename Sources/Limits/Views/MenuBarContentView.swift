@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import LimitsCore
+import LimitsShared
 
 struct MenuBarContentView: View {
     @ObservedObject var model: AppModel
@@ -69,14 +71,7 @@ struct MenuBarContentView: View {
     }
 
     private var shouldShowClaudeRow: Bool {
-        AccountsPresentationLogic.shouldShowCurrentClaude(
-            source: model.currentClaudeState.source,
-            storedClaudeCount: model.claudeAccounts.count
-        )
-    }
-
-    private var shouldShowClaudeSection: Bool {
-        shouldShowClaudeRow || !storedClaudeAccounts.isEmpty
+        model.providerCatalog.contains(.claude)
     }
 
     private var shouldScrollAccountContent: Bool {
@@ -87,7 +82,7 @@ struct MenuBarContentView: View {
     }
 
     private var providerFilter: AccountsSidebarFilter {
-        AccountsSidebarFilter(rawValue: providerFilterRaw) ?? .all
+        model.providerCatalog.normalized(AccountsSidebarFilter(rawValue: providerFilterRaw) ?? .all)
     }
 
     private var providerFilterBinding: Binding<AccountsSidebarFilter> {
@@ -114,7 +109,7 @@ struct MenuBarContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             header
 
-            ProviderFilterPicker(selection: providerFilterBinding)
+            ProviderFilterPicker(selection: providerFilterBinding, catalog: model.providerCatalog)
                 .padding(.bottom, 1)
 
             accountContent
@@ -125,6 +120,18 @@ struct MenuBarContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: 326)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.98))
+        .onChange(of: model.providerCatalog) { _, catalog in
+            let normalized = catalog.normalized(providerFilter)
+            providerFilterRaw = normalized.rawValue
+            revealVisibleSections(for: normalized)
+        }
+        .onAppear {
+            let normalized = model.providerCatalog.normalized(
+                AccountsSidebarFilter(rawValue: providerFilterRaw) ?? .all
+            )
+            providerFilterRaw = normalized.rawValue
+            revealVisibleSections(for: normalized)
+        }
     }
 
     @ViewBuilder
@@ -145,13 +152,13 @@ struct MenuBarContentView: View {
                 codexSection
             }
 
-            if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeSection {
+            if providerFilter.includesCodex, providerFilter.includesClaude, shouldShowClaudeRow {
                 MinimalSeparator()
                     .opacity(0.30)
                     .padding(.horizontal, 2)
             }
 
-            if providerFilter.includesClaude, shouldShowClaudeSection {
+            if providerFilter.includesClaude, shouldShowClaudeRow {
                 claudeSection
             }
         }
@@ -176,7 +183,6 @@ struct MenuBarContentView: View {
                     accent: codexAccent,
                     badgeText: codexBadge.text,
                     badgeColor: codexBadge.tone.color,
-                    interactive: false,
                     style: .current,
                     action: nil
                 )
@@ -192,7 +198,6 @@ struct MenuBarContentView: View {
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
                         badgeText: nil,
                         badgeColor: .secondary,
-                        interactive: true,
                         style: .stored
                     ) {
                         Task { await model.activateAccount(account) }
@@ -222,7 +227,6 @@ struct MenuBarContentView: View {
                         accent: claudeAccent,
                         badgeText: claudeBadge.text,
                         badgeColor: claudeBadge.tone.color,
-                        interactive: false,
                         style: .current,
                         action: nil
                     )
@@ -239,7 +243,6 @@ struct MenuBarContentView: View {
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .claude).color,
                         badgeText: nil,
                         badgeColor: .secondary,
-                        interactive: true,
                         style: .stored
                     ) {
                         Task { await model.activateClaudeAccount(account) }
@@ -619,7 +622,6 @@ private struct TrayAccountRow: View {
     let accent: Color
     let badgeText: String?
     let badgeColor: Color
-    let interactive: Bool
     let style: TrayAccountRowStyle
     let action: (() -> Void)?
 

@@ -47,12 +47,14 @@ config_group = project.main_group.new_group("Config", "Config")
 assets_group = project.main_group.new_group("Assets", "Assets")
 
 limits_group = sources_group.new_group("Limits", "Limits")
+core_group = sources_group.new_group("LimitsCore", "LimitsCore")
 shared_group = sources_group.new_group("LimitsShared", "LimitsShared")
 widget_group = sources_group.new_group("LimitsWidgetExtension", "LimitsWidgetExtension")
 unit_tests_group = tests_group.new_group("LimitsTests", "LimitsTests")
 ui_tests_group = tests_group.new_group("LimitsUITests", "LimitsUITests")
 
 app = project.new_target(:application, "Limits", :osx, "26.0")
+core = project.new_target(:framework, "LimitsCore", :osx, "26.0")
 shared = project.new_target(:framework, "LimitsShared", :osx, "26.0")
 widget = project.new_target(:app_extension, "LimitsWidgetExtension", :osx, "26.0")
 unit_tests = project.new_target(:unit_test_bundle, "LimitsTests", :osx, "26.0")
@@ -91,20 +93,22 @@ end
 
 deferred_sources = []
 add_swift_sources(app, limits_group, "Sources/Limits/**/*.swift", existing_sources, deferred_sources)
+add_swift_sources(core, core_group, "Sources/LimitsCore/**/*.swift", existing_sources, deferred_sources)
 add_swift_sources(shared, shared_group, "Sources/LimitsShared/**/*.swift", existing_sources, deferred_sources)
 add_swift_sources(widget, widget_group, "Sources/LimitsWidgetExtension/**/*.swift", existing_sources, deferred_sources)
 add_swift_sources(unit_tests, unit_tests_group, "Tests/LimitsTests/**/*.swift", existing_sources, deferred_sources)
 add_swift_sources(ui_tests, ui_tests_group, "Tests/LimitsUITests/**/*.swift", existing_sources, deferred_sources)
 
-resources_group = limits_group.new_group("Resources", "Resources")
+resources_group = shared_group.new_group("Resources", "Resources")
 localizable = resources_group.new_variant_group("Localizable.strings")
 %w[en es fr ru zh-Hans].each do |language|
   reference = localizable.new_file("#{language}.lproj/Localizable.strings")
   reference.name = language
 end
-app.resources_build_phase.add_file_reference(localizable)
+shared.resources_build_phase.add_file_reference(localizable)
 
-tray_icons_group = resources_group.new_group("TrayIcons", "TrayIcons")
+app_resources_group = limits_group.new_group("Resources", "Resources")
+tray_icons_group = app_resources_group.new_group("TrayIcons", "TrayIcons")
 Dir.glob(File.join(ROOT, "Sources/Limits/Resources/TrayIcons/*")).sort.each do |path|
   reference = tray_icons_group.new_file(File.basename(path))
   app.resources_build_phase.add_file_reference(reference)
@@ -118,20 +122,27 @@ app.resources_build_phase.add_file_reference(icon_reference)
 end
 
 app.add_dependency(shared)
+app.add_dependency(core)
 app.add_dependency(widget)
+core.add_dependency(shared)
 widget.add_dependency(shared)
-unit_tests.add_dependency(app)
+unit_tests.add_dependency(core)
 unit_tests.add_dependency(shared)
 ui_tests.add_dependency(app)
 
 app.frameworks_build_phase.add_file_reference(shared.product_reference)
+app.frameworks_build_phase.add_file_reference(core.product_reference)
+core.frameworks_build_phase.add_file_reference(shared.product_reference)
 widget.frameworks_build_phase.add_file_reference(shared.product_reference)
+unit_tests.frameworks_build_phase.add_file_reference(core.product_reference)
 unit_tests.frameworks_build_phase.add_file_reference(shared.product_reference)
 
 embed_frameworks = app.new_copy_files_build_phase("Embed Frameworks")
 embed_frameworks.dst_subfolder_spec = "10"
 shared_build_file = embed_frameworks.add_file_reference(shared.product_reference)
 shared_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
+core_build_file = embed_frameworks.add_file_reference(core.product_reference)
+core_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
 
 embed_extensions = app.new_copy_files_build_phase("Embed App Extensions")
 embed_extensions.dst_subfolder_spec = "13"
@@ -154,7 +165,7 @@ project.build_configurations.each do |configuration|
   configuration.build_settings["ONLY_ACTIVE_ARCH"] = "YES" if configuration.name == "Debug"
 end
 
-targets = [app, shared, widget, unit_tests, ui_tests]
+targets = [app, core, shared, widget, unit_tests, ui_tests]
 targets.each do |target|
   target.build_configurations.each do |configuration|
     configuration.build_settings.merge!(common_settings)
@@ -162,6 +173,8 @@ targets.each do |target|
 end
 
 app.build_configurations.each do |configuration|
+  bundle_identifier = configuration.name == "Debug" ? "com.amir.Limits.TestHost" : "com.amir.Limits"
+  app_group_identifier = configuration.name == "Debug" ? "M94V58FCVP.com.amir.Limits.test.shared" : "M94V58FCVP.com.amir.Limits.shared"
   configuration.build_settings.merge!(
     "CODE_SIGN_ENTITLEMENTS" => "Config/Limits.entitlements",
     "CURRENT_PROJECT_VERSION" => "1",
@@ -170,7 +183,8 @@ app.build_configurations.each do |configuration|
     "INFOPLIST_FILE" => "Config/Limits-Info.plist",
     "LD_RUNPATH_SEARCH_PATHS" => "$(inherited) @executable_path/../Frameworks",
     "MARKETING_VERSION" => "1.0.0",
-    "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits",
+    "LIMITS_APP_GROUP_ID" => app_group_identifier,
+    "PRODUCT_BUNDLE_IDENTIFIER" => bundle_identifier,
     "PRODUCT_NAME" => "Limits"
   )
 end
@@ -185,7 +199,19 @@ shared.build_configurations.each do |configuration|
   )
 end
 
+core.build_configurations.each do |configuration|
+  configuration.build_settings.merge!(
+    "BUILD_LIBRARY_FOR_DISTRIBUTION" => "YES",
+    "DEFINES_MODULE" => "YES",
+    "GENERATE_INFOPLIST_FILE" => "YES",
+    "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits.Core",
+    "SKIP_INSTALL" => "YES"
+  )
+end
+
 widget.build_configurations.each do |configuration|
+  bundle_identifier = configuration.name == "Debug" ? "com.amir.Limits.TestHost.WidgetExtension" : "com.amir.Limits.WidgetExtension"
+  app_group_identifier = configuration.name == "Debug" ? "M94V58FCVP.com.amir.Limits.test.shared" : "M94V58FCVP.com.amir.Limits.shared"
   configuration.build_settings.merge!(
     "APPLICATION_EXTENSION_API_ONLY" => "YES",
     "CODE_SIGN_ENTITLEMENTS" => "Config/LimitsWidgetExtension.entitlements",
@@ -194,23 +220,24 @@ widget.build_configurations.each do |configuration|
     "INFOPLIST_FILE" => "Config/LimitsWidgetExtension-Info.plist",
     "LD_RUNPATH_SEARCH_PATHS" => "$(inherited) @executable_path/../../../../Frameworks",
     "MARKETING_VERSION" => "1.0.0",
-    "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits.WidgetExtension",
+    "LIMITS_APP_GROUP_ID" => app_group_identifier,
+    "PRODUCT_BUNDLE_IDENTIFIER" => bundle_identifier,
     "SKIP_INSTALL" => "YES"
   )
 end
 
 unit_tests.build_configurations.each do |configuration|
   configuration.build_settings.merge!(
-    "BUNDLE_LOADER" => "$(TEST_HOST)",
     "GENERATE_INFOPLIST_FILE" => "YES",
-    "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits.Tests",
-    "TEST_HOST" => "$(BUILT_PRODUCTS_DIR)/Limits.app/Contents/MacOS/Limits"
+    "INFOPLIST_KEY_LimitsAppGroupIdentifier" => "M94V58FCVP.com.amir.Limits.test.shared",
+    "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits.CoreTests"
   )
 end
 
 ui_tests.build_configurations.each do |configuration|
   configuration.build_settings.merge!(
     "GENERATE_INFOPLIST_FILE" => "YES",
+    "INFOPLIST_KEY_LimitsAppGroupIdentifier" => "M94V58FCVP.com.amir.Limits.test.shared",
     "PRODUCT_BUNDLE_IDENTIFIER" => "com.amir.Limits.UITests",
     "TEST_TARGET_NAME" => "Limits"
   )
@@ -218,7 +245,7 @@ end
 
 sparkle_package = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
 sparkle_package.repositoryURL = "https://github.com/sparkle-project/Sparkle"
-sparkle_package.requirement = { "kind" => "exactVersion", "version" => "2.9.2" }
+sparkle_package.requirement = { "kind" => "exactVersion", "version" => "2.9.6" }
 project.root_object.package_references << sparkle_package
 
 sparkle_product = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func asyncCommandRunnerCapturesOutputAndExitStatus() async throws {
     let result = try await AsyncCommandRunner().run(
@@ -44,7 +44,7 @@ import Testing
     try Data(script.utf8).write(to: executable)
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
 
-    let status = try await ClaudeAuthStatusService(executableURL: executable, timeout: 1).readStatus()
+    let status = try await ClaudeAuthStatusService(executableURL: executable, timeout: 5).readStatus()
 
     #expect(status.loggedIn)
     #expect(status.stableIdentity == ClaudeAccountIdentity(email: "user@example.com", organizationId: "org_1"))

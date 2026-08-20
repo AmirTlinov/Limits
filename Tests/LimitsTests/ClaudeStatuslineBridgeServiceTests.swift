@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func claudeBridgeInstallAndUninstallPreserveExistingStatusLine() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: "limits-claude-bridge-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -41,6 +41,7 @@ import Testing
     #expect(bridgePermissions(at: service.originalStatusLineBackupURL) == 0o600)
     #expect(bridgePermissions(at: settingsURL) == 0o600)
     #expect(try String(contentsOf: service.scriptURL, encoding: .utf8).contains("umask 077"))
+    try Data("{\"five_hour\":{}}".utf8).write(to: service.snapshotURL)
 
     let status = try service.bridgeStatus()
     #expect(status.installed)
@@ -52,6 +53,7 @@ import Testing
     let restoredSettings = try #require(JSONSerialization.jsonObject(with: restoredSettingsData) as? [String: Any])
     let restoredStatusLine = try #require(restoredSettings["statusLine"] as? [String: Any])
     #expect(restoredStatusLine["command"] as? String == "echo original-statusline")
+    #expect(!FileManager.default.fileExists(atPath: service.snapshotURL.path))
 }
 
 @Test func claudeSettingsCommitPreservesConcurrentExternalChange() throws {
@@ -104,6 +106,8 @@ import Testing
     } catch let error as ClaudeStatuslineBridgeServiceError {
         #expect(error == .unsupportedExistingStatusLine)
     }
+    #expect(!FileManager.default.fileExists(atPath: service.scriptURL.path))
+    #expect(!FileManager.default.fileExists(atPath: service.originalStatusLineBackupURL.path))
 }
 
 @Test func claudeBridgeReadsSnapshotFromStatusLineJson() throws {
@@ -117,21 +121,13 @@ import Testing
 
     let snapshotJSON = """
     {
-      "session_id": "session_123",
-      "version": "2.1.118",
-      "model": {
-        "id": "claude-opus-4-7",
-        "display_name": "Opus"
+      "five_hour": {
+        "used_percentage": 23.5,
+        "resets_at": 1738425600
       },
-      "rate_limits": {
-        "five_hour": {
-          "used_percentage": 23.5,
-          "resets_at": 1738425600
-        },
-        "seven_day": {
-          "used_percentage": 41.2,
-          "resets_at": 1738857600
-        }
+      "seven_day": {
+        "used_percentage": 41.2,
+        "resets_at": 1738857600
       }
     }
     """
@@ -139,9 +135,53 @@ import Testing
     try snapshotJSON.data(using: .utf8)!.write(to: service.snapshotURL, options: .atomic)
     let payload = try service.readSnapshot()
 
-    #expect(payload.snapshot.sessionID == "session_123")
-    #expect(payload.snapshot.rateLimits?.fiveHour?.usedPercentage == 23.5)
-    #expect(payload.snapshot.rateLimits?.sevenDay?.usedPercentage == 41.2)
+    #expect(payload.snapshot.fiveHour?.usedPercentage == 23.5)
+    #expect(payload.snapshot.sevenDay?.usedPercentage == 41.2)
+}
+
+@Test func claudeBridgeScriptPersistsOnlyRateLimitWindowsWithSystemPlutil() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-claude-script-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let service = ClaudeStatuslineBridgeService(
+        homeDirectory: root.appending(path: "home"),
+        appSupportDirectory: root.appending(path: "support")
+    )
+    try service.installBridge()
+
+    let input = Data("""
+    {
+      "session_id":"secret-session",
+      "cwd":"/private/workspace",
+      "transcript_path":"/private/transcript.jsonl",
+      "rate_limits":{
+        "five_hour":{"used_percentage":12,"resets_at":2000000},
+        "seven_day":{"used_percentage":34,"resets_at":2100000}
+      }
+    }
+    """.utf8)
+    let process = Process()
+    let stdin = Pipe()
+    process.executableURL = service.scriptURL
+    process.standardInput = stdin
+    process.standardOutput = Pipe()
+    process.standardError = Pipe()
+    try process.run()
+    try stdin.fileHandleForWriting.write(contentsOf: input)
+    try stdin.fileHandleForWriting.close()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+
+    let data = try Data(contentsOf: service.snapshotURL)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(Set(object.keys) == ["five_hour", "seven_day"])
+    let text = String(decoding: data, as: UTF8.self)
+    #expect(!text.contains("session_id"))
+    #expect(!text.contains("cwd"))
+    #expect(!text.contains("transcript"))
+    let script = try String(contentsOf: service.scriptURL, encoding: .utf8)
+    #expect(!script.contains(".input."))
+    let persistedNames = try FileManager.default.contentsOfDirectory(atPath: service.appSupportDirectory.path)
+    #expect(!persistedNames.contains { $0.contains("input") })
 }
 
 private func bridgePermissions(at url: URL) -> Int {

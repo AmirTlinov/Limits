@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func codexSwitchValidatesAndPersistsBeforeReplacingGlobalAuth() async throws {
     let fixture = try CodexSwitchFixture()
@@ -129,6 +129,36 @@ import Testing
 
     #expect(store.currentData == originalCredential)
     #expect(store.restoreCount == 1)
+}
+
+@Test func codexSwitchRemainsValidWhenOnlyRateLimitsAreUnavailable() async throws {
+    let fixture = try CodexSwitchFixture()
+    defer { fixture.remove() }
+    let original = makeCodexAuthData(accountID: "acct_original", version: 1)
+    let selected = makeCodexAuthData(accountID: "acct_selected", version: 1)
+    try original.write(to: fixture.authURL)
+    let validator = ClosureCodexValidator { _ in
+        AccountValidationResult(
+            authData: selected,
+            authFingerprint: CodexAuthBlob.fingerprint(for: selected),
+            identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_selected", email: "selected@example.com"),
+            email: "selected@example.com",
+            planType: "pro",
+            rateLimit: nil,
+            rateLimitsByLimitId: nil,
+            rateLimitError: "rate-limit endpoint unavailable"
+        )
+    }
+    let transaction = CodexAuthSwitchTransaction(globalStore: fixture.store, validator: validator)
+
+    let result = try await transaction.execute(
+        account: makeSwitchAccount(accountID: "acct_selected", credential: selected),
+        authData: selected
+    )
+
+    #expect(result.rateLimit == nil)
+    #expect(result.rateLimitError == "rate-limit endpoint unavailable")
+    #expect(try Data(contentsOf: fixture.authURL) == selected)
 }
 
 private struct ClosureCodexValidator: CodexAccountValidating {

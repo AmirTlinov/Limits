@@ -45,10 +45,10 @@ struct LimitsWidgetTimelineProvider: TimelineProvider {
             return LimitsWidgetEntry(
                 date: date,
                 snapshot: allowDemo ? LimitsWidgetSnapshot.demo(generatedAt: date) : nil,
-                errorText: "Open Limits once"
+                errorText: L10n.tr("widget.open_once")
             )
         } catch {
-            return LimitsWidgetEntry(date: date, snapshot: nil, errorText: "Snapshot unavailable")
+            return LimitsWidgetEntry(date: date, snapshot: nil, errorText: L10n.tr("widget.snapshot_unavailable"))
         }
     }
 }
@@ -59,7 +59,7 @@ struct LimitsCurrentLimitsWidget: Widget {
             LimitsWidgetView(entry: entry)
         }
         .configurationDisplayName("Limits")
-        .description("Codex and Claude limits at a glance.")
+        .description(L10n.tr("widget.description"))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
     }
 }
@@ -173,7 +173,7 @@ private struct LimitsWidgetView: View {
                 .lineLimit(1)
             Spacer(minLength: 0)
             if allProvidersAreStale {
-                Text("stale")
+                Text(L10n.tr("widget.stale"))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.orange)
                     .padding(.horizontal, 6)
@@ -186,9 +186,9 @@ private struct LimitsWidgetView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
             header(compact: false)
-            Text(entry.errorText ?? "Open Limits once")
+            Text(entry.errorText ?? L10n.tr("widget.open_once"))
                 .font(.callout.weight(.semibold))
-            Text("The app will publish a safe limits snapshot for this widget.")
+            Text(L10n.tr("widget.empty_explanation"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -199,8 +199,8 @@ private struct LimitsWidgetView: View {
     private func updatedText(snapshot: LimitsWidgetSnapshot) -> some View {
         let observedAt = snapshot.providers.compactMap(\.observedAt).max() ?? snapshot.generatedAt
         return HStack(spacing: 4) {
-            Text("Updated")
-            Text(observedAt, style: .time)
+            Text(L10n.tr("widget.updated"))
+            Text(L10n.shortTime(observedAt))
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
@@ -253,7 +253,7 @@ private struct ProviderCard: View {
                 .font(.callout.weight(.semibold))
                 .lineLimit(1)
 
-            if provider.limits.isEmpty || stale {
+            if provider.status != .available || provider.limits.isEmpty || stale {
                 Text(provider.statusText(stale: stale))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -308,8 +308,8 @@ private struct LimitBarRow: View {
 
             if let resetDate = limit.resetDate {
                 HStack(spacing: 4) {
-                    Text("Reset")
-                    Text(resetDate, style: .time)
+                    Text(L10n.tr("widget.reset"))
+                    Text(L10n.shortTime(resetDate))
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -348,18 +348,18 @@ private extension LimitsWidgetProviderSnapshot {
     }
 
     func statusText(stale: Bool) -> String {
-        if stale { return "Snapshot is stale. Open Limits to refresh." }
+        if stale { return L10n.tr("widget.status.stale") }
         switch status {
         case .available:
-            return "No visible limit rows yet."
+            return L10n.tr("widget.status.no_rows")
         case .unavailable:
-            return note ?? "Not connected."
+            return note ?? L10n.tr("widget.status.not_connected")
         case .noData:
-            return note ?? "No live limit data yet."
+            return note ?? L10n.tr("widget.status.no_data")
         case .error:
-            return note ?? "Cannot read limits."
+            return note ?? L10n.tr("widget.status.error")
         @unknown default:
-            return note ?? "No live limit data yet."
+            return note ?? L10n.tr("widget.status.no_data")
         }
     }
 

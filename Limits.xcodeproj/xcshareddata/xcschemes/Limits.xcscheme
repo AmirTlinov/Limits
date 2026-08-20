@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D00000000000000000000011"
+               BlueprintIdentifier = "D00000000000000000000012"
                BuildableName = "Limits.app"
                BlueprintName = "Limits"
                ReferencedContainer = "container:Limits.xcodeproj">
@@ -28,7 +28,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D0000000000000000000002F"
+               BlueprintIdentifier = "D0000000000000000000003A"
                BuildableName = "LimitsTests.xctest"
                BlueprintName = "LimitsTests"
                ReferencedContainer = "container:Limits.xcodeproj">
@@ -44,7 +44,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D00000000000000000000011"
+            BlueprintIdentifier = "D00000000000000000000012"
             BuildableName = "Limits.app"
             BlueprintName = "Limits"
             ReferencedContainer = "container:Limits.xcodeproj">
@@ -55,7 +55,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D0000000000000000000002F"
+               BlueprintIdentifier = "D0000000000000000000003A"
                BuildableName = "LimitsTests.xctest"
                BlueprintName = "LimitsTests"
                ReferencedContainer = "container:Limits.xcodeproj">
@@ -65,7 +65,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D00000000000000000000038"
+               BlueprintIdentifier = "D00000000000000000000043"
                BuildableName = "LimitsUITests.xctest"
                BlueprintName = "LimitsUITests"
                ReferencedContainer = "container:Limits.xcodeproj">
@@ -87,7 +87,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D00000000000000000000011"
+            BlueprintIdentifier = "D00000000000000000000012"
             BuildableName = "Limits.app"
             BlueprintName = "Limits"
             ReferencedContainer = "container:Limits.xcodeproj">
@@ -104,7 +104,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D00000000000000000000011"
+            BlueprintIdentifier = "D00000000000000000000012"
             BuildableName = "Limits.app"
             BlueprintName = "Limits"
             ReferencedContainer = "container:Limits.xcodeproj">

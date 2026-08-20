@@ -1,13 +1,16 @@
 import SwiftUI
+import LimitsCore
+import LimitsShared
 
 struct ProviderFilterPicker: View {
     @Binding var selection: AccountsSidebarFilter
+    let catalog: ProviderCatalogSnapshot
 
     var body: some View {
         Picker(L10n.tr("filter.show_accounts"), selection: $selection) {
-            Text(L10n.tr("filter.all")).tag(AccountsSidebarFilter.all)
-            Text("Codex").tag(AccountsSidebarFilter.codex)
-            Text("Claude").tag(AccountsSidebarFilter.claude)
+            ForEach(catalog.filterOptions, id: \.rawValue) { filter in
+                Text(filter.displayTitle).tag(filter)
+            }
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
@@ -19,6 +22,14 @@ struct ProviderFilterPicker: View {
 }
 
 private extension AccountsSidebarFilter {
+    var displayTitle: String {
+        switch self {
+        case .all: L10n.tr("filter.all")
+        case .codex: "Codex"
+        case .claude: "Claude"
+        }
+    }
+
     var tint: Color {
         switch self {
         case .all:

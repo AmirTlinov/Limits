@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func claudeSwitchCommitsOnlyAfterIdentityValidation() async throws {
     let original = Data("original".utf8)
@@ -116,6 +116,37 @@ import Testing
     #expect(await probe.count == 2)
 }
 
+@Test func claudeRepositoryFailurePreservesCredentialRotatedByClaude() async throws {
+    let original = Data("original".utf8)
+    let replacement = Data("selected".utf8)
+    let rotated = Data("rotated".utf8)
+    let store = InMemoryClaudeCredentialStore(data: original)
+    let probe = ClaudeStatusProbeCounter()
+    let reader = ClosureClaudeStatusReader {
+        let count = await probe.increment()
+        if count == 1 {
+            store.replaceExternally(with: rotated)
+        }
+        return makeClaudeStatus(email: "selected@example.com", orgID: "org_1")
+    }
+    let transaction = ClaudeCredentialSwitchTransaction(globalStore: store, statusReader: reader)
+
+    do {
+        _ = try await transaction.execute(
+            account: makeClaudeSwitchAccount(email: "selected@example.com", orgID: "org_1"),
+            credential: replacement
+        ) { _ in
+            throw ClaudeSwitchTestError.repositoryFailed
+        }
+        Issue.record("Expected repository failure")
+    } catch ClaudeSwitchTestError.repositoryFailed {
+        // The repository error is the honest outcome; Claude's newer credential stays global.
+    }
+
+    #expect(store.currentData == rotated)
+    #expect(store.restoreCount == 0)
+}
+
 private struct ClosureClaudeStatusReader: ClaudeAuthStatusReading {
     let operation: @Sendable () async throws -> ClaudeAuthStatus
 
@@ -202,6 +233,7 @@ private actor ClaudeStatusProbeCounter {
 
 private enum ClaudeSwitchTestError: Error {
     case statusFailed
+    case repositoryFailed
 }
 
 private func makeClaudeSwitchAccount(email: String, orgID: String?) -> ClaudeStoredAccount {

@@ -1,4 +1,5 @@
 import AppKit
+import LimitsCore
 import LimitsShared
 import SwiftUI
 
@@ -37,10 +38,13 @@ struct LimitsApp: App {
     @NSApplicationDelegateAdaptor(LimitsApplicationDelegate.self) private var applicationDelegate
     @StateObject private var model: AppModel
     private let presentMainWindowAtLaunch: Bool
+    private let recordsFirstWindowPresentation: Bool
 
     init() {
         _model = StateObject(wrappedValue: AppModel())
-        presentMainWindowAtLaunch = FirstLaunchPolicy.consumeFirstLaunch()
+        let runtime = LimitsRuntimeEnvironment.current
+        presentMainWindowAtLaunch = runtime.isUITest || FirstLaunchPolicy.shouldPresent()
+        recordsFirstWindowPresentation = !runtime.isUITest
         ApplicationLaunchState.presentsMainWindow = presentMainWindowAtLaunch
     }
 
@@ -48,6 +52,11 @@ struct LimitsApp: App {
         Window(L10n.tr("app.title"), id: LimitsSceneID.accounts) {
             AccountsWindowView(model: model)
                 .background(WindowActivationTracker(kind: .accounts))
+                .onAppear {
+                    if presentMainWindowAtLaunch, recordsFirstWindowPresentation {
+                        FirstLaunchPolicy.markPresented()
+                    }
+                }
                 .onOpenURL { url in
                     guard url.scheme == LimitsWidgetConstants.openURL.scheme else { return }
                     ApplicationActivationController.shared.requestActivation(of: .accounts)
@@ -67,6 +76,7 @@ struct LimitsApp: App {
 
         Settings {
             SettingsView(
+                catalog: model.providerCatalog,
                 languageDidChange: {
                     model.invalidateLocalizedText()
                     model.publishWidgetSnapshotNow()

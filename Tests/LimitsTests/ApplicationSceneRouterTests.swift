@@ -1,5 +1,5 @@
 import XCTest
-@testable import Limits
+@testable import LimitsCore
 
 @MainActor
 final class ApplicationSceneRouterTests: XCTestCase {

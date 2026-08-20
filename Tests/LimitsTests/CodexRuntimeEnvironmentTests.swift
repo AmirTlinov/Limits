@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func codexRuntimePathKeepsShellPathAndAddsNodeFallbacks() {
     let path = CodexExecutableLocator.resolvedPath(
@@ -31,6 +31,19 @@ import Testing
     #expect(environment["PATH"]?.contains("/.volta/bin") == true)
 }
 
+@Test func nativeCodexExecutableDoesNotRequireNodeButNodeScriptDoes() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-codex-kind-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let native = root.appending(path: "native-codex")
+    let script = root.appending(path: "script-codex")
+    try Data([0xCF, 0xFA, 0xED, 0xFE, 0, 0, 0, 0]).write(to: native)
+    try Data("#!/usr/bin/env node\nconsole.log('codex')\n".utf8).write(to: script)
+
+    #expect(!CodexExecutableLocator.requiresNode(native))
+    #expect(CodexExecutableLocator.requiresNode(script))
+}
+
 @MainActor
 @Test func currentCLILiveSectionsDoNotUseStoredSnapshotsWhenProbeIsMissing() {
     let staleStoredSnapshot = RateLimitSnapshotModel(
@@ -43,8 +56,8 @@ import Testing
         secondary: nil
     )
 
-    #expect(AppModel.liveCurrentCLIRateLimitSections(probe: nil).isEmpty)
-    #expect(AppModel.liveCurrentCLIPanelSummary(probe: nil) == nil)
+    #expect(CodexSessionPresentation.rateLimitSections(probe: nil, now: .now).isEmpty)
+    #expect(CodexSessionPresentation.panelSummary(probe: nil, now: .now) == nil)
     #expect(RateLimitDisplayBuilder.makeSections(primary: staleStoredSnapshot, byLimitId: nil).isEmpty == false)
 }
 
@@ -59,7 +72,7 @@ import Testing
         rateLimitReachedType: nil,
         secondary: nil
     )
-    let probe = AppModel.CurrentCLIProbe(
+    let probe = CodexSessionProbe(
         fingerprint: "fingerprint",
         email: "live@example.com",
         planType: "pro",
@@ -68,9 +81,9 @@ import Testing
         validatedAt: .distantPast
     )
 
-    let row = try #require(AppModel.liveCurrentCLIRateLimitSections(probe: probe).first?.rows.first)
+    let row = try #require(CodexSessionPresentation.rateLimitSections(probe: probe, now: .distantPast).first?.rows.first)
     #expect(row.remainingPercent == 88)
-    #expect(AppModel.liveCurrentCLIPanelSummary(probe: probe) != nil)
+    #expect(CodexSessionPresentation.panelSummary(probe: probe, now: .distantPast) != nil)
 }
 
 @MainActor
@@ -84,7 +97,7 @@ import Testing
         rateLimitReachedType: nil,
         secondary: nil
     )
-    let staleProbe = AppModel.CurrentCLIProbe(
+    let staleProbe = CodexSessionProbe(
         fingerprint: "fingerprint",
         email: "stale@example.com",
         planType: "pro",
@@ -93,7 +106,7 @@ import Testing
         validatedAt: .distantPast
     )
 
-    #expect(AppModel.liveCurrentCLIRateLimitSections(probe: staleProbe, probeError: "validation failed").isEmpty)
-    #expect(AppModel.liveCurrentCLIPanelSummary(probe: staleProbe, probeError: "validation failed") == nil)
-    #expect(AppModel.liveCurrentCLIRateLimitSections(probe: staleProbe).isEmpty == false)
+    #expect(CodexSessionPresentation.rateLimitSections(probe: staleProbe, probeError: "validation failed", now: .distantPast).isEmpty)
+    #expect(CodexSessionPresentation.panelSummary(probe: staleProbe, probeError: "validation failed", now: .distantPast) == nil)
+    #expect(CodexSessionPresentation.rateLimitSections(probe: staleProbe, now: .distantPast).isEmpty == false)
 }

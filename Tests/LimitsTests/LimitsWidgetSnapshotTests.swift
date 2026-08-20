@@ -1,7 +1,7 @@
 import Foundation
 import LimitsShared
 import Testing
-@testable import Limits
+@testable import LimitsCore
 
 @Test func widgetSnapshotStoreRoundTripsCurrentLimitsJSON() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: "limits-widget-store-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -105,7 +105,7 @@ import Testing
         ]
     )
 
-    let limits = AppModel.widgetLimitSnapshots(from: [section], now: now)
+    let limits = WidgetPresentationPolicy.limitSnapshots(from: [section], now: now)
 
     #expect(limits[0].remainingPercent == nil)
     #expect(limits[1].remainingPercent == 60)

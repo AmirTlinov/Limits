@@ -1,22 +1,31 @@
 import AppKit
 import Foundation
+import LimitsCore
 import LimitsShared
 
 @MainActor
 final class AppModel: ObservableObject {
-    enum ReauthenticationTarget: Equatable {
-        case requestedAccount(UUID)
-        case existingAccount(UUID)
-        case newAccount
+    enum PendingCredentialDeletion: Identifiable {
+        case codex(StoredAccount)
+        case claude(ClaudeStoredAccount)
+
+        var id: UUID {
+            switch self {
+            case .codex(let account): account.id
+            case .claude(let account): account.id
+            }
+        }
+
+        var accountName: String {
+            switch self {
+            case .codex(let account): account.label
+            case .claude(let account): account.label
+            }
+        }
     }
 
     struct CurrentCLIState {
-        enum Source {
-            case missing
-            case stored(UUID)
-            case external(String?)
-            case unreadable
-        }
+        typealias Source = CodexSessionSource
 
         var source: Source = .missing
         var authFingerprint: String?
@@ -31,23 +40,10 @@ final class AppModel: ObservableObject {
         let note: String?
     }
 
-    struct CurrentCLIProbe {
-        let fingerprint: String
-        let email: String
-        let planType: String
-        let rateLimit: RateLimitSnapshotModel?
-        let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
-        let validatedAt: Date
-    }
+    typealias CurrentCLIProbe = CodexSessionProbe
 
     struct CurrentClaudeState {
-        enum Source: Equatable {
-            case notInstalled
-            case loggedOut
-            case stored(UUID)
-            case external(String?)
-            case unreadable
-        }
+        typealias Source = ClaudeSessionSource
 
         var source: Source = .notInstalled
         var authFingerprint: String?
@@ -59,39 +55,7 @@ final class AppModel: ObservableObject {
         let note: String?
     }
 
-    struct SidebarLimitSummary: Hashable {
-        let fiveHourRemainingPercent: Int?
-        let weeklyRemainingPercent: Int?
-        let nextResetDate: Date?
-
-        var hasLimitData: Bool {
-            fiveHourRemainingPercent != nil || weeklyRemainingPercent != nil
-        }
-
-        var limitSortScore: Int {
-            [fiveHourRemainingPercent, weeklyRemainingPercent]
-                .compactMap(\.self)
-                .reduce(0, +)
-        }
-
-        func compactLimitText() -> String? {
-            var parts: [String] = []
-
-            if let fiveHourRemainingPercent {
-                parts.append("\(L10n.windowLabel(minutes: 300, fallback: "5h")) \(fiveHourRemainingPercent)%")
-            }
-
-            if let weeklyRemainingPercent {
-                parts.append("\(L10n.durationLabel(minutes: 10_080)) \(weeklyRemainingPercent)%")
-            }
-
-            return parts.isEmpty ? nil : parts.joined(separator: " · ")
-        }
-
-        func compactResetText(now: Date = .now) -> String? {
-            nextResetDate.map { RateLimitResetFormatter.compactText(for: $0, now: now) }
-        }
-    }
+    typealias SidebarLimitSummary = LimitsCore.SidebarLimitSummary
 
     @Published private(set) var accounts: [StoredAccount] = []
     @Published private(set) var claudeAccounts: [ClaudeStoredAccount] = []
@@ -101,30 +65,26 @@ final class AppModel: ObservableObject {
     @Published private(set) var currentClaudeState = CurrentClaudeState()
     @Published private(set) var currentClaudeStatus: ClaudeAuthStatus?
     @Published private(set) var currentClaudeValidatedAt: Date?
-    @Published private(set) var currentClaudeLivePayload: ClaudeStatuslineBridgePayload?
+    @Published private(set) var currentClaudeLiveEvidence: ClaudeLiveEvidence?
     @Published private(set) var currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
-    @Published private(set) var providerBusyMessages: [ProviderKind: String] = [:]
-    @Published private(set) var providerErrorMessages: [ProviderKind: String] = [:]
+    @Published private(set) var providerOperationStates: [ProviderKind: ProviderOperationState] = [:]
     @Published var errorMessage: String?
     @Published var currentCLIProbeError: String?
     @Published var currentClaudeError: String?
     @Published var currentClaudeBridgeError: String?
-    @Published private(set) var noticeMessage: String?
     @Published private(set) var presentationNow = Date()
+    @Published private(set) var providerCatalog = ProviderCatalogSnapshot(savedClaudeCount: 0, claudeSource: .notInstalled)
+    @Published var pendingCredentialDeletion: PendingCredentialDeletion?
 
-    private let persistence = AccountsPersistence()
-    private let vault = KeychainAuthVault()
-    private let globalAuthService = GlobalCodexAuthService()
-    private let codexAccountService = CodexAccountService()
-    private let globalClaudeCredentialService = GlobalClaudeCredentialService()
-    private let claudeAuthStatusService = ClaudeAuthStatusService()
-    private let claudeStatuslineBridgeService = ClaudeStatuslineBridgeService()
-    private let currentCLIProbeTTL: TimeInterval = 300
+    private let accountsRepository: AccountsRepository
+    private let codexSessionCoordinator: CodexSessionCoordinator
+    private let claudeSessionCoordinator: ClaudeSessionCoordinator
     private let backgroundRefreshInterval: TimeInterval = 300
     private let presentationTickInterval: TimeInterval = 30
     private let currentCLIExpiredResetRetryInterval: TimeInterval = 300
     private let storedCodexAutoRefreshInterval: TimeInterval = 60
-    private let widgetSnapshotPublisher = LimitsWidgetSnapshotPublisher()
+    private let widgetSnapshotPublisher: LimitsWidgetSnapshotPublisher
+    private let isIsolatedRuntime: Bool
     private let storedCodexAutoRefreshRetryInterval: TimeInterval = 1_800
     private var backgroundRefreshTask: Task<Void, Never>?
     private var presentationClockTask: Task<Void, Never>?
@@ -136,34 +96,53 @@ final class AppModel: ObservableObject {
     private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
     private var isRefreshingStoredCodexAccount = false
     private var persistedStateLoaded = false
-    private var retiredCredentials: [RetiredCredential] = []
 
     var isBusy: Bool {
-        !providerBusyMessages.isEmpty
+        providerOperationStates.values.contains { $0.phase == .running }
     }
 
     var busyMessage: String? {
-        providerBusyMessages[.codex] ?? providerBusyMessages[.claude]
+        providerOperationStates[.codex]?.progress ?? providerOperationStates[.claude]?.progress
     }
 
     func isProviderBusy(_ provider: ProviderKind) -> Bool {
-        providerBusyMessages[provider] != nil
+        providerOperationStates[provider]?.phase == .running
     }
 
     func providerErrorMessage(_ provider: ProviderKind) -> String? {
-        providerErrorMessages[provider]
+        providerOperationStates[provider]?.error
+    }
+
+    func providerOperationState(_ provider: ProviderKind) -> ProviderOperationState {
+        providerOperationStates[provider] ?? .idle
+    }
+
+    func cancelOperation(for provider: ProviderKind) {
+        guard providerOperationStates[provider]?.canCancel == true else { return }
+        switch provider {
+        case .codex:
+            Task { await codexSessionCoordinator.cancelCurrentOperation() }
+        case .claude:
+            break
+        }
     }
 
     func invalidateLocalizedText() {
         objectWillChange.send()
     }
 
-    init() {
-        loadPersistedState()
+    init(dependencies: AppModelDependencies = .make()) {
+        accountsRepository = dependencies.repository
+        codexSessionCoordinator = dependencies.codexCoordinator
+        claudeSessionCoordinator = dependencies.claudeCoordinator
+        widgetSnapshotPublisher = dependencies.widgetPublisher
+        isIsolatedRuntime = dependencies.isolated
         Task { await bootstrap() }
         startPresentationClockLoop()
-        startBackgroundRefreshLoop()
-        startStoredCodexAutoRefreshLoop()
+        if !isIsolatedRuntime {
+            startBackgroundRefreshLoop()
+            startStoredCodexAutoRefreshLoop()
+        }
     }
 
     deinit {
@@ -175,14 +154,13 @@ final class AppModel: ObservableObject {
 
     func bootstrap() async {
         defer { publishWidgetSnapshotIfPossible() }
-        guard persistedStateLoaded else {
-            return
-        }
 
         do {
+            try await loadPersistedState()
+            guard persistedStateLoaded else { return }
             await refreshCurrentValues(forceProbe: false)
 
-            if accounts.isEmpty, globalAuthService.hasGlobalAuth() {
+            if accounts.isEmpty, case .external = currentCLIState.source {
                 try await importCurrentCLIAuthNow()
                 await refreshCurrentValues(forceProbe: true)
             }
@@ -192,68 +170,55 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func loadPersistedState() {
-        do {
-            let originalData = try persistence.loadData()
-            let state = try originalData.map { try JSONDecoder.limits.decode(PersistedState.self, from: $0) }
-                ?? PersistedState(accounts: [])
-            let currentCodexFingerprint = (try? globalAuthService.readGlobalAuth())
-                .map { CodexAuthBlob.fingerprint(for: $0) }
-            let migration = PersistedStateMigrator.migrate(
-                state,
-                currentCodexFingerprint: currentCodexFingerprint,
-                currentClaudeFingerprint: nil
-            )
-
-            if migration.receipt.didChange {
-                if let originalData {
-                    try persistence.backupBeforeV2Migration(originalData)
-                }
-                try persistence.save(migration.state)
-                if migration.receipt.retiredCredentialCount > 0 {
-                    noticeMessage = L10n.tr("migration.duplicates_merged", migration.receipt.retiredCredentialCount)
-                }
-            }
-
-            accounts = migration.state.accounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
-            claudeAccounts = migration.state.claudeAccounts.sorted(by: { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
-            retiredCredentials = migration.state.retiredCredentials
-            try purgeExpiredRetiredCredentials()
-            persistedStateLoaded = true
-        } catch {
-            errorMessage = error.localizedDescription
-            persistedStateLoaded = false
+    private func loadPersistedState() async throws {
+        let currentCodexFingerprint = try? await codexSessionCoordinator.currentAuthFingerprint()
+        let currentClaudeFingerprint = try? await claudeSessionCoordinator.currentCredentialFingerprint()
+        var snapshot = try await accountsRepository.open(
+            currentCodexFingerprint: currentCodexFingerprint,
+            currentClaudeFingerprint: currentClaudeFingerprint
+        )
+        if snapshot.access == .readWrite {
+            snapshot = try await accountsRepository.purgeRetiredCredentials()
+        } else if case .readOnlyRecovery(let version) = snapshot.access {
+            setNotice(AccountsRepositoryError.readOnlyRecovery(schemaVersion: version).localizedDescription, provider: .codex)
         }
+        applyRepositorySnapshot(snapshot)
+        persistedStateLoaded = true
+    }
+
+    private func applyRepositorySnapshot(_ snapshot: AccountsRepositorySnapshot) {
+        accounts = snapshot.state.accounts
+        claudeAccounts = snapshot.state.claudeAccounts
+        providerCatalog = ProviderCatalogSnapshot(
+            savedClaudeCount: claudeAccounts.count,
+            claudeSource: currentClaudeState.source
+        )
+    }
+
+    private func applyClaudeProbeResult(_ result: ClaudeSessionProbeResult) {
+        applyRepositorySnapshot(result.repositorySnapshot)
+        currentClaudeState = CurrentClaudeState(source: result.source, authFingerprint: result.globalCredentialFingerprint)
+        currentClaudeStatus = result.status
+        currentClaudeValidatedAt = result.validatedAt
+        currentClaudeLiveEvidence = result.evidence
+        currentClaudeLiveBridgeStatus = result.bridgeStatus
+        currentClaudeError = result.repositoryError
+        providerCatalog = ProviderCatalogSnapshot(savedClaudeCount: claudeAccounts.count, claudeSource: result.source)
     }
 
     func refreshCurrentCLIState() async {
         defer { publishWidgetSnapshotIfPossible() }
         do {
-            guard globalAuthService.hasGlobalAuth() else {
-                currentCLIState = CurrentCLIState(source: .missing, authFingerprint: nil, accountId: nil, authMode: nil)
+            let observation = try await codexSessionCoordinator.observeCurrent(accounts: accounts)
+            currentCLIState = CurrentCLIState(
+                source: observation.source,
+                authFingerprint: observation.authFingerprint,
+                accountId: observation.accountID,
+                authMode: observation.authMode
+            )
+            if observation.source == .missing {
                 currentCLIProbe = nil
                 currentCLIProbeError = nil
-                return
-            }
-
-            let data = try globalAuthService.readGlobalAuth()
-            let identity = try CodexAuthBlob.identity(from: data)
-            let fingerprint = CodexAuthBlob.fingerprint(for: data)
-
-            if let matched = Self.resolveStoredAccountMatch(identity: identity, fingerprint: fingerprint, accounts: accounts) {
-                currentCLIState = CurrentCLIState(
-                    source: .stored(matched.id),
-                    authFingerprint: fingerprint,
-                    accountId: identity.accountId,
-                    authMode: identity.authMode
-                )
-            } else {
-                currentCLIState = CurrentCLIState(
-                    source: .external(identity.accountId),
-                    authFingerprint: fingerprint,
-                    accountId: identity.accountId,
-                    authMode: identity.authMode
-                )
             }
         } catch {
             currentCLIState = CurrentCLIState(source: .unreadable, authFingerprint: nil, accountId: nil, authMode: nil)
@@ -265,7 +230,7 @@ final class AppModel: ObservableObject {
 
     func refreshCurrentCLIProbe(force: Bool = false) async {
         defer { publishWidgetSnapshotIfPossible() }
-        guard globalAuthService.hasGlobalAuth() else {
+        guard !isCurrentCLIAuthMissing() else {
             currentCLIProbe = nil
             currentCLIProbeError = nil
             return
@@ -284,11 +249,11 @@ final class AppModel: ObservableObject {
         }
 
         let now = Date()
-        if !force, let probe = currentCLIProbe, Self.currentCLIProbeCanBeReused(
+        if !force, let probe = currentCLIProbe, CodexSessionPresentation.canReuse(
             probe,
             expectedFingerprint: fingerprint,
             now: now,
-            ttl: currentCLIProbeTTL
+            ttl: LimitsFreshnessPolicy.defaultTTL
         ) {
             return
         }
@@ -301,36 +266,23 @@ final class AppModel: ObservableObject {
         defer { isRefreshingCurrentCLIProbe = false }
 
         do {
-            let original = try globalAuthService.readSnapshot()
-            guard let authData = original.data else {
-                throw GlobalCodexAuthServiceError.missingAuthFile
+            guard case .published(let outcome) = try await codexSessionCoordinator.refreshCurrent() else {
+                return
             }
-            let originalIdentity = try CodexAuthBlob.identity(from: authData).stableIdentity
-            let result = try await codexAccountService.validate(authData: authData)
-            guard result.identity.stableIdentity == originalIdentity else {
-                throw CodexAuthSwitchTransactionError.identityMismatch
-            }
+            let result = outcome.validation
             currentCLIProbe = CurrentCLIProbe(
                 fingerprint: result.authFingerprint,
                 email: result.email,
                 planType: result.planType,
                 rateLimit: result.rateLimit,
                 rateLimitsByLimitId: result.rateLimitsByLimitId,
-                validatedAt: now
+                validatedAt: now,
+                rateLimitError: result.rateLimitError
             )
-            currentCLIProbeError = nil
+            currentCLIProbeError = result.rateLimitError
 
             do {
-                if result.authFingerprint != fingerprint {
-                    do {
-                        try globalAuthService.commit(expected: original, replacement: result.authData)
-                        try globalAuthService.verifyCommitted(result.authData)
-                    } catch {
-                        try? globalAuthService.restore(original, replacing: result.authData)
-                        throw error
-                    }
-                }
-                try persistValidatedCurrentCLIAccountIfKnown(result)
+                try await persistValidatedCurrentCLIAccountIfKnown(result)
                 if result.authFingerprint != fingerprint {
                     await refreshCurrentCLIState()
                 }
@@ -350,55 +302,32 @@ final class AppModel: ObservableObject {
 
     func refreshCurrentClaudeState() async {
         defer { publishWidgetSnapshotIfPossible() }
-        guard claudeAuthStatusService.isInstalled() else {
-            currentClaudeState = CurrentClaudeState(source: .notInstalled, authFingerprint: nil)
-            currentClaudeStatus = nil
-            currentClaudeValidatedAt = nil
-            currentClaudeLivePayload = nil
-            currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
-            currentClaudeError = nil
-            currentClaudeBridgeError = nil
-            return
+        defer {
+            providerCatalog = ProviderCatalogSnapshot(
+                savedClaudeCount: claudeAccounts.count,
+                claudeSource: currentClaudeState.source
+            )
         }
-
         do {
-            let status = try await claudeAuthStatusService.readStatus()
-
-            guard status.loggedIn else {
-                currentClaudeState = CurrentClaudeState(source: .loggedOut, authFingerprint: nil)
-                currentClaudeStatus = status
-                currentClaudeValidatedAt = Date()
-                currentClaudeError = nil
-                refreshClaudeStatuslineBridgeState()
-                return
-            }
-
-            if let matched = resolveCurrentClaudeAccount(status: status) {
-                currentClaudeState = CurrentClaudeState(source: .stored(matched.id), authFingerprint: matched.authFingerprint)
-            } else {
-                currentClaudeState = CurrentClaudeState(source: .external(status.email), authFingerprint: nil)
-            }
-
-            currentClaudeStatus = status
-            currentClaudeValidatedAt = Date()
-            currentClaudeError = nil
-            refreshClaudeStatuslineBridgeState()
+            let result = try await claudeSessionCoordinator.probe()
+            applyClaudeProbeResult(result)
+            currentClaudeBridgeError = nil
         } catch {
             currentClaudeState = CurrentClaudeState(source: .unreadable, authFingerprint: nil)
             currentClaudeStatus = nil
             currentClaudeValidatedAt = nil
-            currentClaudeLivePayload = nil
+            currentClaudeLiveEvidence = nil
             currentClaudeError = error.localizedDescription
-            refreshClaudeStatuslineBridgeState()
+            currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
         }
     }
 
     func addAccount() async {
-        await runBusy(provider: .codex, L10n.tr("busy.signing_in")) { [self] in
-            let result = try await self.codexAccountService.loginNewAccount { url in
+        await runBusy(provider: .codex, L10n.tr("busy.signing_in"), canCancel: true) { [self] in
+            let result = try await self.codexSessionCoordinator.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
-            try self.upsertAccount(from: result, preferredLabel: result.email)
+            try await self.upsertAccount(from: result, preferredLabel: result.email)
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
         }
@@ -421,36 +350,37 @@ final class AppModel: ObservableObject {
 
     func activateAccount(_ account: StoredAccount) async {
         await runBusy(provider: .codex, L10n.tr("busy.switching_global_auth")) { [self] in
-            let authData = try self.vault.read(account: account.keychainAccount)
-            let transaction = CodexAuthSwitchTransaction(
-                globalStore: self.globalAuthService,
-                validator: self.codexAccountService
-            )
-            _ = try await transaction.execute(account: account, authData: authData) { result in
-                try await MainActor.run {
-                    try self.persistValidatedAccount(result, forAccountID: account.id)
+            do {
+                let authData = try await self.accountsRepository.credential(provider: .codex, accountID: account.id)
+                self.currentCLIProbe = nil
+                self.currentCLIProbeError = nil
+                _ = try await self.codexSessionCoordinator.switchAccount(account, authData: authData) { result in
+                    try await self.persistValidatedAccount(result, forAccountID: account.id)
                 }
+                await self.refreshCurrentCLIState()
+                await self.refreshCurrentCLIProbe(force: true)
+            } catch {
+                await self.refreshCurrentCLIState()
+                throw error
             }
-            await self.refreshCurrentCLIState()
-            await self.refreshCurrentCLIProbe(force: true)
         }
     }
 
     func reauthenticateAccount(_ account: StoredAccount) async {
-        await runBusy(provider: .codex, L10n.tr("busy.reauthenticating", account.label)) { [self] in
-            let result = try await self.codexAccountService.loginNewAccount { url in
+        await runBusy(provider: .codex, L10n.tr("busy.reauthenticating", account.label), canCancel: true) { [self] in
+            let result = try await self.codexSessionCoordinator.loginNewAccount { url in
                 NSWorkspace.shared.open(url)
             }
-            switch Self.reauthenticationTarget(requested: account, result: result, accounts: self.accounts) {
+            switch AccountResolution.reauthenticationTarget(requested: account, result: result, accounts: self.accounts) {
             case .requestedAccount(let id):
-                try self.upsertAccount(from: result, preferredLabel: account.label, existingID: id)
+                try await self.upsertAccount(from: result, preferredLabel: account.label, existingID: id)
             case .existingAccount(let id):
                 let label = self.accounts.first(where: { $0.id == id })?.label ?? result.email
-                try self.upsertAccount(from: result, preferredLabel: label, existingID: id)
-                self.noticeMessage = L10n.tr("account.reauth.different_existing", account.label)
+                try await self.upsertAccount(from: result, preferredLabel: label, existingID: id)
+                self.setNotice(L10n.tr("account.reauth.different_existing", account.label), provider: .codex)
             case .newAccount:
-                try self.upsertAccount(from: result, preferredLabel: result.email, forceNew: true)
-                self.noticeMessage = L10n.tr("account.reauth.different_new", account.label)
+                try await self.upsertAccount(from: result, preferredLabel: result.email, forceNew: true)
+                self.setNotice(L10n.tr("account.reauth.different_new", account.label), provider: .codex)
             }
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
@@ -459,28 +389,19 @@ final class AppModel: ObservableObject {
 
     func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
         await runBusy(provider: .claude, L10n.tr("busy.switching_claude")) { [self] in
-            let credential = try self.vault.read(account: account.keychainAccount)
-            let transaction = ClaudeCredentialSwitchTransaction(
-                globalStore: self.globalClaudeCredentialService,
-                statusReader: self.claudeAuthStatusService
-            )
-            _ = try await transaction.execute(account: account, credential: credential) { result in
-                try await MainActor.run {
-                    try self.upsertClaudeAccount(
-                        credential: result.credential,
-                        status: result.status,
-                        preferredLabel: account.label,
-                        existingID: account.id
-                    )
-                }
+            self.currentClaudeLiveEvidence = nil
+            do {
+                let result = try await self.claudeSessionCoordinator.switchAccount(account)
+                self.applyClaudeProbeResult(result)
+            } catch {
+                await self.refreshCurrentClaudeState()
+                throw error
             }
-            await self.refreshCurrentClaudeState()
         }
     }
 
     func refreshCurrentClaudeAccount() async {
         await runBusy(provider: .claude, L10n.tr("busy.refreshing_claude")) { [self] in
-            try await self.refreshStoredClaudeMetadataIfNeeded()
             await self.refreshCurrentClaudeState()
         }
     }
@@ -489,12 +410,12 @@ final class AppModel: ObservableObject {
         await runBusy(provider: .claude, L10n.tr("busy.connecting_claude_live")) { [self] in
             self.currentClaudeBridgeError = nil
             do {
-                try self.claudeStatuslineBridgeService.installBridge()
+                try await self.claudeSessionCoordinator.installBridge()
             } catch {
                 self.currentClaudeBridgeError = error.localizedDescription
                 throw error
             }
-            self.refreshClaudeStatuslineBridgeState()
+            await self.refreshCurrentClaudeState()
         }
     }
 
@@ -502,29 +423,13 @@ final class AppModel: ObservableObject {
         await runBusy(provider: .claude, L10n.tr("busy.disconnecting_claude_bridge")) { [self] in
             self.currentClaudeBridgeError = nil
             do {
-                try self.claudeStatuslineBridgeService.uninstallBridge()
+                try await self.claudeSessionCoordinator.uninstallBridge()
             } catch {
                 self.currentClaudeBridgeError = error.localizedDescription
                 throw error
             }
-            self.refreshClaudeStatuslineBridgeState()
+            await self.refreshCurrentClaudeState()
         }
-    }
-
-    func refreshClaudeLiveLimitsBridge() async {
-        await runBusy(provider: .claude, L10n.tr("busy.refreshing_claude_bridge")) { [self] in
-            self.currentClaudeBridgeError = nil
-            self.refreshClaudeStatuslineBridgeState()
-        }
-    }
-
-    func validateAll() async {
-        for account in accounts {
-            await validateAccount(account)
-        }
-        await refreshCurrentCLIState()
-        await refreshCurrentCLIProbe(force: true)
-        await refreshCurrentClaudeState()
     }
 
     func refreshCurrentValues(forceProbe: Bool = true) async {
@@ -594,7 +499,7 @@ final class AppModel: ObservableObject {
             currentCLIProbeError == nil,
             currentCLIProbe != nil,
             currentCLIProbeHasExpiredReset(now: now),
-            Self.canAttemptExpiredResetRefresh(
+            CodexAccountsPresentationPolicy.canAttemptRefresh(
                 lastAttempt: lastCurrentCLIExpiredResetRefreshAttempt,
                 now: now,
                 retryInterval: currentCLIExpiredResetRetryInterval
@@ -649,7 +554,7 @@ final class AppModel: ObservableObject {
             return
         }
 
-        guard let accountID = Self.nextStoredCodexAccountIDForAutoRefresh(
+        guard let accountID = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
             accounts: accounts,
             currentAccountID: currentStoredCodexAccountID(),
             lastAttempts: lastStoredCodexAutoRefreshAttempt,
@@ -680,12 +585,12 @@ final class AppModel: ObservableObject {
     func validateAccount(_ account: StoredAccount) async {
         defer { publishWidgetSnapshotIfPossible() }
         do {
-            let authData = try vault.read(account: account.keychainAccount)
-            let result = try await codexAccountService.validate(authData: authData)
-            try persistValidatedAccount(result, forAccountID: account.id)
+            let authData = try await accountsRepository.credential(provider: .codex, accountID: account.id)
+            let result = try await codexSessionCoordinator.validateStored(authData: authData)
+            try await persistValidatedAccount(result, forAccountID: account.id)
         } catch {
             do {
-                try updateAccount(account.id) { stored in
+                try await updateAccount(account.id) { stored in
                     stored.lastValidatedAt = Date()
                     stored.updatedAt = Date()
                     stored.status = classifyValidationError(error)
@@ -703,9 +608,8 @@ final class AppModel: ObservableObject {
 
     func deleteAccount(_ account: StoredAccount) async {
         await runBusy(provider: .codex, L10n.tr("busy.deleting", account.label)) { [self] in
-            try self.vault.delete(account: account.keychainAccount)
-            self.accounts.removeAll { $0.id == account.id }
-            try self.saveAccounts()
+            let snapshot = try await self.accountsRepository.deleteAccount(provider: .codex, accountID: account.id)
+            self.applyRepositorySnapshot(snapshot)
             await self.refreshCurrentCLIState()
             await self.refreshCurrentCLIProbe(force: true)
         }
@@ -713,10 +617,32 @@ final class AppModel: ObservableObject {
 
     func deleteClaudeAccount(_ account: ClaudeStoredAccount) async {
         await runBusy(provider: .claude, L10n.tr("busy.deleting", account.label)) { [self] in
-            try self.vault.delete(account: account.keychainAccount)
-            self.claudeAccounts.removeAll { $0.id == account.id }
-            try self.saveAccounts()
+            let snapshot = try await self.accountsRepository.deleteAccount(provider: .claude, accountID: account.id)
+            self.applyRepositorySnapshot(snapshot)
             await self.refreshCurrentClaudeState()
+        }
+    }
+
+    func requestDeleteAccount(_ account: StoredAccount) {
+        pendingCredentialDeletion = .codex(account)
+    }
+
+    func requestDeleteClaudeAccount(_ account: ClaudeStoredAccount) {
+        pendingCredentialDeletion = .claude(account)
+    }
+
+    func cancelCredentialDeletion() {
+        pendingCredentialDeletion = nil
+    }
+
+    func confirmCredentialDeletion() async {
+        guard let pendingCredentialDeletion else { return }
+        self.pendingCredentialDeletion = nil
+        switch pendingCredentialDeletion {
+        case .codex(let account):
+            await deleteAccount(account)
+        case .claude(let account):
+            await deleteClaudeAccount(account)
         }
     }
 
@@ -734,16 +660,12 @@ final class AppModel: ObservableObject {
         return false
     }
 
-    func claudeAuthInstalled() -> Bool {
-        claudeAuthStatusService.isInstalled()
-    }
-
     func claudeLiveBridgeInstalled() -> Bool {
         currentClaudeLiveBridgeStatus.installed
     }
 
     func claudeLiveBridgeSnapshotUpdatedAt() -> Date? {
-        currentClaudeLivePayload?.updatedAt
+        currentClaudeLiveEvidence?.snapshotAt
     }
 
     func currentCLIReferenceAccount() -> StoredAccount? {
@@ -765,8 +687,12 @@ final class AppModel: ObservableObject {
         case .stored(let id):
             return claudeAccounts.first(where: { $0.id == id })
         case .external:
-            guard let fingerprint = currentClaudeState.authFingerprint else { return nil }
-            return claudeAccounts.first(where: { $0.authFingerprint == fingerprint })
+            guard let identity = currentClaudeStatus?.stableIdentity else { return nil }
+            return AccountResolution.storedClaudeMatch(
+                identity: identity,
+                fingerprint: currentClaudeState.authFingerprint,
+                accounts: claudeAccounts
+            )
         case .notInstalled, .loggedOut, .unreadable:
             return nil
         }
@@ -774,7 +700,11 @@ final class AppModel: ObservableObject {
 
     func currentCLIOverview() -> CurrentCLIOverview {
         let account = currentCLIReferenceAccount()
-        let liveLimits = Self.liveCurrentCLIPanelSummary(probe: currentCLIProbe, probeError: currentCLIProbeError)
+        let liveLimits = CodexSessionPresentation.panelSummary(
+            probe: currentCLIProbe,
+            probeError: currentCLIProbeError,
+            now: presentationNow
+        )
         let probeBackedSubtitle = subtitle(for: account, probe: currentCLIProbe)
 
         switch currentCLIState.source {
@@ -850,19 +780,6 @@ final class AppModel: ObservableObject {
         accounts.isEmpty && (isCurrentCLIAuthMissing() || isCurrentCLIAuthUnreadable())
     }
 
-    func currentCLISummary() -> String {
-        switch currentCLIState.source {
-        case .missing:
-            return L10n.tr("cli.summary.missing")
-        case .stored:
-            return L10n.tr("cli.summary.stored")
-        case .external:
-            return L10n.tr("cli.summary.external")
-        case .unreadable:
-            return L10n.tr("cli.summary.unreadable")
-        }
-    }
-
     func publishWidgetSnapshotNow() {
         publishWidgetSnapshotIfPossible()
     }
@@ -876,6 +793,7 @@ final class AppModel: ObservableObject {
         let claudeLimit = trayFiveHourLimitSnapshot(provider: sharedSnapshot.provider(.claude), now: now)
         return TrayStatusPresentation.snapshot(
             filter: filter,
+            catalog: providerCatalog,
             codex: trayProviderAvailability(for: .codex, limit: codexLimit, now: now),
             claude: trayProviderAvailability(for: .claude, limit: claudeLimit, now: now),
             codexLimit: codexLimit,
@@ -885,71 +803,46 @@ final class AppModel: ObservableObject {
 
     func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
         let codexOverview = currentCLIOverview()
-        let codexLimits = Self.widgetLimitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
+        let codexLimits = WidgetPresentationPolicy.limitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
         let codexObservedAt = currentCLIValidatedAt()
         let claudeOverview = currentClaudeOverview()
-        let claudeLimits = Self.widgetLimitSnapshots(from: currentClaudeLiveRateLimitSections(), now: now)
+        let claudeLimits = WidgetPresentationPolicy.limitSnapshots(from: currentClaudeLiveRateLimitSections(now: now), now: now)
         let claudeObservedAt = claudeLiveBridgeSnapshotUpdatedAt() ?? claudeValidatedAt()
 
-        return LimitsWidgetSnapshot(
-            generatedAt: now,
-            providers: [
-                LimitsWidgetProviderSnapshot(
+        let codexProvider = LimitsWidgetProviderSnapshot(
                     id: .codex,
                     title: codexOverview.title,
                     subtitle: codexOverview.subtitle,
                     status: widgetCodexStatus(limits: codexLimits),
                     limits: codexLimits,
                     observedAt: codexObservedAt,
-                    freshUntil: Self.compactSurfaceFreshUntil(observedAt: codexObservedAt, limits: codexLimits),
+                    freshUntil: WidgetPresentationPolicy.freshUntil(observedAt: codexObservedAt, limits: codexLimits),
                     note: codexOverview.note ?? currentCLIProbeError
-                ),
-                LimitsWidgetProviderSnapshot(
+                )
+        let claudeProvider = LimitsWidgetProviderSnapshot(
                     id: .claude,
                     title: claudeOverview.title,
                     subtitle: claudeOverview.subtitle,
                     status: widgetClaudeStatus(limits: claudeLimits),
                     limits: claudeLimits,
                     observedAt: claudeObservedAt,
-                    freshUntil: Self.compactSurfaceFreshUntil(observedAt: claudeObservedAt, limits: claudeLimits),
+                    freshUntil: WidgetPresentationPolicy.freshUntil(observedAt: claudeObservedAt, limits: claudeLimits),
                     note: claudeOverview.note ?? currentClaudeBridgeError ?? currentClaudeError
-                ),
-            ]
-        )
-    }
-
-    nonisolated static func widgetLimitSnapshots(
-        from sections: [RateLimitDisplaySection],
-        now: Date = .now
-    ) -> [LimitsWidgetLimitSnapshot] {
-        sections.flatMap { section in
-            section.rows.map { row in
-                let resetIsStale = row.resetDate.map { $0 <= now } ?? false
-                return LimitsWidgetLimitSnapshot(
-                    id: "\(section.id).\(row.id)",
-                    title: row.title,
-                    remainingPercent: resetIsStale ? nil : row.remainingPercent,
-                    resetDate: row.resetDate
                 )
-            }
-        }
-    }
-
-    nonisolated static func compactSurfaceFreshUntil(
-        observedAt: Date?,
-        limits: [LimitsWidgetLimitSnapshot]
-    ) -> Date? {
-        LimitsFreshnessPolicy.freshUntil(
-            observedAt: observedAt,
-            limitResetDates: limits.compactMap(\.resetDate)
-        )
+        let byID: [LimitsWidgetProviderID: LimitsWidgetProviderSnapshot] = [
+            .codex: codexProvider,
+            .claude: claudeProvider,
+        ]
+        let providers = providerCatalog.widgetProviderIDs.compactMap { byID[$0] }
+        return LimitsWidgetSnapshot(generatedAt: now, providers: providers)
     }
 
     func storedCodexAccountHasFreshCompactLimits(_ account: StoredAccount, now: Date = .now) -> Bool {
-        let limits = Self.widgetLimitSnapshots(
-            from: Self.storedRateLimitSections(
+        let limits = WidgetPresentationPolicy.limitSnapshots(
+            from: CodexAccountsPresentationPolicy.storedRateLimitSections(
                 primary: account.lastRateLimit,
                 byLimitId: account.lastRateLimitsByLimitId,
+                observedAt: account.lastValidatedAt,
                 now: now
             ),
             now: now
@@ -957,7 +850,7 @@ final class AppModel: ObservableObject {
         guard limits.contains(where: { $0.remainingPercent != nil }) else { return false }
         guard
             let observedAt = account.lastValidatedAt,
-            let freshUntil = Self.compactSurfaceFreshUntil(observedAt: observedAt, limits: limits)
+            let freshUntil = WidgetPresentationPolicy.freshUntil(observedAt: observedAt, limits: limits)
         else {
             return false
         }
@@ -1062,37 +955,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func currentCLIDetail() -> String {
-        switch currentCLIState.source {
-        case .missing:
-            return L10n.tr("cli.detail.missing")
-        case .stored(let id):
-            if let label = accounts.first(where: { $0.id == id })?.label {
-                return L10n.tr("cli.detail.stored.named", label)
-            }
-            return L10n.tr("cli.detail.stored.fallback")
-        case .external(let accountId):
-            if let accountId, let matched = accounts.first(where: { $0.accountId == accountId }) {
-                return L10n.tr("cli.detail.external.matched", matched.label)
-            }
-            if let accountId {
-                return L10n.tr("cli.detail.external.id", accountId)
-            }
-            return L10n.tr("cli.detail.external.unsaved")
-        case .unreadable:
-            return L10n.tr("cli.detail.unreadable")
-        }
-    }
-
     func currentCLIProbeWarningText() -> String? {
-        currentCLIProbeError.map { Self.currentCLIProbeNote(for: $0) }
-    }
-
-    func hasExternalCLIAuthDrift() -> Bool {
-        if case .external = currentCLIState.source {
-            return true
-        }
-        return false
+        currentCLIProbeError.map { CodexSessionPresentation.probeNote(for: $0) }
     }
 
     func isCurrentCLIAuthMissing() -> Bool {
@@ -1124,13 +988,18 @@ final class AppModel: ObservableObject {
     }
 
     private func importCurrentCLIAuthNow() async throws {
-        let currentAuth = try globalAuthService.readGlobalAuth()
-        let result = try await codexAccountService.validate(authData: currentAuth)
-        try upsertAccount(from: result, preferredLabel: result.email)
+        for _ in 0..<2 {
+            if case .published(let outcome) = try await codexSessionCoordinator.refreshCurrent() {
+                let result = outcome.validation
+                try await upsertAccount(from: result, preferredLabel: result.email)
+                return
+            }
+        }
+        throw CodexSessionCoordinatorError.sessionChanged
     }
 
     private func currentCLIImportedAccount() -> StoredAccount? {
-        Self.resolveImportedAccount(
+        AccountResolution.importedCodexAccount(
             fingerprint: currentCLIState.authFingerprint,
             accountId: currentCLIState.accountId,
             email: currentCLIProbe?.email,
@@ -1138,26 +1007,16 @@ final class AppModel: ObservableObject {
         )
     }
 
-    private func resolveCurrentClaudeAccount(status: ClaudeAuthStatus) -> ClaudeStoredAccount? {
-        guard let identity = ClaudeAccountIdentity(email: status.email, organizationId: status.orgId) else {
-            return nil
-        }
-
-        return claudeAccounts.first { $0.stableIdentity == identity }
-            ?? claudeAccounts.first {
-                $0.orgId == nil && $0.email.caseInsensitiveCompare(identity.normalizedEmail) == .orderedSame
-            }
-    }
-
     private func importCurrentClaudeAuthNow() async throws {
-        let credential = try globalClaudeCredentialService.readGlobalCredential()
-        let status = try await claudeAuthStatusService.readStatus()
+        let capture = try await claudeSessionCoordinator.captureCurrentCredential()
+        let credential = capture.credential
+        let status = capture.status
 
         guard status.loggedIn, let email = status.email else {
-            throw ClaudeAuthStatusServiceError.commandFailed(L10n.tr("claude.not_logged_in.error"))
+            throw ClaudeCredentialSwitchTransactionError.notLoggedIn
         }
 
-        try upsertClaudeAccount(
+        try await upsertClaudeAccount(
             credential: credential,
             status: status,
             preferredLabel: email
@@ -1169,7 +1028,7 @@ final class AppModel: ObservableObject {
         preferredLabel: String,
         existingID: UUID? = nil,
         forceNew: Bool = false
-    ) throws {
+    ) async throws {
         let existingIndex: Int? = {
             if forceNew {
                 return nil
@@ -1183,24 +1042,19 @@ final class AppModel: ObservableObject {
             return accounts.firstIndex(where: { $0.email.caseInsensitiveCompare(result.email) == .orderedSame })
         }()
 
-        let keychainAccount: String
         let recordID: UUID
         let label: String
         let createdAt: Date
 
         if let existingIndex {
-            keychainAccount = accounts[existingIndex].keychainAccount
             recordID = accounts[existingIndex].id
             label = accounts[existingIndex].label
             createdAt = accounts[existingIndex].createdAt
         } else {
             recordID = UUID()
-            keychainAccount = "account.\(recordID.uuidString)"
             label = makeUniqueLabel(base: preferredLabel)
             createdAt = Date()
         }
-
-        try vault.save(result.authData, account: keychainAccount, label: label)
 
         let updatedRecord = StoredAccount(
             id: recordID,
@@ -1212,57 +1066,52 @@ final class AppModel: ObservableObject {
             updatedAt: Date(),
             lastValidatedAt: Date(),
             status: resolveStatus(from: result.rateLimit),
-            statusMessage: statusMessage(for: result.rateLimit),
+            statusMessage: result.rateLimitError ?? statusMessage(for: result.rateLimit),
             lastRateLimit: result.rateLimit,
             lastRateLimitsByLimitId: result.rateLimitsByLimitId,
             authFingerprint: result.authFingerprint,
-            keychainAccount: keychainAccount
+            keychainAccount: ""
         )
 
-        if let existingIndex {
-            accounts[existingIndex] = updatedRecord
-        } else {
-            accounts.append(updatedRecord)
-        }
-
-        accounts.sort { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
-        try saveAccounts()
+        let snapshot = try await accountsRepository.saveCodexAccount(updatedRecord, credential: result.authData)
+        applyRepositorySnapshot(snapshot)
     }
 
-    private func updateAccount(_ id: UUID, mutate: (inout StoredAccount) -> Void) throws {
-        guard let index = accounts.firstIndex(where: { $0.id == id }) else {
+    private func updateAccount(_ id: UUID, mutate: (inout StoredAccount) -> Void) async throws {
+        guard var account = accounts.first(where: { $0.id == id }) else {
             return
         }
-        mutate(&accounts[index])
-        try saveAccounts()
+        mutate(&account)
+        let snapshot = try await accountsRepository.updateCodexAccount(account)
+        applyRepositorySnapshot(snapshot)
     }
 
-    private func persistValidatedCurrentCLIAccountIfKnown(_ result: AccountValidationResult) throws {
+    private func persistValidatedCurrentCLIAccountIfKnown(_ result: AccountValidationResult) async throws {
         guard let accountID = knownAccountID(for: result) else {
             return
         }
 
-        try persistValidatedAccount(result, forAccountID: accountID)
+        try await persistValidatedAccount(result, forAccountID: accountID)
     }
 
-    private func persistValidatedAccount(_ result: AccountValidationResult, forAccountID id: UUID) throws {
+    private func persistValidatedAccount(_ result: AccountValidationResult, forAccountID id: UUID) async throws {
         guard let account = accounts.first(where: { $0.id == id }) else {
             return
         }
 
-        try vault.save(result.authData, account: account.keychainAccount, label: account.label)
-        try updateAccount(id) { stored in
-            stored.email = result.email
-            stored.planType = result.planType
-            stored.accountId = result.identity.accountId
-            stored.authFingerprint = result.authFingerprint
-            stored.lastValidatedAt = Date()
-            stored.updatedAt = Date()
-            stored.lastRateLimit = result.rateLimit
-            stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
-            stored.status = resolveStatus(from: result.rateLimit)
-            stored.statusMessage = statusMessage(for: result.rateLimit)
-        }
+        var stored = account
+        stored.email = result.email
+        stored.planType = result.planType
+        stored.accountId = result.identity.accountId
+        stored.authFingerprint = result.authFingerprint
+        stored.lastValidatedAt = Date()
+        stored.updatedAt = Date()
+        stored.lastRateLimit = result.rateLimit
+        stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
+        stored.status = resolveStatus(from: result.rateLimit)
+        stored.statusMessage = result.rateLimitError ?? statusMessage(for: result.rateLimit)
+        let snapshot = try await accountsRepository.saveCodexAccount(stored, credential: result.authData)
+        applyRepositorySnapshot(snapshot)
     }
 
     private func knownAccountID(for result: AccountValidationResult) -> UUID? {
@@ -1270,7 +1119,7 @@ final class AppModel: ObservableObject {
             return id
         }
 
-        if let matched = Self.resolveImportedAccount(
+        if let matched = AccountResolution.importedCodexAccount(
             fingerprint: result.authFingerprint,
             accountId: result.identity.accountId,
             email: result.email,
@@ -1287,36 +1136,34 @@ final class AppModel: ObservableObject {
         status: ClaudeAuthStatus,
         preferredLabel: String,
         existingID: UUID? = nil
-    ) throws {
+    ) async throws {
         let fingerprint = CodexAuthBlob.fingerprint(for: credential)
         let existingIndex: Int? = {
             if let existingID {
                 return claudeAccounts.firstIndex(where: { $0.id == existingID })
             }
-            return claudeAccounts.firstIndex(where: {
-                $0.authFingerprint == fingerprint ||
-                $0.email.caseInsensitiveCompare(status.email ?? preferredLabel) == .orderedSame
-            })
+            guard let identity = status.stableIdentity else { return nil }
+            guard let match = AccountResolution.storedClaudeMatch(
+                identity: identity,
+                fingerprint: fingerprint,
+                accounts: claudeAccounts
+            ) else { return nil }
+            return claudeAccounts.firstIndex(where: { $0.id == match.id })
         }()
 
-        let keychainAccount: String
         let recordID: UUID
         let label: String
         let createdAt: Date
 
         if let existingIndex {
-            keychainAccount = claudeAccounts[existingIndex].keychainAccount
             recordID = claudeAccounts[existingIndex].id
             label = claudeAccounts[existingIndex].label
             createdAt = claudeAccounts[existingIndex].createdAt
         } else {
             recordID = UUID()
-            keychainAccount = "claude.\(recordID.uuidString)"
             label = makeUniqueClaudeLabel(base: preferredLabel)
             createdAt = Date()
         }
-
-        try vault.save(credential, account: keychainAccount, label: label)
 
         let updatedRecord = ClaudeStoredAccount(
             id: recordID,
@@ -1332,138 +1179,47 @@ final class AppModel: ObservableObject {
             status: .ok,
             statusMessage: L10n.tr("claude.account.ready"),
             authFingerprint: fingerprint,
-            keychainAccount: keychainAccount
+            keychainAccount: ""
         )
 
-        if let existingIndex {
-            claudeAccounts[existingIndex] = updatedRecord
-        } else {
-            claudeAccounts.append(updatedRecord)
-        }
-
-        claudeAccounts.sort { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
-        try saveAccounts()
-    }
-
-    private func updateClaudeAccount(_ id: UUID, mutate: (inout ClaudeStoredAccount) -> Void) throws {
-        guard let index = claudeAccounts.firstIndex(where: { $0.id == id }) else {
-            return
-        }
-        mutate(&claudeAccounts[index])
-        try saveAccounts()
-    }
-
-    private func saveAccounts() throws {
-        try persistence.save(
-            PersistedState(
-                accounts: accounts,
-                claudeAccounts: claudeAccounts,
-                retiredCredentials: retiredCredentials
-            )
-        )
-    }
-
-    private func purgeExpiredRetiredCredentials(now: Date = .now) throws {
-        let expired = retiredCredentials.filter { $0.purgeAfter <= now }
-        guard !expired.isEmpty else { return }
-
-        var deleted = Set<UUID>()
-        for credential in expired {
-            do {
-                try vault.delete(account: credential.keychainAccount)
-                deleted.insert(credential.id)
-            } catch {
-                RuntimeLog.lifecycle.warning("retired credential cleanup deferred provider=\(credential.provider.rawValue, privacy: .public)")
-            }
-        }
-
-        guard !deleted.isEmpty else { return }
-        retiredCredentials.removeAll { deleted.contains($0.id) }
-        try saveAccounts()
-    }
-
-    static func resolveStoredAccountMatch(identity: AuthIdentity, fingerprint: String, accounts: [StoredAccount]) -> StoredAccount? {
-        if let exact = accounts.first(where: { $0.authFingerprint == fingerprint }) {
-            return exact
-        }
-
-        guard let stableIdentity = CodexAccountIdentity(identity.accountId) else {
-            return nil
-        }
-        let stableMatches = accounts.filter { $0.stableIdentity == stableIdentity }
-        return stableMatches.count == 1 ? stableMatches[0] : nil
-    }
-
-    static func resolveImportedAccount(
-        fingerprint: String?,
-        accountId: String?,
-        email: String?,
-        accounts: [StoredAccount]
-    ) -> StoredAccount? {
-        if let fingerprint,
-           let matched = accounts.first(where: { $0.authFingerprint == fingerprint }) {
-            return matched
-        }
-
-        if let accountId,
-           let matched = accounts.first(where: { $0.accountId == accountId }) {
-            return matched
-        }
-
-        if let email,
-           let matched = accounts.first(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
-            return matched
-        }
-
-        return nil
-    }
-
-    static func reauthenticationTarget(
-        requested: StoredAccount,
-        result: AccountValidationResult,
-        accounts: [StoredAccount]
-    ) -> ReauthenticationTarget {
-        if result.identity.stableIdentity == requested.stableIdentity,
-           result.identity.stableIdentity != nil {
-            return .requestedAccount(requested.id)
-        }
-
-        if let exact = accounts.first(where: { $0.authFingerprint == result.authFingerprint }) {
-            return exact.id == requested.id
-                ? .requestedAccount(requested.id)
-                : .existingAccount(exact.id)
-        }
-
-        if let identity = result.identity.stableIdentity {
-            let matches = accounts.filter { $0.stableIdentity == identity }
-            if matches.count == 1, let match = matches.first {
-                return match.id == requested.id
-                    ? .requestedAccount(requested.id)
-                    : .existingAccount(match.id)
-            }
-        }
-
-        return .newAccount
+        let snapshot = try await accountsRepository.saveClaudeAccount(updatedRecord, credential: credential)
+        applyRepositorySnapshot(snapshot)
     }
 
     private func runBusy(
         provider: ProviderKind,
         _ message: String,
+        canCancel: Bool = false,
         operation: @escaping () async throws -> Void
     ) async {
         guard !isProviderBusy(provider) else { return }
-        providerBusyMessages[provider] = message
-        providerErrorMessages.removeValue(forKey: provider)
-
-        defer {
-            providerBusyMessages.removeValue(forKey: provider)
-        }
+        let existingNotice = providerOperationStates[provider]?.notice
+        providerOperationStates[provider] = ProviderOperationState(
+            phase: .running,
+            progress: message,
+            canCancel: canCancel,
+            notice: existingNotice,
+            error: nil
+        )
 
         do {
             try await operation()
+            providerOperationStates[provider] = ProviderOperationState(notice: providerOperationStates[provider]?.notice)
+            errorMessage = nil
+        } catch is CancellationError {
+            providerOperationStates[provider] = ProviderOperationState(notice: L10n.tr("operation.cancelled"))
         } catch {
-            providerErrorMessages[provider] = error.localizedDescription
+            providerOperationStates[provider] = ProviderOperationState(
+                notice: providerOperationStates[provider]?.notice,
+                error: error.localizedDescription
+            )
         }
+    }
+
+    private func setNotice(_ notice: String, provider: ProviderKind) {
+        var state = providerOperationStates[provider] ?? .idle
+        state.notice = notice
+        providerOperationStates[provider] = state
     }
 
     private func resolveStatus(from rateLimit: RateLimitSnapshotModel?) -> AccountStatus {
@@ -1488,18 +1244,7 @@ final class AppModel: ObservableObject {
     }
 
     private func classifyValidationError(_ error: Error) -> AccountStatus {
-        Self.validationStatus(forErrorMessage: error.localizedDescription)
-    }
-
-    nonisolated static func validationStatus(forErrorMessage message: String) -> AccountStatus {
-        let message = message.lowercased()
-        if message.contains("unauthorized") || message.contains("401") || message.contains("auth") || message.contains("login") {
-            return .needsReauth
-        }
-        if message.contains("token_expired") || message.contains("token_invalidated") || message.contains("refresh token") || message.contains("signing in again") {
-            return .needsReauth
-        }
-        return .validationFailed
+        AccountResolution.validationStatus(forErrorMessage: error.localizedDescription)
     }
 
     private func validationStatusMessage(for error: Error) -> String {
@@ -1560,12 +1305,16 @@ final class AppModel: ObservableObject {
         return nil
     }
 
-    func currentCLIRateLimitSections() -> [RateLimitDisplaySection] {
-        Self.liveCurrentCLIRateLimitSections(probe: currentCLIProbe, probeError: currentCLIProbeError)
+    func currentCLIRateLimitSections(now: Date = .now) -> [RateLimitDisplaySection] {
+        CodexSessionPresentation.rateLimitSections(
+            probe: currentCLIProbe,
+            probeError: currentCLIProbeError,
+            now: now
+        )
     }
 
     func currentCLIDisplayRateLimitSections(now: Date = .now) -> [RateLimitDisplaySection] {
-        let liveSections = currentCLIRateLimitSections()
+        let liveSections = currentCLIRateLimitSections(now: now)
         if !liveSections.isEmpty {
             return liveSections
         }
@@ -1574,83 +1323,29 @@ final class AppModel: ObservableObject {
             return []
         }
 
-        return Self.storedRateLimitSections(
+        return CodexAccountsPresentationPolicy.storedRateLimitSections(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
+            observedAt: account.lastValidatedAt,
             now: now
         )
     }
 
-    static func liveCurrentCLIPanelSummary(probe: CurrentCLIProbe?, probeError: String? = nil) -> String? {
-        guard probeError == nil else { return nil }
-        return probe?.rateLimit?.panelSummary()
+    func currentClaudeLiveRateLimitSections(now: Date? = nil) -> [RateLimitDisplaySection] {
+        ClaudeLivePresentation.rateLimitSections(evidence: currentClaudeLiveEvidence, now: now ?? presentationNow)
     }
 
-    static func liveCurrentCLIRateLimitSections(probe: CurrentCLIProbe?, probeError: String? = nil) -> [RateLimitDisplaySection] {
-        guard probeError == nil else { return [] }
-        return RateLimitDisplayBuilder.makeSections(
-            primary: probe?.rateLimit,
-            byLimitId: probe?.rateLimitsByLimitId
-        )
-    }
-
-    func currentClaudeLiveRateLimitSections() -> [RateLimitDisplaySection] {
-        guard let payload = currentClaudeLivePayload else {
-            return []
-        }
-
-        var rows: [RateLimitDisplayRow] = []
-        if let fiveHour = payload.snapshot.rateLimits?.fiveHour {
-            let resetDate = resetDate(for: fiveHour.resetsAt)
-            rows.append(
-                RateLimitDisplayRow(
-                    id: "claude.five_hour",
-                    title: L10n.tr("limit.five_hour"),
-                    usedPercent: normalizeUsedPercent(fiveHour.usedPercentage),
-                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
-                    resetDate: resetDate
-                )
-            )
-        }
-
-        if let sevenDay = payload.snapshot.rateLimits?.sevenDay {
-            let resetDate = resetDate(for: sevenDay.resetsAt)
-            rows.append(
-                RateLimitDisplayRow(
-                    id: "claude.seven_day",
-                    title: L10n.tr("limit.weekly"),
-                    usedPercent: normalizeUsedPercent(sevenDay.usedPercentage),
-                    resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
-                    resetDate: resetDate
-                )
-            )
-        }
-
-        guard !rows.isEmpty else {
-            return []
-        }
-
-        return [
-            RateLimitDisplaySection(
-                id: "claude.live",
-                title: "Claude Code",
-                rows: rows
-            )
-        ]
-    }
-
-    func rateLimitSections(for account: StoredAccount) -> [RateLimitDisplaySection] {
+    func rateLimitSections(for account: StoredAccount, now: Date = .now) -> [RateLimitDisplaySection] {
         let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
         if useLiveProbe {
-            return RateLimitDisplayBuilder.makeSections(
-                primary: currentCLIProbe?.rateLimit,
-                byLimitId: currentCLIProbe?.rateLimitsByLimitId
-            )
+            return currentCLIRateLimitSections(now: now)
         }
 
-        return Self.storedRateLimitSections(
+        return CodexAccountsPresentationPolicy.storedRateLimitSections(
             primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId
+            byLimitId: account.lastRateLimitsByLimitId,
+            observedAt: account.lastValidatedAt,
+            now: now
         )
     }
 
@@ -1660,77 +1355,14 @@ final class AppModel: ObservableObject {
                 (account.id, sidebarLimitSummary(for: account, now: now))
             }
         )
-        return Self.sortedCodexAccountsForSidebar(accounts, summaries: summaries)
-    }
-
-    nonisolated static func sortedCodexAccountsForSidebar(
-        _ accounts: [StoredAccount],
-        summaries: [UUID: SidebarLimitSummary?]
-    ) -> [StoredAccount] {
-        accounts.sorted { lhs, rhs in
-            compareCodexSidebarAccounts(lhs, rhs, summaries: summaries)
-        }
-    }
-
-    private nonisolated static func compareCodexSidebarAccounts(
-        _ lhs: StoredAccount,
-        _ rhs: StoredAccount,
-        summaries: [UUID: SidebarLimitSummary?]
-    ) -> Bool {
-        let lhsSummary = summaries[lhs.id] ?? nil
-        let rhsSummary = summaries[rhs.id] ?? nil
-        let lhsHasData = lhsSummary?.hasLimitData == true
-        let rhsHasData = rhsSummary?.hasLimitData == true
-
-        if lhsHasData != rhsHasData {
-            return lhsHasData
-        }
-
-        switch (lhsSummary?.nextResetDate, rhsSummary?.nextResetDate) {
-        case let (lhsReset?, rhsReset?) where lhsReset != rhsReset:
-            return lhsReset < rhsReset
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        default:
-            break
-        }
-
-        let lhsScore = lhsSummary?.limitSortScore ?? -1
-        let rhsScore = rhsSummary?.limitSortScore ?? -1
-        if lhsScore != rhsScore {
-            return lhsScore > rhsScore
-        }
-
-        let lhsStatusRank = sidebarStatusRank(lhs.status)
-        let rhsStatusRank = sidebarStatusRank(rhs.status)
-        if lhsStatusRank != rhsStatusRank {
-            return lhsStatusRank < rhsStatusRank
-        }
-
-        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
-    }
-
-    private nonisolated static func sidebarStatusRank(_ status: AccountStatus) -> Int {
-        switch status {
-        case .ok:
-            return 0
-        case .limitReached:
-            return 1
-        case .unknown:
-            return 2
-        case .needsReauth:
-            return 3
-        case .validationFailed:
-            return 4
-        }
+        return CodexAccountsPresentationPolicy.sortedForSidebar(accounts, summaries: summaries)
     }
 
     func currentCLISidebarLimitSummary(now: Date = .now) -> SidebarLimitSummary? {
-        Self.sidebarLimitSummary(
+        CodexAccountsPresentationPolicy.sidebarLimitSummary(
             primary: currentCLIProbe?.rateLimit,
             byLimitId: currentCLIProbe?.rateLimitsByLimitId,
+            observedAt: currentCLIProbe?.validatedAt,
             now: now
         )
     }
@@ -1750,85 +1382,18 @@ final class AppModel: ObservableObject {
     func sidebarLimitSummary(for account: StoredAccount, now: Date = .now) -> SidebarLimitSummary? {
         let useLiveProbe = isCurrentCLIAccount(account) && currentCLIProbe?.fingerprint == account.authFingerprint
         if useLiveProbe {
-            return Self.sidebarLimitSummary(
+            return CodexAccountsPresentationPolicy.sidebarLimitSummary(
                 primary: currentCLIProbe?.rateLimit,
                 byLimitId: currentCLIProbe?.rateLimitsByLimitId,
+                observedAt: currentCLIProbe?.validatedAt,
                 now: now
             )
         }
 
-        return Self.sidebarLimitSummary(
+        return CodexAccountsPresentationPolicy.sidebarLimitSummary(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
-            now: now
-        )
-    }
-
-    nonisolated static func sidebarLimitSummary(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date = .now
-    ) -> SidebarLimitSummary? {
-        guard let snapshot = byLimitId?["codex"] ?? primary else {
-            return nil
-        }
-
-        let fiveHour = remainingWindow(from: snapshot, minutes: 300, now: now)
-        let weekly = remainingWindow(from: snapshot, minutes: 10_080, now: now)
-
-        guard fiveHour.remainingPercent != nil || weekly.remainingPercent != nil else {
-            return nil
-        }
-
-        let nextResetDate = [fiveHour.resetDate, weekly.resetDate]
-            .compactMap(\.self)
-            .min()
-
-        return SidebarLimitSummary(
-            fiveHourRemainingPercent: fiveHour.remainingPercent,
-            weeklyRemainingPercent: weekly.remainingPercent,
-            nextResetDate: nextResetDate
-        )
-    }
-
-    private nonisolated static func remainingWindow(
-        from snapshot: RateLimitSnapshotModel,
-        minutes: Int64,
-        now: Date
-    ) -> (remainingPercent: Int?, resetDate: Date?) {
-        let window = [snapshot.primary, snapshot.secondary]
-            .compactMap(\.self)
-            .first { $0.windowDurationMins == minutes }
-
-        guard let window else {
-            return (nil, nil)
-        }
-
-        let resetDate = window.resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
-        if let resetDate, resetDate <= now {
-            return (nil, nil)
-        }
-
-        return (max(0, 100 - window.usedPercent), resetDate)
-    }
-
-    nonisolated static func currentCLIProbeCanBeReused(
-        _ probe: CurrentCLIProbe,
-        expectedFingerprint: String,
-        now: Date,
-        ttl: TimeInterval
-    ) -> Bool {
-        guard probe.fingerprint == expectedFingerprint else {
-            return false
-        }
-
-        guard now.timeIntervalSince(probe.validatedAt) < ttl else {
-            return false
-        }
-
-        return !storedSnapshotIsStale(
-            primary: probe.rateLimit,
-            byLimitId: probe.rateLimitsByLimitId,
+            observedAt: account.lastValidatedAt,
             now: now
         )
     }
@@ -1838,146 +1403,19 @@ final class AppModel: ObservableObject {
             return false
         }
 
-        return Self.currentCLIProbeHasExpiredReset(probe, now: now)
-    }
-
-    nonisolated static func currentCLIProbeHasExpiredReset(_ probe: CurrentCLIProbe, now: Date = .now) -> Bool {
-        storedSnapshotIsStale(primary: probe.rateLimit, byLimitId: probe.rateLimitsByLimitId, now: now)
-    }
-
-    nonisolated static func canAttemptExpiredResetRefresh(
-        lastAttempt: Date?,
-        now: Date,
-        retryInterval: TimeInterval
-    ) -> Bool {
-        guard let lastAttempt else {
-            return true
-        }
-        return now.timeIntervalSince(lastAttempt) >= retryInterval
-    }
-
-    nonisolated static func nextStoredCodexAccountIDForAutoRefresh(
-        accounts: [StoredAccount],
-        currentAccountID: UUID?,
-        lastAttempts: [UUID: Date],
-        now: Date,
-        retryInterval: TimeInterval
-    ) -> UUID? {
-        accounts
-            .filter { account in
-                guard account.id != currentAccountID else {
-                    return false
-                }
-                guard account.status != .needsReauth else {
-                    return false
-                }
-                guard storedCodexAccountNeedsAutoRefresh(account, now: now) else {
-                    return false
-                }
-                if let lastAttempt = lastAttempts[account.id], now.timeIntervalSince(lastAttempt) < retryInterval {
-                    return false
-                }
-                return true
-            }
-            .sorted { lhs, rhs in
-                let lhsReset = staleCodexResetDate(for: lhs) ?? .distantFuture
-                let rhsReset = staleCodexResetDate(for: rhs) ?? .distantFuture
-                if lhsReset != rhsReset {
-                    return lhsReset < rhsReset
-                }
-
-                let lhsValidated = lhs.lastValidatedAt ?? .distantPast
-                let rhsValidated = rhs.lastValidatedAt ?? .distantPast
-                if lhsValidated != rhsValidated {
-                    return lhsValidated < rhsValidated
-                }
-
-                return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
-            }
-            .first?
-            .id
-    }
-
-    nonisolated static func storedCodexAccountNeedsAutoRefresh(_ account: StoredAccount, now: Date = .now) -> Bool {
-        let hasAnyLimitSnapshot = account.lastRateLimit != nil || account.lastRateLimitsByLimitId?.isEmpty == false
-        if !hasAnyLimitSnapshot {
-            return true
-        }
-
-        return storedSnapshotIsStale(
-            primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId,
-            now: now
-        )
-    }
-
-    private nonisolated static func staleCodexResetDate(for account: StoredAccount) -> Date? {
-        let snapshot = account.lastRateLimitsByLimitId?["codex"] ?? account.lastRateLimit
-        return snapshot?.fiveHourResetDate
-    }
-
-    nonisolated static func storedRateLimitSections(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date = .now
-    ) -> [RateLimitDisplaySection] {
-        let hasExactLimitSnapshots = byLimitId?.isEmpty == false
-        return RateLimitDisplayBuilder.makeSections(
-            primary: hasExactLimitSnapshots ? nil : primary,
-            byLimitId: byLimitId,
-            excludingExpiredRowsAt: now
-        )
-    }
-
-    nonisolated static func storedRateLimitSummary(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date = .now
-    ) -> String? {
-        if storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) {
-            return L10n.tr("reset.stale.expanded")
-        }
-
-        return primary?.compactUsageSummary()
-    }
-
-    nonisolated static func storedRemainingPercent(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date = .now
-    ) -> Int? {
-        sidebarLimitSummary(primary: primary, byLimitId: byLimitId, now: now)?.fiveHourRemainingPercent
-    }
-
-    private nonisolated static func storedSnapshotIsStale(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date
-    ) -> Bool {
-        if let codex = byLimitId?["codex"], codex.fiveHourHasReset(now: now) {
-            return true
-        }
-
-        if let primary, primary.fiveHourHasReset(now: now) {
-            return true
-        }
-
-        return false
+        return CodexAccountsPresentationPolicy.currentProbeHasExpiredReset(probe, now: now)
     }
 
     func storedRateLimitSummary(for account: StoredAccount) -> String? {
-        Self.storedRateLimitSummary(
+        CodexAccountsPresentationPolicy.storedRateLimitSummary(
             primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId
+            byLimitId: account.lastRateLimitsByLimitId,
+            observedAt: account.lastValidatedAt
         )
     }
 
     func remainingPercent(for account: StoredAccount) -> Int? {
         sidebarLimitSummary(for: account)?.fiveHourRemainingPercent
-    }
-
-    func sidebarSecondaryText(for account: StoredAccount) -> String {
-        storedRateLimitSummary(for: account) ?? account.email
     }
 
     func currentCLIValidatedAt() -> Date? {
@@ -2083,7 +1521,7 @@ final class AppModel: ObservableObject {
 
     private func noteForStoredAccount(_ account: StoredAccount?) -> String? {
         if let probeError = currentCLIProbeError {
-            return Self.currentCLIProbeNote(for: probeError)
+            return CodexSessionPresentation.probeNote(for: probeError)
         }
         if currentCLIProbe == nil {
             return isRefreshingCurrentCLIProbe ? L10n.tr("busy.refreshing_live_limits") : L10n.tr("limits.empty.account.subtitle")
@@ -2108,7 +1546,7 @@ final class AppModel: ObservableObject {
 
     private func noteForExternalAuth(_ account: StoredAccount?) -> String? {
         if let probeError = currentCLIProbeError {
-            return Self.currentCLIProbeNote(for: probeError)
+            return CodexSessionPresentation.probeNote(for: probeError)
         }
         if isRefreshingCurrentCLIProbe && currentCLIProbe == nil {
             return L10n.tr("busy.refreshing_live_limits")
@@ -2122,78 +1560,4 @@ final class AppModel: ObservableObject {
         return L10n.tr("cli.import_current_note")
     }
 
-    nonisolated static func currentCLIProbeNote(for message: String) -> String {
-        let lowered = message.lowercased()
-        if lowered.contains("unauthorized") || lowered.contains("401") || lowered.contains("auth") || lowered.contains("login") {
-            return L10n.tr("cli.current_reauth_needed")
-        }
-        return L10n.tr("cli.live_update_failed")
-    }
-
-    private func refreshClaudeStatuslineBridgeState() {
-        do {
-            currentClaudeLiveBridgeStatus = try claudeStatuslineBridgeService.bridgeStatus()
-            currentClaudeBridgeError = nil
-        } catch {
-            currentClaudeLiveBridgeStatus = ClaudeStatuslineBridgeStatus(installed: false, hasSnapshot: false, preservingOriginalStatusLine: false)
-            currentClaudeLivePayload = nil
-            currentClaudeBridgeError = error.localizedDescription
-            return
-        }
-
-        guard currentClaudeLiveBridgeStatus.hasSnapshot else {
-            currentClaudeLivePayload = nil
-            return
-        }
-
-        do {
-            currentClaudeLivePayload = try claudeStatuslineBridgeService.readSnapshot()
-            currentClaudeBridgeError = nil
-        } catch {
-            currentClaudeLivePayload = nil
-            currentClaudeBridgeError = error.localizedDescription
-        }
-    }
-
-    private func normalizeUsedPercent(_ value: Double?) -> Int {
-        let raw = Int((value ?? 0).rounded())
-        return min(max(raw, 0), 100)
-    }
-
-    private func resetDate(for timestamp: Int64?) -> Date? {
-        guard let timestamp else { return nil }
-        return Date(timeIntervalSince1970: TimeInterval(timestamp))
-    }
-
-    private func refreshStoredClaudeMetadataIfNeeded() async throws {
-        let status: ClaudeAuthStatus
-        if let currentClaudeStatus {
-            status = currentClaudeStatus
-        } else {
-            status = try await claudeAuthStatusService.readStatus()
-        }
-
-        guard
-            status.loggedIn,
-            let email = status.email,
-            let fingerprint = currentClaudeState.authFingerprint ?? (try? globalClaudeCredentialService.readGlobalCredential()).map({ CodexAuthBlob.fingerprint(for: $0) })
-        else {
-            return
-        }
-
-        if let current = currentClaudeReferenceAccount() {
-            try updateClaudeAccount(current.id) { stored in
-                stored.email = email
-                stored.subscriptionType = status.subscriptionType ?? stored.subscriptionType
-                stored.authMethod = status.authMethod
-                stored.orgId = status.orgId
-                stored.orgName = status.orgName
-                stored.authFingerprint = fingerprint
-                stored.updatedAt = Date()
-                stored.lastValidatedAt = Date()
-                stored.status = .ok
-                stored.statusMessage = L10n.tr("claude.account.ready")
-            }
-        }
-    }
 }

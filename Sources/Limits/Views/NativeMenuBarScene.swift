@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import LimitsCore
 
 struct NativeMenuBarContent: View {
     @ObservedObject var model: AppModel
@@ -35,7 +36,7 @@ struct NativeMenuBarLabel: View {
     private let renderer = TrayStatusIconRenderer()
 
     var body: some View {
-        let filter = AccountsSidebarFilter(rawValue: filterRaw) ?? .all
+        let filter = model.providerCatalog.normalized(AccountsSidebarFilter(rawValue: filterRaw) ?? .all)
         let snapshot = model.trayStatusSnapshot(filter: filter, now: model.presentationNow)
 
         Group {
@@ -50,10 +51,14 @@ struct NativeMenuBarLabel: View {
         .help(snapshot.tooltip)
         .accessibilityLabel(snapshot.accessibilityLabel)
         .task {
+            filterRaw = filter.rawValue
             openAccountsWindowIfRequested()
         }
         .onReceive(NotificationCenter.default.publisher(for: .limitsOpenAccountsWindow)) { _ in
             openAccountsWindowIfRequested()
+        }
+        .onChange(of: model.providerCatalog) { _, catalog in
+            filterRaw = catalog.normalized(AccountsSidebarFilter(rawValue: filterRaw) ?? .all).rawValue
         }
     }
 

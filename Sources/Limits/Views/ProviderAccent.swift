@@ -1,4 +1,5 @@
 import SwiftUI
+import LimitsCore
 
 enum ProviderAccent {
     static let codex = Color.blue
