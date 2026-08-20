@@ -81,7 +81,6 @@ final class AppModel: ObservableObject {
     private let claudeSessionCoordinator: ClaudeSessionCoordinator
     private let backgroundRefreshInterval: TimeInterval = 300
     private let presentationTickInterval: TimeInterval = 30
-    private let currentCLIExpiredResetRetryInterval: TimeInterval = 300
     private let storedCodexAutoRefreshInterval: TimeInterval = 60
     private let widgetSnapshotPublisher: LimitsWidgetSnapshotPublisher
     private let isIsolatedRuntime: Bool
@@ -89,11 +88,15 @@ final class AppModel: ObservableObject {
     private var backgroundRefreshTask: Task<Void, Never>?
     private var presentationClockTask: Task<Void, Never>?
     private var storedCodexAutoRefreshTask: Task<Void, Never>?
+    private var bootstrapTask: Task<Void, Never>?
     private var currentValuesRefreshTask: Task<Void, Never>?
     private var currentValuesRefreshID: UUID?
     private var currentValuesRefreshIsForced = false
+    private var storedPresentationRefreshTask: Task<Void, Never>?
+    private var storedPresentationRefreshID: UUID?
     private var lastStoredCodexAutoRefreshAttempt: [UUID: Date] = [:]
-    private var lastCurrentCLIExpiredResetRefreshAttempt: Date?
+    private var lastCurrentCLIRefreshAttempt: Date?
+    private var lastCurrentCLIRefreshFingerprint: String?
     private var isRefreshingStoredCodexAccount = false
     private var persistedStateLoaded = false
 
@@ -137,7 +140,9 @@ final class AppModel: ObservableObject {
         claudeSessionCoordinator = dependencies.claudeCoordinator
         widgetSnapshotPublisher = dependencies.widgetPublisher
         isIsolatedRuntime = dependencies.isolated
-        Task { await bootstrap() }
+        bootstrapTask = Task { @MainActor [weak self] in
+            await self?.performBootstrap()
+        }
         startPresentationClockLoop()
         if !isIsolatedRuntime {
             startBackgroundRefreshLoop()
@@ -149,10 +154,12 @@ final class AppModel: ObservableObject {
         backgroundRefreshTask?.cancel()
         presentationClockTask?.cancel()
         storedCodexAutoRefreshTask?.cancel()
+        bootstrapTask?.cancel()
         currentValuesRefreshTask?.cancel()
+        storedPresentationRefreshTask?.cancel()
     }
 
-    func bootstrap() async {
+    private func performBootstrap() async {
         defer { publishWidgetSnapshotIfPossible() }
 
         do {
@@ -164,10 +171,19 @@ final class AppModel: ObservableObject {
                 try await importCurrentCLIAuthNow()
                 await refreshCurrentValues(forceProbe: true)
             }
-            await refreshOneStaleStoredCodexAccountInBackground()
+            await refreshStoredCodexAccountsForPresentation()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func refreshForPresentation() async {
+        if let bootstrapTask {
+            await bootstrapTask.value
+        }
+        guard persistedStateLoaded else { return }
+        await refreshCurrentValues(forceProbe: false)
+        await refreshStoredCodexAccountsForPresentation()
     }
 
     private func loadPersistedState() async throws {
@@ -248,14 +264,22 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let now = Date()
-        if !force, let probe = currentCLIProbe, CodexSessionPresentation.canReuse(
-            probe,
-            expectedFingerprint: fingerprint,
-            now: now,
-            ttl: LimitsFreshnessPolicy.defaultTTL
-        ) {
-            return
+        let attemptAt = Date()
+        if !force {
+            if let probe = currentCLIProbe, CodexRefreshPolicy.canReuse(
+                probe,
+                expectedFingerprint: fingerprint,
+                now: attemptAt
+            ) {
+                return
+            }
+            guard CodexRefreshPolicy.canAttemptRefresh(
+                lastAttempt: lastCurrentCLIRefreshFingerprint == fingerprint ? lastCurrentCLIRefreshAttempt : nil,
+                now: attemptAt,
+                retryInterval: CodexRefreshPolicy.currentFailureRetryInterval
+            ) else {
+                return
+            }
         }
 
         guard !isRefreshingCurrentCLIProbe else {
@@ -264,20 +288,25 @@ final class AppModel: ObservableObject {
 
         isRefreshingCurrentCLIProbe = true
         defer { isRefreshingCurrentCLIProbe = false }
+        lastCurrentCLIRefreshAttempt = attemptAt
+        lastCurrentCLIRefreshFingerprint = fingerprint
 
         do {
             guard case .published(let outcome) = try await codexSessionCoordinator.refreshCurrent() else {
                 return
             }
             let result = outcome.validation
+            let validatedAt = Date()
             currentCLIProbe = CurrentCLIProbe(
                 fingerprint: result.authFingerprint,
                 email: result.email,
                 planType: result.planType,
                 rateLimit: result.rateLimit,
                 rateLimitsByLimitId: result.rateLimitsByLimitId,
-                validatedAt: now,
-                rateLimitError: result.rateLimitError
+                validatedAt: validatedAt,
+                rateLimitError: result.rateLimitError,
+                rateLimitObservedAt: result.rateLimitError == nil ? validatedAt : nil,
+                subscriptionPeriod: result.subscriptionPeriod
             )
             currentCLIProbeError = result.rateLimitError
 
@@ -491,24 +520,7 @@ final class AppModel: ObservableObject {
     private func tickPresentationClock() async {
         let now = Date()
         presentationNow = now
-        await refreshCurrentCLIProbeIfResetExpired(now: now)
-    }
-
-    private func refreshCurrentCLIProbeIfResetExpired(now: Date) async {
-        guard
-            currentCLIProbeError == nil,
-            currentCLIProbe != nil,
-            currentCLIProbeHasExpiredReset(now: now),
-            CodexAccountsPresentationPolicy.canAttemptRefresh(
-                lastAttempt: lastCurrentCLIExpiredResetRefreshAttempt,
-                now: now,
-                retryInterval: currentCLIExpiredResetRetryInterval
-            )
-        else {
-            return
-        }
-
-        lastCurrentCLIExpiredResetRefreshAttempt = now
+        guard persistedStateLoaded, !isProviderBusy(.codex) else { return }
         await refreshCurrentCLIProbe(force: false)
     }
 
@@ -554,12 +566,13 @@ final class AppModel: ObservableObject {
             return
         }
 
-        guard let accountID = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
+        guard let accountID = CodexRefreshPolicy.nextStoredAccountID(
             accounts: accounts,
-            currentAccountID: currentStoredCodexAccountID(),
+            currentAccountID: currentCodexAccountIDForRefreshExclusion(),
             lastAttempts: lastStoredCodexAutoRefreshAttempt,
             now: now,
-            retryInterval: storedCodexAutoRefreshRetryInterval
+            retryInterval: storedCodexAutoRefreshRetryInterval,
+            maximumAge: nil
         ) else {
             return
         }
@@ -575,11 +588,58 @@ final class AppModel: ObservableObject {
         await validateAccount(account)
     }
 
-    private func currentStoredCodexAccountID() -> UUID? {
-        if case .stored(let id) = currentCLIState.source {
-            return id
+    private func refreshStoredCodexAccountsForPresentation() async {
+        if let storedPresentationRefreshTask {
+            await storedPresentationRefreshTask.value
+            return
         }
-        return nil
+
+        let refreshID = UUID()
+        storedPresentationRefreshID = refreshID
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performStoredCodexPresentationRefresh()
+            self.finishStoredPresentationRefresh(id: refreshID)
+        }
+        storedPresentationRefreshTask = task
+        await task.value
+    }
+
+    private func performStoredCodexPresentationRefresh() async {
+        while !Task.isCancelled {
+            guard !isProviderBusy(.codex), !isRefreshingCurrentCLIProbe, !isRefreshingStoredCodexAccount else {
+                return
+            }
+
+            let now = Date()
+            guard let accountID = CodexRefreshPolicy.nextStoredAccountID(
+                accounts: accounts,
+                currentAccountID: currentCodexAccountIDForRefreshExclusion(),
+                lastAttempts: lastStoredCodexAutoRefreshAttempt,
+                now: now,
+                retryInterval: CodexRefreshPolicy.currentFailureRetryInterval,
+                maximumAge: CodexRefreshPolicy.storedPresentationTTL
+            ), let account = accounts.first(where: { $0.id == accountID }) else {
+                return
+            }
+
+            lastStoredCodexAutoRefreshAttempt[accountID] = now
+            isRefreshingStoredCodexAccount = true
+            await validateAccount(account)
+            isRefreshingStoredCodexAccount = false
+        }
+    }
+
+    private func finishStoredPresentationRefresh(id: UUID) {
+        if storedPresentationRefreshID == id {
+            storedPresentationRefreshTask = nil
+            storedPresentationRefreshID = nil
+            isRefreshingStoredCodexAccount = false
+        }
+    }
+
+    private func currentCodexAccountIDForRefreshExclusion() -> UUID? {
+        currentCLIReferenceAccount()?.id
     }
 
     func validateAccount(_ account: StoredAccount) async {
@@ -591,7 +651,6 @@ final class AppModel: ObservableObject {
         } catch {
             do {
                 try await updateAccount(account.id) { stored in
-                    stored.lastValidatedAt = Date()
                     stored.updatedAt = Date()
                     stored.status = classifyValidationError(error)
                     stored.statusMessage = validationStatusMessage(for: error)
@@ -804,7 +863,7 @@ final class AppModel: ObservableObject {
     func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
         let codexOverview = currentCLIOverview()
         let codexLimits = WidgetPresentationPolicy.limitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)
-        let codexObservedAt = currentCLIValidatedAt()
+        let codexObservedAt = currentCLILimitsObservedAt()
         let claudeOverview = currentClaudeOverview()
         let claudeLimits = WidgetPresentationPolicy.limitSnapshots(from: currentClaudeLiveRateLimitSections(now: now), now: now)
         let claudeObservedAt = claudeLiveBridgeSnapshotUpdatedAt() ?? claudeValidatedAt()
@@ -842,14 +901,14 @@ final class AppModel: ObservableObject {
             from: CodexAccountsPresentationPolicy.storedRateLimitSections(
                 primary: account.lastRateLimit,
                 byLimitId: account.lastRateLimitsByLimitId,
-                observedAt: account.lastValidatedAt,
+                observedAt: account.rateLimitObservedAt,
                 now: now
             ),
             now: now
         )
         guard limits.contains(where: { $0.remainingPercent != nil }) else { return false }
         guard
-            let observedAt = account.lastValidatedAt,
+            let observedAt = account.rateLimitObservedAt,
             let freshUntil = WidgetPresentationPolicy.freshUntil(observedAt: observedAt, limits: limits)
         else {
             return false
@@ -1042,36 +1101,34 @@ final class AppModel: ObservableObject {
             return accounts.firstIndex(where: { $0.email.caseInsensitiveCompare(result.email) == .orderedSame })
         }()
 
+        let existingAccount = existingIndex.map { accounts[$0] }
         let recordID: UUID
         let label: String
         let createdAt: Date
 
-        if let existingIndex {
-            recordID = accounts[existingIndex].id
-            label = accounts[existingIndex].label
-            createdAt = accounts[existingIndex].createdAt
+        if let existingAccount {
+            recordID = existingAccount.id
+            label = existingAccount.label
+            createdAt = existingAccount.createdAt
         } else {
             recordID = UUID()
             label = makeUniqueLabel(base: preferredLabel)
             createdAt = Date()
         }
 
-        let updatedRecord = StoredAccount(
-            id: recordID,
-            label: label,
-            email: result.email,
-            accountId: result.identity.accountId,
-            planType: result.planType,
-            createdAt: createdAt,
-            updatedAt: Date(),
-            lastValidatedAt: Date(),
-            status: resolveStatus(from: result.rateLimit),
-            statusMessage: result.rateLimitError ?? statusMessage(for: result.rateLimit),
-            lastRateLimit: result.rateLimit,
-            lastRateLimitsByLimitId: result.rateLimitsByLimitId,
-            authFingerprint: result.authFingerprint,
-            keychainAccount: ""
-        )
+        let now = Date()
+        let updatedRecord: StoredAccount
+        if let existingAccount {
+            updatedRecord = CodexAccountValidationPolicy.applying(result, to: existingAccount, observedAt: now)
+        } else {
+            updatedRecord = CodexAccountValidationPolicy.makeAccount(
+                id: recordID,
+                label: label,
+                createdAt: createdAt,
+                from: result,
+                observedAt: now
+            )
+        }
 
         let snapshot = try await accountsRepository.saveCodexAccount(updatedRecord, credential: result.authData)
         applyRepositorySnapshot(snapshot)
@@ -1099,17 +1156,8 @@ final class AppModel: ObservableObject {
             return
         }
 
-        var stored = account
-        stored.email = result.email
-        stored.planType = result.planType
-        stored.accountId = result.identity.accountId
-        stored.authFingerprint = result.authFingerprint
-        stored.lastValidatedAt = Date()
-        stored.updatedAt = Date()
-        stored.lastRateLimit = result.rateLimit
-        stored.lastRateLimitsByLimitId = result.rateLimitsByLimitId
-        stored.status = resolveStatus(from: result.rateLimit)
-        stored.statusMessage = result.rateLimitError ?? statusMessage(for: result.rateLimit)
+        let now = Date()
+        let stored = CodexAccountValidationPolicy.applying(result, to: account, observedAt: now)
         let snapshot = try await accountsRepository.saveCodexAccount(stored, credential: result.authData)
         applyRepositorySnapshot(snapshot)
     }
@@ -1222,27 +1270,6 @@ final class AppModel: ObservableObject {
         providerOperationStates[provider] = state
     }
 
-    private func resolveStatus(from rateLimit: RateLimitSnapshotModel?) -> AccountStatus {
-        guard let rateLimit else {
-            return .ok
-        }
-        return rateLimit.isReached ? .limitReached : .ok
-    }
-
-    private func statusMessage(for rateLimit: RateLimitSnapshotModel?) -> String? {
-        guard let rateLimit else { return nil }
-
-        if let reachedType = rateLimit.rateLimitReachedType {
-            return reachedType.replacingOccurrences(of: "_", with: " ").capitalized
-        }
-
-        if let primary = rateLimit.primary {
-            return L10n.usedFiveHours(primary.usedPercent)
-        }
-
-        return nil
-    }
-
     private func classifyValidationError(_ error: Error) -> AccountStatus {
         AccountResolution.validationStatus(forErrorMessage: error.localizedDescription)
     }
@@ -1326,7 +1353,7 @@ final class AppModel: ObservableObject {
         return CodexAccountsPresentationPolicy.storedRateLimitSections(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
-            observedAt: account.lastValidatedAt,
+            observedAt: account.rateLimitObservedAt,
             now: now
         )
     }
@@ -1344,7 +1371,7 @@ final class AppModel: ObservableObject {
         return CodexAccountsPresentationPolicy.storedRateLimitSections(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
-            observedAt: account.lastValidatedAt,
+            observedAt: account.rateLimitObservedAt,
             now: now
         )
     }
@@ -1362,7 +1389,7 @@ final class AppModel: ObservableObject {
         CodexAccountsPresentationPolicy.sidebarLimitSummary(
             primary: currentCLIProbe?.rateLimit,
             byLimitId: currentCLIProbe?.rateLimitsByLimitId,
-            observedAt: currentCLIProbe?.validatedAt,
+            observedAt: currentCLIProbe?.limitsObservedAt,
             now: now
         )
     }
@@ -1385,7 +1412,7 @@ final class AppModel: ObservableObject {
             return CodexAccountsPresentationPolicy.sidebarLimitSummary(
                 primary: currentCLIProbe?.rateLimit,
                 byLimitId: currentCLIProbe?.rateLimitsByLimitId,
-                observedAt: currentCLIProbe?.validatedAt,
+                observedAt: currentCLIProbe?.limitsObservedAt,
                 now: now
             )
         }
@@ -1393,33 +1420,50 @@ final class AppModel: ObservableObject {
         return CodexAccountsPresentationPolicy.sidebarLimitSummary(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
-            observedAt: account.lastValidatedAt,
+            observedAt: account.rateLimitObservedAt,
             now: now
         )
-    }
-
-    func currentCLIProbeHasExpiredReset(now: Date = .now) -> Bool {
-        guard let probe = currentCLIProbe else {
-            return false
-        }
-
-        return CodexAccountsPresentationPolicy.currentProbeHasExpiredReset(probe, now: now)
     }
 
     func storedRateLimitSummary(for account: StoredAccount) -> String? {
         CodexAccountsPresentationPolicy.storedRateLimitSummary(
             primary: account.lastRateLimit,
             byLimitId: account.lastRateLimitsByLimitId,
-            observedAt: account.lastValidatedAt
+            observedAt: account.rateLimitObservedAt
         )
+    }
+
+    func currentLastKnownRateLimitSummary() -> String? {
+        currentCLIReferenceAccount().flatMap(storedRateLimitSummary)
     }
 
     func remainingPercent(for account: StoredAccount) -> Int? {
         sidebarLimitSummary(for: account)?.fiveHourRemainingPercent
     }
 
-    func currentCLIValidatedAt() -> Date? {
-        currentCLIProbe?.validatedAt ?? currentCLIReferenceAccount()?.lastValidatedAt
+    func currentCLILimitsObservedAt() -> Date? {
+        currentCLIProbe?.limitsObservedAt ?? currentCLIReferenceAccount()?.rateLimitObservedAt
+    }
+
+    func currentChatGPTPlanSummary() -> String? {
+        let planType = currentCLIProbe?.planType ?? currentCLIReferenceAccount()?.planType
+        guard let planType, planType.caseInsensitiveCompare("unknown") != .orderedSame else { return nil }
+        return ChatGPTSubscriptionPresentationPolicy.plan(for: planType).summary
+    }
+
+    func chatGPTPlanSummary(for account: StoredAccount) -> String {
+        ChatGPTSubscriptionPresentationPolicy.plan(for: account.planType).summary
+    }
+
+    func currentChatGPTSubscriptionPeriodText(now: Date = .now) -> String? {
+        ChatGPTSubscriptionPresentationPolicy.periodText(
+            for: currentCLIProbe?.subscriptionPeriod ?? currentCLIReferenceAccount()?.subscriptionPeriod,
+            now: now
+        )
+    }
+
+    func chatGPTSubscriptionPeriodText(for account: StoredAccount, now: Date = .now) -> String? {
+        ChatGPTSubscriptionPresentationPolicy.periodText(for: account.subscriptionPeriod, now: now)
     }
 
     func claudeValidatedAt(for account: ClaudeStoredAccount? = nil) -> Date? {
@@ -1430,18 +1474,7 @@ final class AppModel: ObservableObject {
     }
 
     func localizedPlan(_ value: String) -> String {
-        switch value.lowercased() {
-        case "pro":
-            return L10n.tr("plan.pro")
-        case "plus":
-            return L10n.tr("plan.plus")
-        case "free":
-            return L10n.tr("plan.free")
-        case "unknown":
-            return L10n.tr("plan.unknown")
-        default:
-            return value
-        }
+        ChatGPTSubscriptionPresentationPolicy.plan(for: value).title
     }
 
     func localizedClaudePlan(_ value: String?) -> String {

@@ -126,6 +126,18 @@ public struct RateLimitSnapshotModel: Codable, Hashable, Sendable {
     }
 }
 
+public struct ChatGPTSubscriptionPeriod: Codable, Hashable, Sendable {
+    public let activeStart: Date?
+    public let activeUntil: Date?
+    public let lastCheckedAt: Date?
+
+    public init(activeStart: Date?, activeUntil: Date?, lastCheckedAt: Date?) {
+        self.activeStart = activeStart
+        self.activeUntil = activeUntil
+        self.lastCheckedAt = lastCheckedAt
+    }
+}
+
 public struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
     public let id: UUID
     public var label: String
@@ -141,8 +153,10 @@ public struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
     public var lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?
     public var authFingerprint: String
     public var keychainAccount: String
+    public var lastRateLimitObservedAt: Date?
+    public var subscriptionPeriod: ChatGPTSubscriptionPeriod?
 
-    public init(id: UUID, label: String, email: String, accountId: String?, planType: String, createdAt: Date, updatedAt: Date, lastValidatedAt: Date?, status: AccountStatus, statusMessage: String?, lastRateLimit: RateLimitSnapshotModel?, lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?, authFingerprint: String, keychainAccount: String) {
+    public init(id: UUID, label: String, email: String, accountId: String?, planType: String, createdAt: Date, updatedAt: Date, lastValidatedAt: Date?, status: AccountStatus, statusMessage: String?, lastRateLimit: RateLimitSnapshotModel?, lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?, authFingerprint: String, keychainAccount: String, lastRateLimitObservedAt: Date? = nil, subscriptionPeriod: ChatGPTSubscriptionPeriod? = nil) {
         self.id = id
         self.label = label
         self.email = email
@@ -157,10 +171,16 @@ public struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
         self.lastRateLimitsByLimitId = lastRateLimitsByLimitId
         self.authFingerprint = authFingerprint
         self.keychainAccount = keychainAccount
+        self.lastRateLimitObservedAt = lastRateLimitObservedAt
+        self.subscriptionPeriod = subscriptionPeriod
     }
 
     public var stableIdentity: CodexAccountIdentity? {
         CodexAccountIdentity(accountId)
+    }
+
+    public var rateLimitObservedAt: Date? {
+        lastRateLimitObservedAt ?? lastValidatedAt
     }
 
     public var shortStatusText: String {
@@ -265,8 +285,9 @@ public struct AccountValidationResult: Sendable {
     public let rateLimit: RateLimitSnapshotModel?
     public let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
     public let rateLimitError: String?
+    public let subscriptionPeriod: ChatGPTSubscriptionPeriod?
 
-    public init(authData: Data, authFingerprint: String, identity: AuthIdentity, email: String, planType: String, rateLimit: RateLimitSnapshotModel?, rateLimitsByLimitId: [String: RateLimitSnapshotModel]?, rateLimitError: String? = nil) {
+    public init(authData: Data, authFingerprint: String, identity: AuthIdentity, email: String, planType: String, rateLimit: RateLimitSnapshotModel?, rateLimitsByLimitId: [String: RateLimitSnapshotModel]?, rateLimitError: String? = nil, subscriptionPeriod: ChatGPTSubscriptionPeriod? = nil) {
         self.authData = authData
         self.authFingerprint = authFingerprint
         self.identity = identity
@@ -275,6 +296,7 @@ public struct AccountValidationResult: Sendable {
         self.rateLimit = rateLimit
         self.rateLimitsByLimitId = rateLimitsByLimitId
         self.rateLimitError = rateLimitError
+        self.subscriptionPeriod = subscriptionPeriod
     }
 }
 

@@ -151,6 +151,9 @@ struct AccountsWindowView: View {
         }
         .background(WindowChromeConfigurator())
         .frame(minWidth: 980, minHeight: 620)
+        .task {
+            await model.refreshForPresentation()
+        }
         .onAppear {
             sidebarFilterRaw = sidebarFilter.rawValue
             ensureValidSelection()
@@ -572,7 +575,9 @@ private struct CurrentCLIDetailPane: View {
                 MinimalSeparator()
                 EmptyLimitsCard(
                     title: L10n.tr("limits.empty.title"),
-                    subtitle: overview.note ?? L10n.tr("limits.empty.subtitle")
+                    subtitle: model.currentLastKnownRateLimitSummary()
+                        ?? overview.note
+                        ?? L10n.tr("limits.empty.subtitle")
                 )
             } else {
                 MinimalSeparator()
@@ -588,13 +593,19 @@ private struct CurrentCLIDetailPane: View {
     }
 
     private var currentCLIMetaLine: String? {
-        if let date = model.currentCLIValidatedAt() {
-            return L10n.updatedAt(formatted(date: date))
+        var parts: [String] = []
+        if let plan = model.currentChatGPTPlanSummary() {
+            parts.append(plan)
         }
-        if model.isRefreshingCurrentCLIProbe {
-            return L10n.tr("busy.refreshing_live_limits")
+        if let period = model.currentChatGPTSubscriptionPeriodText(now: model.presentationNow) {
+            parts.append(period)
         }
-        return nil
+        if let date = model.currentCLILimitsObservedAt() {
+            parts.append(L10n.updatedAt(formatted(date: date)))
+        } else if model.isRefreshingCurrentCLIProbe {
+            parts.append(L10n.tr("busy.refreshing_live_limits"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n")
     }
 
     private func formatted(date: Date) -> String {
@@ -961,7 +972,9 @@ private struct StoredAccountDetailPane: View {
                 MinimalSeparator()
                 EmptyLimitsCard(
                     title: L10n.tr("limits.empty.title"),
-                    subtitle: accountNote ?? L10n.tr("limits.empty.account.subtitle")
+                    subtitle: model.storedRateLimitSummary(for: account)
+                        ?? accountNote
+                        ?? L10n.tr("limits.empty.account.subtitle")
                 )
             } else {
                 MinimalSeparator()
@@ -990,13 +1003,17 @@ private struct StoredAccountDetailPane: View {
             parts.append(L10n.tr("account.current") + " CLI")
         }
 
-        parts.append(model.localizedPlan(account.planType))
+        parts.append(model.chatGPTPlanSummary(for: account))
+
+        if let period = model.chatGPTSubscriptionPeriodText(for: account, now: model.presentationNow) {
+            parts.append(period)
+        }
 
         if let date = account.lastValidatedAt {
             parts.append(L10n.checkedAt(L10n.localizedDateTime(date)))
         }
 
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: "\n")
     }
 }
 
@@ -1048,6 +1065,7 @@ private struct DetailHeroCard<Actions: View>: View {
                 Text(metaLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if let note {

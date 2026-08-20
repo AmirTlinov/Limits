@@ -14,7 +14,7 @@ struct NativeMenuBarContent: View {
             openSettingsWindow: openSettingsWindow
         )
         .task {
-            await model.refreshCurrentValues(forceProbe: false)
+            await model.refreshForPresentation()
         }
     }
 
@@ -64,6 +64,7 @@ struct NativeMenuBarLabel: View {
 
     private func openAccountsWindowIfRequested() {
         guard ApplicationSceneRouter.shared.consumeAccountsWindowRequest() else { return }
+        Task { await model.refreshForPresentation() }
         ApplicationActivationController.shared.requestActivation(of: .accounts)
         openWindow(id: LimitsSceneID.accounts)
     }

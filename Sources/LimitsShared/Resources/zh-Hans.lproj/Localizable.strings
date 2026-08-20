@@ -146,11 +146,16 @@
 "limits.empty.account.subtitle" = "点击“刷新”获取此账户的最新数据。";
 "limits.empty.subtitle" = "检查授权或刷新数据。";
 "limits.empty.title" = "尚未加载限额";
+"limits.last_known_data" = "正在刷新上次已知的限额数据";
+"limits.last_known_reset" = "上次已知重置时间：%@";
 "plan.claude.subscription" = "Claude 订阅";
 "plan.free" = "免费计划";
 "plan.plus" = "Plus 计划";
 "plan.pro" = "Pro 计划";
 "plan.unknown" = "未知计划";
+"subscription.current_period_until" = "当前付费周期截至 %@";
+"subscription.last_period_until" = "上次确认的付费周期已于 %@ 结束";
+"subscription.price.monthly" = "$%d/月";
 "reset.other_day.compact" = "重置 %@ %@";
 "reset.other_day.expanded" = "%@，%@ 重置";
 "reset.stale.compact" = "重置已过";

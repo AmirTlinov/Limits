@@ -146,11 +146,16 @@
 "limits.empty.account.subtitle" = "Нажмите «Обновить», чтобы получить актуальные данные по этому аккаунту.";
 "limits.empty.subtitle" = "Проверьте авторизацию или обновите данные.";
 "limits.empty.title" = "Лимиты пока не загружены";
+"limits.last_known_data" = "Последние известные лимиты обновляются";
+"limits.last_known_reset" = "Последний известный сброс: %@";
 "plan.claude.subscription" = "Подписка Claude";
 "plan.free" = "Бесплатный план";
 "plan.plus" = "План Plus";
 "plan.pro" = "План Pro";
 "plan.unknown" = "План неизвестен";
+"subscription.current_period_until" = "Текущий оплаченный период до %@";
+"subscription.last_period_until" = "Последний подтверждённый период закончился %@";
+"subscription.price.monthly" = "$%d/мес.";
 "reset.other_day.compact" = "Сброс %@, %@";
 "reset.other_day.expanded" = "Сброс в %@, %@";
 "reset.stale.compact" = "сброс прошёл";

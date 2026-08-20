@@ -37,7 +37,66 @@ import LimitsShared
     #expect(identity.email == "user@example.com")
 }
 
-private func base64URLJSON(_ object: [String: String]) -> String {
+@Test func readsChatGPTPlanAndPaidPeriodFromRefreshedIDToken() throws {
+    let header = base64URLJSON(["alg": "none"])
+    let payload = base64URLJSON([
+        "email": "user@example.com",
+        "https://api.openai.com/auth": [
+            "chatgpt_plan_type": "pro",
+            "chatgpt_subscription_active_start": "2026-08-07T22:34:20+00:00",
+            "chatgpt_subscription_active_until": "2026-09-07T22:34:20+00:00",
+            "chatgpt_subscription_last_checked": "2026-08-19T21:47:30.959820+00:00",
+        ],
+    ])
+    let data = """
+    {
+      "auth_mode": "chatgpt",
+      "tokens": {
+        "account_id": "acct_123",
+        "id_token": "\(header).\(payload).signature"
+      }
+    }
+    """.data(using: .utf8)!
+
+    let metadata = try CodexAuthBlob.metadata(from: data)
+    let expectedStart = try #require(ISO8601DateFormatter().date(from: "2026-08-07T22:34:20+00:00"))
+    let expectedUntil = try #require(ISO8601DateFormatter().date(from: "2026-09-07T22:34:20+00:00"))
+
+    #expect(metadata.identity.email == "user@example.com")
+    #expect(metadata.planType == "pro")
+    #expect(metadata.subscriptionPeriod?.activeStart == expectedStart)
+    #expect(metadata.subscriptionPeriod?.activeUntil == expectedUntil)
+    #expect(metadata.subscriptionPeriod?.lastCheckedAt != nil)
+}
+
+@Test func chatGPTPlanPresentationDistinguishesPlusAndBothProTiers() {
+    L10n.withLanguage("en") {
+        #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "plus").summary == "ChatGPT Plus · $20/month")
+        #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "prolite").summary == "ChatGPT Pro 5× · $100/month")
+        #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "pro").summary == "ChatGPT Pro 20× · $200/month")
+    }
+}
+
+@Test func subscriptionPresentationNamesPaidPeriodWithoutClaimingCancellation() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let current = ChatGPTSubscriptionPeriod(
+        activeStart: now.addingTimeInterval(-1_000),
+        activeUntil: now.addingTimeInterval(1_000),
+        lastCheckedAt: now
+    )
+    let past = ChatGPTSubscriptionPeriod(
+        activeStart: now.addingTimeInterval(-2_000),
+        activeUntil: now.addingTimeInterval(-1_000),
+        lastCheckedAt: now.addingTimeInterval(-1_500)
+    )
+
+    L10n.withLanguage("ru") {
+        #expect(ChatGPTSubscriptionPresentationPolicy.periodText(for: current, now: now)?.hasPrefix("Текущий оплаченный период до ") == true)
+        #expect(ChatGPTSubscriptionPresentationPolicy.periodText(for: past, now: now)?.hasPrefix("Последний подтверждённый период закончился ") == true)
+    }
+}
+
+private func base64URLJSON(_ object: [String: Any]) -> String {
     let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     return data.base64EncodedString()
         .replacingOccurrences(of: "+", with: "-")
@@ -139,6 +198,17 @@ private func base64URLJSON(_ object: [String: String]) -> String {
     )
     #expect(resolved.email == "user@example.com")
     #expect(resolved.planType == "pro")
+}
+
+@Test func codexAccountValidationUsesRefreshedTokenPlanWhenAccountSurfaceOmitsIt() throws {
+    let resolved = try CodexAccountService.resolveValidatedIdentity(
+        account: nil,
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+        authPlanType: "prolite",
+        rateLimitsResponse: nil
+    )
+
+    #expect(resolved.planType == "prolite")
 }
 
 @MainActor
@@ -317,14 +387,129 @@ private func base64URLJSON(_ object: [String: String]) -> String {
 @Test func persistedStateDecodesWithoutClaudeAccountsField() throws {
     let data = """
     {
-      "accounts": []
+      "schemaVersion": 3,
+      "revision": 7,
+      "accounts": [
+        {
+          "id": "E621E6F8-C36C-495A-93FC-2C07A5F7D319",
+          "label": "Legacy v3 account",
+          "email": "legacy@example.com",
+          "accountId": "acct_legacy",
+          "planType": "plus",
+          "createdAt": "2026-08-01T00:00:00Z",
+          "updatedAt": "2026-08-20T00:00:00Z",
+          "lastValidatedAt": "2026-08-20T00:00:00Z",
+          "status": "ok",
+          "authFingerprint": "legacy-fingerprint",
+          "keychainAccount": "legacy-keychain-reference"
+        }
+      ]
     }
     """.data(using: .utf8)!
 
     let state = try JSONDecoder.limits.decode(PersistedStateV3.self, from: data)
 
-    #expect(state.accounts.isEmpty)
+    let account = try #require(state.accounts.first)
+    #expect(account.lastRateLimitObservedAt == nil)
+    #expect(account.subscriptionPeriod == nil)
+    #expect(account.rateLimitObservedAt == account.lastValidatedAt)
     #expect(state.claudeAccounts.isEmpty)
+}
+
+@Test func validationMergePreservesLastKnownLimitsWhenOnlyRateLimitEndpointFails() throws {
+    let oldObservedAt = Date(timeIntervalSince1970: 1_000_000)
+    let now = oldObservedAt.addingTimeInterval(600)
+    let oldSnapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.addingTimeInterval(3_600).timeIntervalSince1970),
+            usedPercent: 80,
+            windowDurationMins: 300
+        ),
+        rateLimitReachedType: "rate_limit_exceeded",
+        secondary: nil
+    )
+    let paidPeriod = ChatGPTSubscriptionPeriod(
+        activeStart: oldObservedAt,
+        activeUntil: now.addingTimeInterval(86_400),
+        lastCheckedAt: oldObservedAt
+    )
+    let account = StoredAccount(
+        id: UUID(),
+        label: "Primary",
+        email: "old@example.com",
+        accountId: "acct_123",
+        planType: "pro",
+        createdAt: oldObservedAt,
+        updatedAt: oldObservedAt,
+        lastValidatedAt: oldObservedAt,
+        status: .limitReached,
+        statusMessage: "Rate Limit Exceeded",
+        lastRateLimit: oldSnapshot,
+        lastRateLimitsByLimitId: ["codex": oldSnapshot],
+        authFingerprint: "old-fingerprint",
+        keychainAccount: "account-key",
+        lastRateLimitObservedAt: oldObservedAt,
+        subscriptionPeriod: paidPeriod
+    )
+    let result = AccountValidationResult(
+        authData: Data("rotated".utf8),
+        authFingerprint: "new-fingerprint",
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "new@example.com"),
+        email: "new@example.com",
+        planType: "pro",
+        rateLimit: nil,
+        rateLimitsByLimitId: nil,
+        rateLimitError: "Limits are temporarily unavailable"
+    )
+
+    let updated = CodexAccountValidationPolicy.applying(result, to: account, observedAt: now)
+
+    #expect(updated.lastValidatedAt == now)
+    #expect(updated.lastRateLimitObservedAt == oldObservedAt)
+    #expect(updated.lastRateLimit == oldSnapshot)
+    #expect(updated.lastRateLimitsByLimitId == ["codex": oldSnapshot])
+    #expect(updated.subscriptionPeriod == paidPeriod)
+    #expect(updated.status == .ok)
+    #expect(updated.statusMessage == "Limits are temporarily unavailable")
+    #expect(updated.authFingerprint == "new-fingerprint")
+}
+
+@Test func validationMergeUsesEveryExactBucketWhenDeterminingAvailability() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let spendControl = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "spend_control",
+        limitName: nil,
+        planType: "business",
+        primary: nil,
+        rateLimitReachedType: nil,
+        secondary: nil,
+        spendControlReached: true
+    )
+    let result = AccountValidationResult(
+        authData: Data("credential".utf8),
+        authFingerprint: "fingerprint",
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+        email: "user@example.com",
+        planType: "business",
+        rateLimit: nil,
+        rateLimitsByLimitId: ["spend_control": spendControl]
+    )
+
+    let account = CodexAccountValidationPolicy.makeAccount(
+        id: UUID(),
+        label: "Business",
+        createdAt: now,
+        from: result,
+        observedAt: now
+    )
+
+    #expect(account.status == .limitReached)
+    #expect(account.lastRateLimitObservedAt == now)
 }
 
 @Test func decodesClaudeAuthStatusJson() throws {

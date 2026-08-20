@@ -190,8 +190,8 @@ import LimitsShared
         validatedAt: now.addingTimeInterval(-30)
     )
 
-    #expect(!CodexSessionPresentation.canReuse(staleProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
-    #expect(CodexSessionPresentation.canReuse(freshProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+    #expect(!CodexRefreshPolicy.canReuse(staleProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
+    #expect(CodexRefreshPolicy.canReuse(freshProbe, expectedFingerprint: "fingerprint", now: now, ttl: 300))
 }
 
 @Test func currentExpiredResetRefreshUsesBackoffInsteadOfThirtySecondPolling() throws {
@@ -199,9 +199,81 @@ import LimitsShared
     let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 16)))
     let lastAttempt = now.addingTimeInterval(-30)
 
-    #expect(CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: nil, now: now, retryInterval: 300))
-    #expect(!CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: lastAttempt, now: now, retryInterval: 300))
-    #expect(CodexAccountsPresentationPolicy.canAttemptRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
+    #expect(CodexRefreshPolicy.canAttemptRefresh(lastAttempt: nil, now: now, retryInterval: 300))
+    #expect(!CodexRefreshPolicy.canAttemptRefresh(lastAttempt: lastAttempt, now: now, retryInterval: 300))
+    #expect(CodexRefreshPolicy.canAttemptRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
+}
+
+@Test func weeklyOnlyResetInvalidatesCurrentAndStoredSnapshots() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let weeklyOnly = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.addingTimeInterval(-1).timeIntervalSince1970),
+            usedPercent: 100,
+            windowDurationMins: 10_080
+        ),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+    let probe = CodexSessionProbe(
+        fingerprint: "fingerprint",
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: weeklyOnly,
+        rateLimitsByLimitId: ["codex": weeklyOnly],
+        validatedAt: now.addingTimeInterval(-30)
+    )
+    let account = makeStoredAccount(
+        label: "weekly@example.com",
+        lastRateLimit: weeklyOnly,
+        lastValidatedAt: now.addingTimeInterval(-30)
+    )
+
+    #expect(!CodexRefreshPolicy.canReuse(probe, expectedFingerprint: "fingerprint", now: now))
+    #expect(CodexRefreshPolicy.accountNeedsRefresh(account, now: now))
+}
+
+@Test func spendControlResetBoundaryAlsoRequestsRefresh() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "business",
+        primary: nil,
+        rateLimitReachedType: nil,
+        secondary: nil,
+        spendControlReached: true,
+        individualLimit: SpendControlLimitSnapshot(
+            limit: "100",
+            remainingPercent: 0,
+            resetsAt: Int64(now.addingTimeInterval(-1).timeIntervalSince1970),
+            used: "100"
+        )
+    )
+
+    #expect(CodexRefreshPolicy.snapshotHasPassedReset(primary: snapshot, byLimitId: nil, now: now))
+}
+
+@Test func failedLimitProbeUsesShortBackoffInsteadOfFreshTTL() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let probe = CodexSessionProbe(
+        fingerprint: "fingerprint",
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: nil,
+        rateLimitsByLimitId: nil,
+        validatedAt: now.addingTimeInterval(-30),
+        rateLimitError: "temporary backend outage"
+    )
+
+    #expect(!CodexRefreshPolicy.canReuse(probe, expectedFingerprint: "fingerprint", now: now))
+    #expect(!CodexRefreshPolicy.canAttemptRefresh(lastAttempt: now.addingTimeInterval(-30), now: now, retryInterval: 300))
+    #expect(CodexRefreshPolicy.canAttemptRefresh(lastAttempt: now.addingTimeInterval(-301), now: now, retryInterval: 300))
 }
 
 @Test func authTokenFailuresRequireReauthInsteadOfGenericValidationFailure() {
@@ -231,7 +303,7 @@ import LimitsShared
     let fresh = makeStoredAccount(label: "fresh@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10))
     let reauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth, lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
 
-    let selected = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
+    let selected = CodexRefreshPolicy.nextStoredAccountID(
         accounts: [fresh, current, throttled, candidate, reauth],
         currentAccountID: current.id,
         lastAttempts: [throttled.id: now.addingTimeInterval(-120)],
@@ -249,7 +321,7 @@ import LimitsShared
     let emptyNeedsReauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth)
     let throttledEmpty = makeStoredAccount(label: "throttled@example.com", status: .validationFailed)
 
-    let selected = CodexAccountsPresentationPolicy.nextAccountIDForAutoRefresh(
+    let selected = CodexRefreshPolicy.nextStoredAccountID(
         accounts: [emptyNeedsReauth, throttledEmpty, emptyFailed],
         currentAccountID: nil,
         lastAttempts: [throttledEmpty.id: now.addingTimeInterval(-120)],
@@ -258,6 +330,33 @@ import LimitsShared
     )
 
     #expect(selected == emptyFailed.id)
+}
+
+@Test func openingSurfaceRefreshesOldStoredAccountsButKeepsRecentOnesCached() {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let futureReset = now.addingTimeInterval(3_600)
+    let old = makeStoredAccount(
+        label: "old@example.com",
+        lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20),
+        lastValidatedAt: now.addingTimeInterval(-LimitsFreshnessPolicy.defaultTTL - 1)
+    )
+    let recent = makeStoredAccount(
+        label: "recent@example.com",
+        lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20),
+        lastValidatedAt: now.addingTimeInterval(-60)
+    )
+
+    let selected = CodexRefreshPolicy.nextStoredAccountID(
+        accounts: [recent, old],
+        currentAccountID: nil,
+        lastAttempts: [:],
+        now: now,
+        retryInterval: 300,
+        maximumAge: LimitsFreshnessPolicy.defaultTTL
+    )
+
+    #expect(selected == old.id)
+    #expect(!CodexRefreshPolicy.accountNeedsRefresh(recent, now: now, maximumAge: LimitsFreshnessPolicy.defaultTTL))
 }
 
 @Test func trayStatusSegmentsUseProviderIconsWithCompactMetrics() {
@@ -367,7 +466,8 @@ private func makeStoredAccount(
         lastRateLimit: lastRateLimit,
         lastRateLimitsByLimitId: nil,
         authFingerprint: "fingerprint-\(id.uuidString)",
-        keychainAccount: "account.\(id.uuidString)"
+        keychainAccount: "account.\(id.uuidString)",
+        lastRateLimitObservedAt: lastValidatedAt
     )
 }
 

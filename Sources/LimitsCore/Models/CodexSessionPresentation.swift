@@ -9,8 +9,10 @@ public struct CodexSessionProbe: Sendable {
     public let rateLimitsByLimitId: [String: RateLimitSnapshotModel]?
     public let validatedAt: Date
     public let rateLimitError: String?
+    public let rateLimitObservedAt: Date?
+    public let subscriptionPeriod: ChatGPTSubscriptionPeriod?
 
-    public init(fingerprint: String, email: String, planType: String, rateLimit: RateLimitSnapshotModel?, rateLimitsByLimitId: [String: RateLimitSnapshotModel]?, validatedAt: Date, rateLimitError: String? = nil) {
+    public init(fingerprint: String, email: String, planType: String, rateLimit: RateLimitSnapshotModel?, rateLimitsByLimitId: [String: RateLimitSnapshotModel]?, validatedAt: Date, rateLimitError: String? = nil, rateLimitObservedAt: Date? = nil, subscriptionPeriod: ChatGPTSubscriptionPeriod? = nil) {
         self.fingerprint = fingerprint
         self.email = email
         self.planType = planType
@@ -18,6 +20,12 @@ public struct CodexSessionProbe: Sendable {
         self.rateLimitsByLimitId = rateLimitsByLimitId
         self.validatedAt = validatedAt
         self.rateLimitError = rateLimitError
+        self.rateLimitObservedAt = rateLimitObservedAt
+        self.subscriptionPeriod = subscriptionPeriod
+    }
+
+    public var limitsObservedAt: Date? {
+        rateLimitObservedAt ?? (rateLimitError == nil ? validatedAt : nil)
     }
 }
 
@@ -52,29 +60,8 @@ public enum CodexSessionPresentation {
         )
     }
 
-    public static func canReuse(
-        _ probe: CodexSessionProbe,
-        expectedFingerprint: String,
-        now: Date,
-        ttl: TimeInterval = LimitsFreshnessPolicy.defaultTTL
-    ) -> Bool {
-        guard probe.fingerprint == expectedFingerprint else { return false }
-        guard now.timeIntervalSince(probe.validatedAt) < ttl else { return false }
-        return !snapshotIsStale(primary: probe.rateLimit, byLimitId: probe.rateLimitsByLimitId, now: now)
-    }
-
     private static func isFresh(_ probe: CodexSessionProbe?, now: Date) -> Bool {
         guard let probe else { return false }
-        return LimitsFreshnessPolicy.isFresh(observedAt: probe.validatedAt, at: now)
-    }
-
-    private static func snapshotIsStale(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date
-    ) -> Bool {
-        if let codex = byLimitId?["codex"], codex.fiveHourHasReset(now: now) { return true }
-        if let primary, primary.fiveHourHasReset(now: now) { return true }
-        return false
+        return LimitsFreshnessPolicy.isFresh(observedAt: probe.limitsObservedAt, at: now)
     }
 }

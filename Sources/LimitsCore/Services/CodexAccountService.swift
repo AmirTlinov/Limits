@@ -101,11 +101,13 @@ public struct CodexAccountService: @unchecked Sendable {
         }
 
         let authData = try Data(contentsOf: authURL)
-        let identity = try CodexAuthBlob.identity(from: authData)
+        let authMetadata = try CodexAuthBlob.metadata(from: authData)
+        let identity = authMetadata.identity
 
         let resolved = try Self.resolveValidatedIdentity(
             account: accountResponse.account,
             identity: identity,
+            authPlanType: authMetadata.planType,
             rateLimitsResponse: rateLimitsResponse
         )
 
@@ -117,13 +119,15 @@ public struct CodexAccountService: @unchecked Sendable {
             planType: resolved.planType,
             rateLimit: rateLimitsResponse?.preferredSnapshot,
             rateLimitsByLimitId: rateLimitsResponse?.rateLimitsByLimitId,
-            rateLimitError: rateLimitError
+            rateLimitError: rateLimitError,
+            subscriptionPeriod: authMetadata.subscriptionPeriod
         )
     }
 
     static func resolveValidatedIdentity(
         account: AppServerAccountPayload?,
         identity: AuthIdentity,
+        authPlanType: String? = nil,
         rateLimitsResponse: AppServerRateLimitsResponse?
     ) throws -> (email: String, planType: String) {
         if let account {
@@ -135,14 +139,14 @@ public struct CodexAccountService: @unchecked Sendable {
                 throw CodexAccountServiceError.malformedAccountPayload
             }
 
-            return (email, account.planType ?? rateLimitsResponse?.preferredSnapshot.planType ?? "unknown")
+            return (email, account.planType ?? authPlanType ?? rateLimitsResponse?.preferredSnapshot.planType ?? "unknown")
         }
 
         guard let email = identity.email, !email.isEmpty else {
             throw CodexAccountServiceError.malformedAccountPayload
         }
 
-        return (email, rateLimitsResponse?.preferredSnapshot.planType ?? "unknown")
+        return (email, authPlanType ?? rateLimitsResponse?.preferredSnapshot.planType ?? "unknown")
     }
 
     private func makeTemporaryCodexHome() throws -> URL {

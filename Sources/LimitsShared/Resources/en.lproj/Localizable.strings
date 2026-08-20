@@ -146,11 +146,16 @@
 "limits.empty.account.subtitle" = "Click “Refresh” to get current data for this account.";
 "limits.empty.subtitle" = "Check authorization or refresh the data.";
 "limits.empty.title" = "Limits are not loaded yet";
+"limits.last_known_data" = "Last known limit data is being refreshed";
+"limits.last_known_reset" = "Last known reset: %@";
 "plan.claude.subscription" = "Claude subscription";
 "plan.free" = "Free plan";
 "plan.plus" = "Plus plan";
 "plan.pro" = "Pro plan";
 "plan.unknown" = "Unknown plan";
+"subscription.current_period_until" = "Current paid period through %@";
+"subscription.last_period_until" = "Last confirmed paid period ended %@";
+"subscription.price.monthly" = "$%d/month";
 "reset.other_day.compact" = "Reset %@, %@";
 "reset.other_day.expanded" = "Resets at %@, %@";
 "reset.stale.compact" = "reset passed";

@@ -100,10 +100,13 @@
 		FB51D48BAA1947F2639837E5 /* AccountsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */; };
 		FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */; };
 		FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */; };
+		FD95438612D6ADB49C195CDD /* CodexAccountValidationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */; };
 		FDE359D874DA49732F3464C7 /* AccountResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23D09F2579B9EBEE91BB02E /* AccountResolution.swift */; };
 		FE001B7BA74548881B29F888 /* LimitsWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */; };
 		FE6D03510A0309BE1060A3D4 /* ProviderCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B13B6B151CD85E13F79E19 /* ProviderCatalog.swift */; };
+		FEB03F7BECF6767C713B7B79 /* CodexRefreshPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */; };
 		FEC2D0CE07837A62454427F9 /* ProviderOperationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */; };
+		FFDD9FE854C6F017247A7898 /* ChatGPTSubscriptionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -275,6 +278,7 @@
 		F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountsPresentationPolicy.swift; path = Models/CodexAccountsPresentationPolicy.swift; sourceTree = "<group>"; };
 		F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProviderCatalogTests.swift; sourceTree = "<group>"; };
 		F72539F2956FEBB17FC55B6E /* MinimalChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MinimalChrome.swift; path = Views/MinimalChrome.swift; sourceTree = "<group>"; };
+		F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexRefreshPolicy.swift; path = Models/CodexRefreshPolicy.swift; sourceTree = "<group>"; };
 		F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsRuntimeEnvironment.swift; path = App/LimitsRuntimeEnvironment.swift; sourceTree = "<group>"; };
 		F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginControllerTests.swift; sourceTree = "<group>"; };
 		F8D540EE018553DD225DFD4D /* L10n.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
@@ -283,8 +287,10 @@
 		F9701B18B173BC111A054530 /* WidgetPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WidgetPresentationPolicy.swift; path = Models/WidgetPresentationPolicy.swift; sourceTree = "<group>"; };
 		F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionCoordinatorTests.swift; sourceTree = "<group>"; };
 		FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionCoordinator.swift; path = Services/CodexSessionCoordinator.swift; sourceTree = "<group>"; };
+		FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountValidationPolicy.swift; path = Models/CodexAccountValidationPolicy.swift; sourceTree = "<group>"; };
 		FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeSessionCoordinator.swift; path = Services/ClaudeSessionCoordinator.swift; sourceTree = "<group>"; };
 		FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionPresentation.swift; path = Models/CodexSessionPresentation.swift; sourceTree = "<group>"; };
+		FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatGPTSubscriptionPresentation.swift; path = Models/ChatGPTSubscriptionPresentation.swift; sourceTree = "<group>"; };
 		FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApplicationSceneRouter.swift; path = AppSupport/ApplicationSceneRouter.swift; sourceTree = "<group>"; };
 		FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsRepositoryTests.swift; sourceTree = "<group>"; };
 		FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FirstLaunchPolicy.swift; path = AppSupport/FirstLaunchPolicy.swift; sourceTree = "<group>"; };
@@ -462,6 +468,7 @@
 				FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */,
 				D0000000000000000000006C /* AppServerModels.swift */,
 				D0000000000000000000007A /* AsyncCommandRunner.swift */,
+				FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */,
 				D0000000000000000000007C /* ClaudeAuthStatusService.swift */,
 				D0000000000000000000007E /* ClaudeCredentialSwitchTransaction.swift */,
 				F2C7D4E29A00235C2D96F3D2 /* ClaudeLivePresentation.swift */,
@@ -470,10 +477,12 @@
 				D0000000000000000000006E /* ClaudeStoredAccount.swift */,
 				D00000000000000000000082 /* CodexAccountService.swift */,
 				F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */,
+				FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */,
 				D00000000000000000000084 /* CodexAppServerTransport.swift */,
 				D00000000000000000000086 /* CodexAuthBlob.swift */,
 				D00000000000000000000088 /* CodexAuthSwitchTransaction.swift */,
 				D0000000000000000000008A /* CodexExecutableLocator.swift */,
+				F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */,
 				FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */,
 				FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */,
 				FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */,
@@ -880,6 +889,7 @@
 				F65BB506CE8198529D67C7D3 /* ApplicationSceneRouter.swift in Sources */,
 				D0000000000000000000006D /* AppServerModels.swift in Sources */,
 				D0000000000000000000007B /* AsyncCommandRunner.swift in Sources */,
+				FFDD9FE854C6F017247A7898 /* ChatGPTSubscriptionPresentation.swift in Sources */,
 				D0000000000000000000007D /* ClaudeAuthStatusService.swift in Sources */,
 				D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift in Sources */,
 				F54847F76A1B84ED288DAAE8 /* ClaudeLivePresentation.swift in Sources */,
@@ -888,10 +898,12 @@
 				D0000000000000000000006F /* ClaudeStoredAccount.swift in Sources */,
 				D00000000000000000000083 /* CodexAccountService.swift in Sources */,
 				FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */,
+				FD95438612D6ADB49C195CDD /* CodexAccountValidationPolicy.swift in Sources */,
 				D00000000000000000000085 /* CodexAppServerTransport.swift in Sources */,
 				D00000000000000000000087 /* CodexAuthBlob.swift in Sources */,
 				D00000000000000000000089 /* CodexAuthSwitchTransaction.swift in Sources */,
 				D0000000000000000000008B /* CodexExecutableLocator.swift in Sources */,
+				FEB03F7BECF6767C713B7B79 /* CodexRefreshPolicy.swift in Sources */,
 				FAEA8F82DE397252DED93A5A /* CodexSessionCoordinator.swift in Sources */,
 				F5BD731F8400D7330ED35612 /* CodexSessionPresentation.swift in Sources */,
 				F579457FDC2967D893AD44E9 /* FirstLaunchPolicy.swift in Sources */,

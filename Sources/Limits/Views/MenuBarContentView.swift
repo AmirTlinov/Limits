@@ -179,7 +179,7 @@ struct MenuBarContentView: View {
                     subtitle: codexOverview.subtitle,
                     compactRows: currentCodexRows,
                     detailText: codexCurrentDetailText,
-                    metaText: updatedAtText(for: model.currentCLIValidatedAt()),
+                    metaText: codexCurrentMetaText,
                     accent: codexAccent,
                     badgeText: codexBadge.text,
                     badgeColor: codexBadge.tone.color,
@@ -194,7 +194,7 @@ struct MenuBarContentView: View {
                         subtitle: storedCodexSubtitle(for: account),
                         compactRows: compactRows(from: model.rateLimitSections(for: account)),
                         detailText: storedCodexDetail(for: account),
-                        metaText: nil,
+                        metaText: model.chatGPTSubscriptionPeriodText(for: account, now: model.presentationNow),
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
                         badgeText: nil,
                         badgeColor: .secondary,
@@ -362,6 +362,9 @@ struct MenuBarContentView: View {
         if currentCodexRows.isEmpty, let limits = codexOverview.limits {
             return limits
         }
+        if currentCodexRows.isEmpty, let lastKnown = model.currentLastKnownRateLimitSummary() {
+            return lastKnown
+        }
 
         switch model.currentCLIState.source {
         case .missing, .unreadable:
@@ -415,15 +418,16 @@ struct MenuBarContentView: View {
     }
 
     private func storedCodexSubtitle(for account: StoredAccount) -> String? {
+        var parts: [String] = []
         if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
-            return account.email
+            parts.append(account.email)
         }
 
         if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-            return model.localizedPlan(account.planType)
+            parts.append(model.chatGPTPlanSummary(for: account))
         }
 
-        return nil
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func storedCodexDetail(for account: StoredAccount) -> String? {
@@ -445,6 +449,20 @@ struct MenuBarContentView: View {
     private func updatedAtText(for date: Date?) -> String? {
         guard let date else { return nil }
         return L10n.updatedAtShort(date)
+    }
+
+    private var codexCurrentMetaText: String? {
+        var parts: [String] = []
+        if let plan = model.currentChatGPTPlanSummary() {
+            parts.append(plan)
+        }
+        if let period = model.currentChatGPTSubscriptionPeriodText(now: model.presentationNow) {
+            parts.append(period)
+        }
+        if let updated = updatedAtText(for: model.currentCLILimitsObservedAt()) {
+            parts.append(updated)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 

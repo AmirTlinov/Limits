@@ -64,52 +64,6 @@ public enum CodexAccountsPresentationPolicy {
         )
     }
 
-    public static func currentProbeHasExpiredReset(_ probe: CodexSessionProbe, now: Date = .now) -> Bool {
-        storedSnapshotIsStale(primary: probe.rateLimit, byLimitId: probe.rateLimitsByLimitId, now: now)
-    }
-
-    public static func canAttemptRefresh(lastAttempt: Date?, now: Date, retryInterval: TimeInterval) -> Bool {
-        guard let lastAttempt else { return true }
-        return now.timeIntervalSince(lastAttempt) >= retryInterval
-    }
-
-    public static func nextAccountIDForAutoRefresh(
-        accounts: [StoredAccount],
-        currentAccountID: UUID?,
-        lastAttempts: [UUID: Date],
-        now: Date,
-        retryInterval: TimeInterval
-    ) -> UUID? {
-        accounts
-            .filter { account in
-                guard account.id != currentAccountID, account.status != .needsReauth else { return false }
-                guard accountNeedsAutoRefresh(account, now: now) else { return false }
-                if let lastAttempt = lastAttempts[account.id], now.timeIntervalSince(lastAttempt) < retryInterval {
-                    return false
-                }
-                return true
-            }
-            .sorted { lhs, rhs in
-                let lhsReset = staleResetDate(for: lhs) ?? .distantFuture
-                let rhsReset = staleResetDate(for: rhs) ?? .distantFuture
-                if lhsReset != rhsReset { return lhsReset < rhsReset }
-                let lhsValidated = lhs.lastValidatedAt ?? .distantPast
-                let rhsValidated = rhs.lastValidatedAt ?? .distantPast
-                if lhsValidated != rhsValidated { return lhsValidated < rhsValidated }
-                return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
-            }
-            .first?.id
-    }
-
-    public static func accountNeedsAutoRefresh(_ account: StoredAccount, now: Date = .now) -> Bool {
-        let hasSnapshot = account.lastRateLimit != nil || account.lastRateLimitsByLimitId?.isEmpty == false
-        return !hasSnapshot || storedSnapshotIsStale(
-            primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId,
-            now: now
-        )
-    }
-
     public static func storedRateLimitSections(
         primary: RateLimitSnapshotModel?,
         byLimitId: [String: RateLimitSnapshotModel]?,
@@ -131,9 +85,17 @@ public enum CodexAccountsPresentationPolicy {
         observedAt: Date?,
         now: Date = .now
     ) -> String? {
-        if !LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now)
-            || storedSnapshotIsStale(primary: primary, byLimitId: byLimitId, now: now) {
+        if CodexRefreshPolicy.snapshotHasPassedReset(primary: primary, byLimitId: byLimitId, now: now) {
             return L10n.tr("reset.stale.expanded")
+        }
+        if !LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now) {
+            let nextReset = CodexRefreshPolicy.resetDates(primary: primary, byLimitId: byLimitId)
+                .filter { $0 > now }
+                .min()
+            if let nextReset {
+                return L10n.tr("limits.last_known_reset", L10n.localizedDateTime(nextReset))
+            }
+            return L10n.tr("limits.last_known_data")
         }
         return primary?.compactUsageSummary()
     }
@@ -191,17 +153,4 @@ public enum CodexAccountsPresentationPolicy {
         return (max(0, 100 - window.usedPercent), resetDate)
     }
 
-    private static func staleResetDate(for account: StoredAccount) -> Date? {
-        (account.lastRateLimitsByLimitId?["codex"] ?? account.lastRateLimit)?.fiveHourResetDate
-    }
-
-    private static func storedSnapshotIsStale(
-        primary: RateLimitSnapshotModel?,
-        byLimitId: [String: RateLimitSnapshotModel]?,
-        now: Date
-    ) -> Bool {
-        if let codex = byLimitId?["codex"], codex.fiveHourHasReset(now: now) { return true }
-        if let primary, primary.fiveHourHasReset(now: now) { return true }
-        return false
-    }
 }

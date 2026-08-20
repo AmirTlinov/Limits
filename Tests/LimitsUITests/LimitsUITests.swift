@@ -57,6 +57,35 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
+    func testAccountDetailsShowExactChatGPTTierAndConfirmedPaidPeriod() throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-subscription-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try writeCodexFixture(to: isolatedRoot, accountCount: 1)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchArguments += ["-limits.language.override", "en"]
+        app.launch()
+
+        let account = app.staticTexts["Demo Codex"].firstMatch
+        XCTAssertTrue(account.waitForExistence(timeout: 8))
+        account.click()
+
+        let plan = app.staticTexts.matching(
+            NSPredicate(format: "value CONTAINS %@", "ChatGPT Pro 20× · $200/month")
+        ).firstMatch
+        let paidPeriod = app.staticTexts.matching(
+            NSPredicate(format: "value CONTAINS %@", "Current paid period through")
+        ).firstMatch
+        XCTAssertTrue(plan.waitForExistence(timeout: 3))
+        XCTAssertTrue(paidPeriod.waitForExistence(timeout: 3))
+        app.terminate()
+    }
+
+    @MainActor
     func testCaptureDocumentationScreenshots() throws {
         let repositoryRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -121,7 +150,13 @@ final class LimitsUITests: XCTestCase {
                 "createdAt": formatter.string(from: now.addingTimeInterval(-86_400)),
                 "updatedAt": formatter.string(from: now),
                 "lastValidatedAt": formatter.string(from: now),
+                "lastRateLimitObservedAt": formatter.string(from: now),
                 "status": "ok",
+                "subscriptionPeriod": [
+                    "activeStart": formatter.string(from: now.addingTimeInterval(-14 * 86_400)),
+                    "activeUntil": formatter.string(from: now.addingTimeInterval(16 * 86_400)),
+                    "lastCheckedAt": formatter.string(from: now),
+                ],
                 "lastRateLimit": [
                     "limitId": "codex",
                     "planType": "pro",
