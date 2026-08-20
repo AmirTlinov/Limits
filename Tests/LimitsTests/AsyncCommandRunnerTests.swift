@@ -17,15 +17,17 @@ import Testing
 @Test func asyncCommandRunnerTerminatesTimedOutProcess() async throws {
     let startedAt = Date()
 
-    do {
-        _ = try await AsyncCommandRunner().run(
-            executableURL: URL(fileURLWithPath: "/bin/sh"),
-            arguments: ["-c", "sleep 10"],
-            timeout: 0.05
-        )
-        Issue.record("Expected timeout")
-    } catch AsyncCommandRunnerError.timedOut(let timeout) {
-        #expect(timeout == 0.05)
+    for _ in 0..<8 {
+        do {
+            _ = try await AsyncCommandRunner().run(
+                executableURL: URL(fileURLWithPath: "/bin/sleep"),
+                arguments: ["10"],
+                timeout: 0.05
+            )
+            Issue.record("Expected timeout")
+        } catch AsyncCommandRunnerError.timedOut(let timeout) {
+            #expect(timeout == 0.05)
+        }
     }
 
     #expect(Date().timeIntervalSince(startedAt) < 2)

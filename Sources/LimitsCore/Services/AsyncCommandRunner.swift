@@ -95,24 +95,34 @@ public struct AsyncCommandRunner: Sendable {
         signal: ProcessTerminationSignal,
         timeout: TimeInterval
     ) async throws -> Int32 {
-        try await withThrowingTaskGroup(of: Int32.self) { group in
+        try await withThrowingTaskGroup(of: ProcessWaitOutcome.self) { group in
             group.addTask {
-                await signal.value()
+                .terminated(await signal.value())
             }
             group.addTask {
                 let nanoseconds = UInt64(max(timeout, 0) * 1_000_000_000)
                 try await Task.sleep(nanoseconds: nanoseconds)
-                process.stop()
-                throw AsyncCommandRunnerError.timedOut(timeout)
+                return .timedOut
             }
 
             guard let first = try await group.next() else {
                 throw CancellationError()
             }
             group.cancelAll()
-            return first
+            switch first {
+            case .terminated(let status):
+                return status
+            case .timedOut:
+                process.stop()
+                throw AsyncCommandRunnerError.timedOut(timeout)
+            }
         }
     }
+}
+
+private enum ProcessWaitOutcome: Sendable {
+    case terminated(Int32)
+    case timedOut
 }
 
 private final class ProcessTerminationSignal: @unchecked Sendable {
