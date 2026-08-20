@@ -81,7 +81,8 @@ DERIVED_DATA="$ROOT_DIR/.build/xcode-release"
 SOURCE_PACKAGES="$ROOT_DIR/.build/SourcePackages"
 ARCHIVE_PATH="$ROOT_DIR/.build/release/Limits.xcarchive"
 DIST_DIR="$ROOT_DIR/dist"
-APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+PACKAGE_DIR="$ROOT_DIR/.build/release/package"
+APP_BUNDLE="$PACKAGE_DIR/$APP_NAME.app"
 ZIP_PATH="$DIST_DIR/$APP_NAME-v$VERSION-macOS-arm64.zip"
 CHECKSUM_PATH="$ZIP_PATH.sha256"
 NOTARY_ZIP="$ROOT_DIR/.build/release/$APP_NAME-v$VERSION-notary.zip"
@@ -142,8 +143,8 @@ IDENTITY="$(find_developer_id_identity)"
 }
 
 cd "$ROOT_DIR"
-mkdir -p "$DIST_DIR" "$(dirname "$ARCHIVE_PATH")"
-touch "$DIST_DIR/.metadata_never_index"
+mkdir -p "$ROOT_DIR/.build" "$DIST_DIR" "$PACKAGE_DIR" "$(dirname "$ARCHIVE_PATH")"
+touch "$ROOT_DIR/.build/.metadata_never_index"
 rm -rf "$DERIVED_DATA" "$ARCHIVE_PATH" "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH" "$NOTARY_ZIP"
 
 xcodebuild \

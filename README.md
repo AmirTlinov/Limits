@@ -50,7 +50,8 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 
 Limits targets macOS 26 on Apple silicon. `LimitsCore` owns account storage, provider sessions, and presentation policies; the app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
 
-The packaged app and zip are written to `dist/` by the release command:
+The release zip and checksum are written to `dist/` by the release command. The
+temporary app bundle stays under Spotlight-hidden `.build/release/package/`:
 
 ```bash
 ./script/package_release.sh 1.0.0
@@ -65,7 +66,7 @@ For a widget-visible distribution build, store Apple notary credentials once and
 ./script/package_release.sh 1.0.0 --notarize
 ```
 
-When prompted, enter the Apple ID email for the developer account, not the Team ID. The notarized path submits a temporary zip, staples the ticket onto `dist/Limits.app`, validates it, then recreates the final release zip.
+When prompted, enter the Apple ID email for the developer account, not the Team ID. The notarized path submits a temporary zip, staples the ticket onto the staged app, validates it, then creates the final release zip.
 
 After installing the notarized app to `/Applications`, verify WidgetKit ingestion:
 

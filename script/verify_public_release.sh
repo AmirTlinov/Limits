@@ -52,8 +52,13 @@ else
   "$SIGN_UPDATE" "${VERIFY_ARGS[@]}"
 fi
 
-xcrun stapler validate "$ROOT_DIR/dist/Limits.app"
-spctl -a -t exec -vvv "$ROOT_DIR/dist/Limits.app"
-codesign --verify --deep --strict --verbose=2 "$ROOT_DIR/dist/Limits.app"
+PUBLIC_APP_DIR="$WORK_DIR/public-app"
+mkdir -p "$PUBLIC_APP_DIR"
+ditto -x -k "$WORK_DIR/$ARCHIVE" "$PUBLIC_APP_DIR"
+PUBLIC_APP="$PUBLIC_APP_DIR/Limits.app"
+[[ -d "$PUBLIC_APP" ]] || { echo "Public archive does not contain Limits.app" >&2; exit 1; }
+xcrun stapler validate "$PUBLIC_APP"
+spctl -a -t exec -vvv "$PUBLIC_APP"
+codesign --verify --deep --strict --verbose=2 "$PUBLIC_APP"
 
 printf 'public release verified: version=%s bytes=%s checksum=ok EdDSA=verified notarization=ok\n' "$VERSION" "$PUBLIC_SIZE"
