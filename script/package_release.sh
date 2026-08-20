@@ -143,6 +143,7 @@ IDENTITY="$(find_developer_id_identity)"
 
 cd "$ROOT_DIR"
 mkdir -p "$DIST_DIR" "$(dirname "$ARCHIVE_PATH")"
+touch "$DIST_DIR/.metadata_never_index"
 rm -rf "$DERIVED_DATA" "$ARCHIVE_PATH" "$APP_BUNDLE" "$ZIP_PATH" "$CHECKSUM_PATH" "$NOTARY_ZIP"
 
 xcodebuild \
