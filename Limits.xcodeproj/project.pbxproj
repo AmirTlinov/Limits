@@ -193,7 +193,7 @@
 
 /* Begin PBXFileReference section */
 		D00000000000000000000016 /* Limits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Limits.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D0000000000000000000001B /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		D0000000000000000000001B /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		D00000000000000000000021 /* LimitsCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LimitsCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0000000000000000000002B /* LimitsShared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LimitsShared.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D00000000000000000000035 /* LimitsWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LimitsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };

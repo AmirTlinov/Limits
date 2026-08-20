@@ -7,6 +7,8 @@ require "xcodeproj"
 
 ROOT = File.expand_path("..", __dir__)
 PROJECT_PATH = File.join(ROOT, "Limits.xcodeproj")
+PROJECT_OBJECT_VERSION = 46
+PREFERRED_PROJECT_OBJECT_VERSION = "77"
 PACKAGE_RESOLVED_PATH = File.join(PROJECT_PATH, "project.xcworkspace", "xcshareddata", "swiftpm", "Package.resolved")
 package_resolved = File.binread(PACKAGE_RESOLVED_PATH) if File.file?(PACKAGE_RESOLVED_PATH)
 existing_sources = if File.directory?(PROJECT_PATH)
@@ -36,7 +38,12 @@ module DeterministicProjectUUIDs
 end
 
 Xcodeproj::Project.prepend(DeterministicProjectUUIDs)
-project = Xcodeproj::Project.new(PROJECT_PATH)
+project = Xcodeproj::Project.new(
+  PROJECT_PATH,
+  false,
+  PROJECT_OBJECT_VERSION
+)
+project.root_object.preferred_project_object_version = PREFERRED_PROJECT_OBJECT_VERSION
 project.root_object.attributes["LastSwiftUpdateCheck"] = "2600"
 project.root_object.attributes["LastUpgradeCheck"] = "2600"
 project.root_object.attributes["TargetAttributes"] = {}
@@ -59,6 +66,14 @@ shared = project.new_target(:framework, "LimitsShared", :osx, "26.0")
 widget = project.new_target(:app_extension, "LimitsWidgetExtension", :osx, "26.0")
 unit_tests = project.new_target(:unit_test_bundle, "LimitsTests", :osx, "26.0")
 ui_tests = project.new_target(:ui_test_bundle, "LimitsUITests", :osx, "26.0")
+
+# xcodeproj resolves Cocoa.framework through the active Xcode SDK. Point the
+# reference at SDKROOT so Xcode 26 patch releases serialize the same project.
+cocoa_framework = project.files.find { |reference| reference.name == "Cocoa.framework" }
+raise "Cocoa.framework reference is missing" unless cocoa_framework
+
+cocoa_framework.source_tree = "SDKROOT"
+cocoa_framework.path = "System/Library/Frameworks/Cocoa.framework"
 
 def enqueue_uuid(project, key)
   uuid = "F#{Digest::SHA256.hexdigest(key).upcase[0, 23]}"
