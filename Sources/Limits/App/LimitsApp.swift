@@ -12,7 +12,9 @@ final class LimitsApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        SoftwareUpdateController.shared.start()
+        if !LimitsRuntimeEnvironment.current.disablesExternalProbes {
+            SoftwareUpdateController.shared.start()
+        }
         if ApplicationLaunchState.presentsMainWindow {
             ApplicationActivationController.shared.requestActivation(of: .accounts)
             ApplicationSceneRouter.shared.requestAccountsWindow()

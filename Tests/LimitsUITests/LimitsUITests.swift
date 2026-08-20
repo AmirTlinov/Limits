@@ -20,10 +20,7 @@ final class LimitsUITests: XCTestCase {
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Codex CLI"].waitForExistence(timeout: 3))
-        let claudeElements = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS[c] %@ OR value CONTAINS[c] %@", "Claude", "Claude")
-        )
-        XCTAssertEqual(claudeElements.count, 0)
+        XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
 
         app.terminate()
         XCTAssertEqual(try dataIfPresent(productionState), stateBefore)
