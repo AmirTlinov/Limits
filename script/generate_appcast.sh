@@ -62,9 +62,9 @@ fi
 
 ARGS=(
   --account "$SPARKLE_ACCOUNT"
-  --download-url-prefix "https://github.com/AmirTlinov/Limits/releases/download/v$VERSION/"
-  --release-notes-url-prefix "https://github.com/AmirTlinov/Limits/releases/download/v$VERSION/"
-  --link "https://github.com/AmirTlinov/Limits/releases/latest"
+  --download-url-prefix "https://amirtlinov.github.io/Limits/releases/v$VERSION/"
+  --release-notes-url-prefix "https://amirtlinov.github.io/Limits/releases/v$VERSION/"
+  --link "https://amirtlinov.github.io/Limits/releases/latest/"
   --embed-release-notes
   --maximum-versions 10
   --maximum-deltas 0

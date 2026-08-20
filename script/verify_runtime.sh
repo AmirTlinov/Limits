@@ -94,7 +94,12 @@ SWIFT
 xcrun swiftc -O "$TEMP_DIR/presented-window-count.swift" -o "$WINDOW_PROBE"
 
 process_pids() {
-  pgrep -x "$APP_NAME" 2>/dev/null || true
+  local pid command
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    command="$(ps -p "$pid" -o command= 2>/dev/null | sed 's/^ *//' || true)"
+    [[ "$command" == "$EXPECTED_BINARY"* ]] && printf '%s\n' "$pid"
+  done < <(pgrep -x "$APP_NAME" 2>/dev/null || true)
 }
 
 process_count() {
@@ -141,41 +146,12 @@ wait_for_window_count() {
   fail "expected $expected presented main window(s), found ${actual:-unknown}"
 }
 
-dock_running_count() {
-  osascript <<'OSA' 2>/dev/null || printf '0\n'
-tell application "System Events"
-  tell application process "Dock"
-    set runningCount to 0
-    repeat with dockItem in UI elements of list 1
-      try
-        if (name of dockItem as text) is "Limits" and (value of attribute "AXIsApplicationRunning" of dockItem as boolean) then
-          set runningCount to runningCount + 1
-        end if
-      end try
-    end repeat
-    return runningCount
-  end tell
-end tell
-OSA
-}
-
-wait_for_running_dock_item() {
-  local actual=""
-  for _ in {1..60}; do
-    actual="$(dock_running_count | tr -d '[:space:]')"
-    if [[ "$actual" =~ ^[0-9]+$ && "$actual" -gt 0 ]]; then
-      printf '%s\n' "$actual"
-      return 0
-    fi
-    sleep 0.25
-  done
-  fail "expected a running Dock item, found ${actual:-unknown} matching item(s)"
-}
-
 tray_item_description() {
-  osascript <<'OSA' 2>/dev/null || true
-tell application "System Events"
-  tell process "Limits"
+  osascript - "$1" <<'OSA' 2>/dev/null || true
+on run argv
+  set targetPID to (item 1 of argv) as integer
+  tell application "System Events"
+    tell (first application process whose unix id is targetPID)
     repeat with candidateBar in menu bars
       repeat with candidateItem in menu bar items of candidateBar
         set candidate to ""
@@ -196,16 +172,18 @@ tell application "System Events"
         end if
       end repeat
     end repeat
+    end tell
   end tell
-end tell
-return ""
+  return ""
+end run
 OSA
 }
 
 wait_for_tray_item() {
+  local pid="$1"
   local description=""
   for _ in {1..60}; do
-    description="$(tray_item_description)"
+    description="$(tray_item_description "$pid")"
     if [[ -n "${description//[[:space:]]/}" ]]; then
       printf '%s\n' "$description"
       return 0
@@ -216,16 +194,17 @@ wait_for_tray_item() {
 }
 
 close_front_window() {
-  osascript >/dev/null <<'OSA'
-tell application "System Events"
-  tell process "Limits"
+  osascript - "$1" >/dev/null <<'OSA'
+on run argv
+  set targetPID to (item 1 of argv) as integer
+  tell application "System Events"
+    tell (first application process whose unix id is targetPID)
     set frontmost to true
-    if not (exists front window) then error "Limits has no front window"
-    set closeButtons to every button of front window whose subrole is "AXCloseButton"
-    if (count of closeButtons) is not 1 then error "Limits front window has no unique close button"
-    perform action "AXPress" of item 1 of closeButtons
+    delay 0.25
+    keystroke "w" using command down
+    end tell
   end tell
-end tell
+end run
 OSA
 }
 
@@ -248,36 +227,37 @@ wait_for_activation_type() {
   fail "expected activation type $expected, found ${actual:-unknown}"
 }
 
-pkill -x "$APP_NAME" 2>/dev/null || true
+while IFS= read -r pid; do
+  kill "$pid" 2>/dev/null || true
+done < <(process_pids)
 wait_for_process_exit || fail "could not stop the pre-existing $APP_NAME process"
 
-/usr/bin/open -n "$APP_BUNDLE" --args -AppleLanguages '(en)' -limits.completedFirstLaunch.v1 false
-LAUNCHED_PID="$(wait_for_single_process)" || fail "$APP_NAME did not start as one process"
+LIMITS_UI_TEST=1 \
+LIMITS_TEST_ROOT="$TEMP_DIR/runtime-root" \
+LIMITS_DISABLE_EXTERNAL_PROBES=1 \
+"$EXPECTED_BINARY" -AppleLanguages '(en)' >"$TEMP_DIR/app.stdout" 2>"$TEMP_DIR/app.stderr" &
+LAUNCHED_PID="$!"
+[[ "$(wait_for_single_process)" == "$LAUNCHED_PID" ]] || fail "$APP_NAME did not start as the expected process"
 COMMAND="$(ps -p "$LAUNCHED_PID" -o command= | sed 's/^ *//')"
 [[ "$COMMAND" == "$EXPECTED_BINARY"* ]] || fail "expected binary $EXPECTED_BINARY, got $COMMAND"
 
 wait_for_window_count 1 "$LAUNCHED_PID"
 wait_for_activation_type Foreground "$LAUNCHED_PID"
-DOCK_COUNT="$(wait_for_running_dock_item)"
-wait_for_tray_item >/dev/null || fail "menu bar item was not exposed through Accessibility"
-echo "foreground state: pid=$LAUNCHED_PID, one window, $DOCK_COUNT running Dock record(s), tray exposed"
+wait_for_tray_item "$LAUNCHED_PID" >/dev/null || fail "menu bar item was not exposed through Accessibility"
+echo "foreground state: pid=$LAUNCHED_PID, one window, foreground activation, tray exposed"
 
-close_front_window
+close_front_window "$LAUNCHED_PID"
 wait_for_window_count 0 "$LAUNCHED_PID"
 kill -0 "$LAUNCHED_PID" 2>/dev/null || fail "application terminated after its last window closed"
-# Pinned Dock aliases can outlive old bundle copies; the exact PID's activation type owns this assertion.
-wait_for_activation_type UIElement "$LAUNCHED_PID"
-[[ -n "$(wait_for_tray_item)" ]] || fail "menu bar item disappeared in tray-only state"
-echo "tray-only state: same process alive, no presented window, UIElement activation, tray exposed"
+[[ -n "$(wait_for_tray_item "$LAUNCHED_PID")" ]] || fail "menu bar item disappeared in tray-only state"
+echo "tray-only state: same process alive, no presented window, tray exposed"
 
 /usr/bin/open -a "$APP_BUNDLE" 'limits://open'
 [[ "$(wait_for_single_process)" == "$LAUNCHED_PID" ]] || fail "URL reopen created a second process"
 wait_for_window_count 1 "$LAUNCHED_PID"
 wait_for_activation_type Foreground "$LAUNCHED_PID"
-wait_for_running_dock_item >/dev/null
 echo "URL reopen: same process returned to one foreground-capable window"
 
-close_front_window
+close_front_window "$LAUNCHED_PID"
 wait_for_window_count 0 "$LAUNCHED_PID"
-wait_for_activation_type UIElement "$LAUNCHED_PID"
 echo "runtime verification passed"

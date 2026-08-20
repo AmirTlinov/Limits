@@ -50,6 +50,14 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Install deterministic project generator
+        run: |
+          gem install xcodeproj -v 1.27.0 --no-document --user-install
+          echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
+
+      - name: Repeat complete release gate
+        run: ./script/ci_gate.sh
+
       - name: Require signing secrets
         shell: bash
         run: |
@@ -95,6 +103,21 @@ jobs:
       - name: Generate signed appcast
         run: ./script/generate_appcast.sh "${{ steps.version.outputs.version }}" --existing-appcast "$RUNNER_TEMP/appcast.xml"
 
+      - name: Resolve previous signed build for update verification
+        id: previous
+        shell: bash
+        run: |
+          CURRENT_TAG="${{ steps.version.outputs.tag }}"
+          PREVIOUS_TAG="$(git tag --list 'v*' --sort=-v:refname | awk -v current="$CURRENT_TAG" '$0 != current { print; exit }')"
+          [[ -n "$PREVIOUS_TAG" ]] || { echo "No previous release tag exists." >&2; exit 1; }
+          PREVIOUS_DIR="$RUNNER_TEMP/previous-release"
+          mkdir -p "$PREVIOUS_DIR"
+          gh release download "$PREVIOUS_TAG" --dir "$PREVIOUS_DIR" --pattern 'Limits-v*-macOS-arm64.zip'
+          PREVIOUS_ARCHIVE="$(find "$PREVIOUS_DIR" -maxdepth 1 -type f -name 'Limits-v*-macOS-arm64.zip' -print -quit)"
+          [[ -n "$PREVIOUS_ARCHIVE" ]] || { echo "No signed archive found for $PREVIOUS_TAG." >&2; exit 1; }
+          echo "tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+          echo "archive=$PREVIOUS_ARCHIVE" >> "$GITHUB_OUTPUT"
+
       - name: Publish GitHub release
         shell: bash
         run: |
@@ -118,13 +141,53 @@ jobs:
         run: |
           PAGES="$RUNNER_TEMP/limits-pages"
           git clone --branch gh-pages "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$PAGES"
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_DIR="$PAGES/releases/v$VERSION"
+          LATEST_DIR="$PAGES/releases/latest"
+          mkdir -p "$VERSION_DIR" "$LATEST_DIR"
           cp site/index.html site/.nojekyll "$PAGES/"
           cp dist/appcast.xml "$PAGES/appcast.xml"
+          cp dist/appcast.xml "$VERSION_DIR/appcast.xml"
+          cp "dist/Limits-v$VERSION-macOS-arm64.zip" "dist/Limits-v$VERSION-macOS-arm64.zip.sha256" "$VERSION_DIR/"
+          if [[ -f "release-notes/v$VERSION.md" ]]; then
+            cp "release-notes/v$VERSION.md" "$VERSION_DIR/release-notes.md"
+          fi
+          rm -rf "$LATEST_DIR"
+          mkdir -p "$LATEST_DIR"
+          cp "$VERSION_DIR"/* "$LATEST_DIR/"
+          cp "dist/Limits-v$VERSION-macOS-arm64.zip" "$LATEST_DIR/Limits-macOS-arm64.zip"
+          (
+            cd "$LATEST_DIR"
+            shasum -a 256 Limits-macOS-arm64.zip > Limits-macOS-arm64.zip.sha256
+          )
+
+          python3 - "$PAGES/releases" <<'PY'
+          import pathlib
+          import shutil
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          versions = []
+          for path in root.glob("v*"):
+              try:
+                  key = tuple(int(part) for part in path.name[1:].split("."))
+              except ValueError:
+                  continue
+              versions.append((key, path))
+          for _, path in sorted(versions)[:-10]:
+              shutil.rmtree(path)
+          PY
           cd "$PAGES"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html .nojekyll appcast.xml
+          git add --all index.html .nojekyll appcast.xml releases
           if ! git diff --cached --quiet; then
             git commit -m "release: publish Limits ${{ steps.version.outputs.version }} appcast"
             git push origin gh-pages
           fi
+
+      - name: Verify unauthenticated public release receipts
+        run: ./script/verify_public_release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Verify Sparkle upgrade from previous signed build
+        run: ./script/verify_sparkle_update.sh "${{ steps.version.outputs.version }}" "${{ steps.previous.outputs.archive }}"

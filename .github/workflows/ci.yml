@@ -24,34 +24,11 @@ jobs:
           xcodebuild -version
           swift --version
 
-      - name: Verify deterministic Xcode project
+      - name: Install deterministic project generator
         run: |
           gem install xcodeproj -v 1.27.0 --no-document --user-install
           export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
-          ./script/generate_xcode_project.rb
-          git diff --exit-code -- Limits.xcodeproj
+          echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
 
-      - name: Build all products
-        run: |
-          xcodebuild \
-            -project Limits.xcodeproj \
-            -scheme Limits \
-            -configuration Debug \
-            -destination 'platform=macOS,arch=arm64' \
-            -derivedDataPath .build/ci \
-            -clonedSourcePackagesDirPath .build/SourcePackages \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Run unit tests
-        run: |
-          xcodebuild \
-            -project Limits.xcodeproj \
-            -scheme Limits \
-            -configuration Debug \
-            -destination 'platform=macOS,arch=arm64' \
-            -derivedDataPath .build/ci \
-            -clonedSourcePackagesDirPath .build/SourcePackages \
-            CODE_SIGNING_ALLOWED=NO \
-            test \
-            -only-testing:LimitsTests
+      - name: Run deterministic build, hostless tests, UI tests, and isolated runtime
+        run: ./script/ci_gate.sh

@@ -9,15 +9,15 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 </p>
 
 <p align="center">
-  <img src="docs/images/limits-tray.png" alt="Limits menu bar panel with sanitized demo accounts" width="760">
+  <img src="docs/images/limits-tray.png" alt="Limits menu bar panel with sanitized demo accounts" width="360">
 </p>
 
-> Screenshots use fake `example.com` accounts. They are staged demo scenes, not a real local desktop or private data.
+> Screenshots are captured from an isolated UI-test fixture of the running app. The fixture cannot read production state, auth files, or Keychain credentials.
 
 ## What it does
 
 - Shows Codex CLI limits in the menu bar panel, native macOS window, and WidgetKit widgets.
-- Shows Claude Code live limits when the Claude statusline bridge is enabled.
+- Shows Claude only when a saved Claude account exists or Claude Code reports a live, stable signed-in identity.
 - Publishes a safe widget snapshot through the macOS App Group container; widgets never read auth files or Keychain credentials.
 - Saves separate Codex and Claude accounts for quick switching.
 - Highlights providers consistently: Codex is blue, Claude is coral.
@@ -27,9 +27,9 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 
 ## Install
 
-Download the latest macOS build from **Releases**:
+Download the latest public macOS build:
 
-<https://github.com/AmirTlinov/Limits/releases/latest>
+<https://amirtlinov.github.io/Limits/releases/latest/Limits-macOS-arm64.zip>
 
 Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it. After first launch, add the **Limits** widget from macOS widget gallery if you want limits on the desktop or Notification Center.
 
@@ -44,12 +44,11 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 ## Build locally
 
 ```bash
-xcodebuild -project Limits.xcodeproj -scheme Limits \
-  -destination 'platform=macOS,arch=arm64' test
+./script/ci_gate.sh
 ./script/build_and_run.sh
 ```
 
-Limits targets macOS 26 on Apple silicon. `Limits.xcodeproj` owns the app, shared framework, widget extension, unit tests, and UI tests.
+Limits targets macOS 26 on Apple silicon. `LimitsCore` owns account storage, provider sessions, and presentation policies; the app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
 
 The packaged app and zip are written to `dist/` by the release command:
 
