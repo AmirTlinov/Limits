@@ -44,12 +44,11 @@ struct CompactSubscriptionBarView: View {
             }
 
             if let progress = cycle.remainingProgress {
-                CompactLimitBar(progress: progress, tint: resolvedTint, height: 7)
+                LimitsProgressBar(progress: progress, tint: resolvedTint)
                     .frame(maxWidth: .infinity)
+                    .frame(height: 7)
             } else {
-                Capsule()
-                    .fill(.secondary.opacity(0.16))
-                    .frame(height: 3)
+                LimitsProgressBar(progress: 0, tint: .secondary)
                     .frame(height: 7)
             }
 
@@ -92,8 +91,9 @@ private struct CompactLimitMetricTile: View {
                     .lineLimit(1)
             }
 
-            CompactLimitBar(progress: row.remainingProgressValue, tint: resolvedTint, height: 5)
+            LimitsProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
                 .frame(maxWidth: .infinity)
+                .frame(height: 5)
 
             if let resetText = row.compactResetText() {
                 Text(resetText)
@@ -123,8 +123,9 @@ private struct CompactLimitBarRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: dense ? 46 : 56, alignment: .leading)
 
-            CompactLimitBar(progress: row.remainingProgressValue, tint: resolvedTint, height: dense ? 8 : 10)
+            LimitsProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
                 .frame(maxWidth: .infinity)
+                .frame(height: dense ? 8 : 10)
 
             VStack(alignment: .trailing, spacing: dense ? 0 : 1) {
                 Text("\(row.remainingPercent)%")
@@ -166,68 +167,5 @@ private func compactLimitTitle(for title: String) -> String {
         return title
             .replacingOccurrences(of: L10n.tr("limit.generic"), with: "")
             .trimmingCharacters(in: .whitespaces)
-    }
-}
-
-private struct CompactLimitBar: View {
-    let progress: Double
-    let tint: Color
-    let height: CGFloat
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var displayedProgress: Double?
-
-    var body: some View {
-        GeometryReader { geometry in
-            let lineHeight = min(height, height <= 5 ? 3 : 4)
-            let progress = visibleProgress
-            let fillWidth = progress == 0 ? 0 : max(lineHeight * 1.8, geometry.size.width * progress)
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(trackColor)
-                    .frame(height: lineHeight)
-
-                Capsule()
-                    .fill(tint.opacity(colorScheme == .dark ? 0.82 : 0.74))
-                    .frame(width: min(geometry.size.width, fillWidth), height: lineHeight)
-            }
-            .frame(maxHeight: .infinity, alignment: .center)
-        }
-        .frame(height: height)
-        .onAppear {
-            updateDisplayedProgress(progress, animated: !reduceMotion)
-        }
-        .onChange(of: progress) { _, newProgress in
-            updateDisplayedProgress(newProgress, animated: !reduceMotion)
-        }
-    }
-
-    private var trackColor: Color {
-        colorScheme == .dark ? .white.opacity(0.16) : .black.opacity(0.12)
-    }
-
-    private var visibleProgress: Double {
-        displayedProgress ?? (reduceMotion ? clampedProgress(progress) : 0)
-    }
-
-    private func updateDisplayedProgress(_ progress: Double, animated: Bool) {
-        let progress = clampedProgress(progress)
-        guard animated else {
-            displayedProgress = progress
-            return
-        }
-
-        if displayedProgress == nil {
-            displayedProgress = 0
-        }
-
-        withAnimation(.easeOut(duration: 0.14)) {
-            displayedProgress = progress
-        }
-    }
-
-    private func clampedProgress(_ progress: Double) -> Double {
-        min(max(progress, 0), 1)
     }
 }

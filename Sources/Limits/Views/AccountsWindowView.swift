@@ -853,14 +853,14 @@ private struct ModelUsageStrip: View {
                 let availableWidth = max(0, proxy.size.width - CGFloat(max(0, buckets.count - 1)) * 2)
                 HStack(spacing: 2) {
                     ForEach(buckets) { bucket in
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(bucket.color)
                             .frame(width: max(3, availableWidth * fraction(for: bucket)))
                             .accessibilityHidden(true)
                     }
                 }
             }
-            .frame(height: 12)
+            .frame(height: 8)
 
             HStack(spacing: 16) {
                 ForEach(buckets) { bucket in
@@ -1940,11 +1940,11 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
                             .frame(width: 160, alignment: .leading)
 
                         if let progress = cycle.remainingProgress {
-                            LimitProgressBar(progress: progress, tint: subscriptionTint(for: cycle))
+                            LimitsProgressBar(progress: progress, tint: subscriptionTint(for: cycle))
                                 .frame(maxWidth: .infinity)
                                 .accessibilityIdentifier("chatgpt.subscription.progress")
                         } else {
-                            MinimalProgressTrack(fillOpacity: 0.075, strokeOpacity: 0.18)
+                            LimitsProgressBar(progress: 0, tint: .secondary)
                                 .frame(height: 12)
                         }
 
@@ -2126,7 +2126,7 @@ private struct StoredAccountLimitWindow: View {
                 )
             }
 
-            LimitProgressBar(progress: row.remainingProgressValue, tint: tint)
+            LimitsProgressBar(progress: row.remainingProgressValue, tint: tint)
                 .frame(maxWidth: .infinity)
 
             LimitResetLabel(row: row)
@@ -2155,7 +2155,7 @@ private struct LimitProgressRowView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 160, alignment: .leading)
 
-                LimitProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
+                LimitsProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
                     .frame(maxWidth: .infinity)
 
                 LimitRemainingValue(row: row)
@@ -2210,61 +2210,6 @@ private struct LimitResetLabel: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
-    }
-}
-
-private struct LimitProgressBar: View {
-    let progress: Double
-    let tint: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var displayedProgress: Double?
-
-    var body: some View {
-        GeometryReader { geometry in
-            let availableWidth = max(0, geometry.size.width - 4)
-            let progress = visibleProgress
-            let fillWidth = progress == 0 ? 0 : max(10, availableWidth * progress)
-
-            ZStack(alignment: .leading) {
-                MinimalProgressTrack(fillOpacity: 0.075, strokeOpacity: 0.18)
-
-                Capsule()
-                    .fill(tint.gradient)
-                    .padding(2)
-                    .frame(width: fillWidth)
-            }
-        }
-        .frame(height: 12)
-        .onAppear {
-            updateDisplayedProgress(progress, animated: !reduceMotion)
-        }
-        .onChange(of: progress) { _, newProgress in
-            updateDisplayedProgress(newProgress, animated: !reduceMotion)
-        }
-    }
-
-    private var visibleProgress: Double {
-        displayedProgress ?? (reduceMotion ? clampedProgress(progress) : 0)
-    }
-
-    private func updateDisplayedProgress(_ progress: Double, animated: Bool) {
-        let progress = clampedProgress(progress)
-        guard animated else {
-            displayedProgress = progress
-            return
-        }
-
-        if displayedProgress == nil {
-            displayedProgress = 0
-        }
-
-        withAnimation(.easeOut(duration: 0.14)) {
-            displayedProgress = progress
-        }
-    }
-
-    private func clampedProgress(_ progress: Double) -> Double {
-        min(max(progress, 0), 1)
     }
 }
 

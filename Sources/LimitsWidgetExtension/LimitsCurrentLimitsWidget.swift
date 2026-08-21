@@ -248,9 +248,10 @@ private struct WidgetCodexAnalyticsSummary: View {
                     .lineLimit(1)
             }
 
-            ProgressView(value: stale ? 0 : Double(summary.remainingPercent ?? 0) / 100)
-                .progressViewStyle(.linear)
-                .tint(forecastColor)
+            LimitsProgressBar(
+                progress: stale ? 0 : Double(summary.remainingPercent ?? 0) / 100,
+                tint: forecastColor
+            )
 
             HStack(spacing: 12) {
                 WidgetAnalyticsMetric(
@@ -432,9 +433,10 @@ private struct LimitBarRow: View {
                 }
             }
 
-            ProgressView(value: normalizedRemaining ?? 0)
-                .progressViewStyle(.linear)
-                .tint(limit.remainingPercent.map { $0 <= 9 ? .red : tint } ?? .secondary)
+            LimitsProgressBar(
+                progress: normalizedRemaining ?? 0,
+                tint: limit.remainingPercent.map { $0 <= 9 ? .red : tint } ?? .secondary
+            )
 
             if let resetDate = limit.resetDate {
                 HStack(spacing: 4) {

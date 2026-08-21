@@ -85,6 +85,7 @@
 		D000000000000000000000ED /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000EF /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000F2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F1 /* Sparkle */; };
+		F0DDF589AFE67FFB4D3747D7 /* LimitsProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1ED6BF5B418EFA5143F8EC5 /* LimitsProgressBar.swift */; };
 		F1487C306C96C4D8DEA1095B /* LimitsStorageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */; };
 		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
 		F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */; };
@@ -327,6 +328,7 @@
 		F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InterprocessFileLock.swift; path = Services/InterprocessFileLock.swift; sourceTree = "<group>"; };
 		F1B13B6B151CD85E13F79E19 /* ProviderCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderCatalog.swift; path = Models/ProviderCatalog.swift; sourceTree = "<group>"; };
 		F1E086CEAB404D07225A0F00 /* CodexUsagePresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsagePresentationTests.swift; sourceTree = "<group>"; };
+		F1ED6BF5B418EFA5143F8EC5 /* LimitsProgressBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsProgressBar.swift; sourceTree = "<group>"; };
 		F23D09F2579B9EBEE91BB02E /* AccountResolution.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountResolution.swift; path = Models/AccountResolution.swift; sourceTree = "<group>"; };
 		F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LaunchAtLoginController.swift; path = AppSupport/LaunchAtLoginController.swift; sourceTree = "<group>"; };
 		F29C7C56878A28677D77D3E0 /* CodexAnalyticsSurfacePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAnalyticsSurfacePresentation.swift; path = Models/CodexAnalyticsSurfacePresentation.swift; sourceTree = "<group>"; };
@@ -604,6 +606,7 @@
 			isa = PBXGroup;
 			children = (
 				F8D540EE018553DD225DFD4D /* L10n.swift */,
+				F1ED6BF5B418EFA5143F8EC5 /* LimitsProgressBar.swift */,
 				F82A65CF48D7F6F1FA642B4C /* LimitsProviderAppearance.swift */,
 				D00000000000000000000093 /* LimitsWidgetSnapshot.swift */,
 				D00000000000000000000095 /* LimitsWidgetSnapshotStore.swift */,
@@ -1050,6 +1053,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F536992662C110B2E48A5440 /* L10n.swift in Sources */,
+				F0DDF589AFE67FFB4D3747D7 /* LimitsProgressBar.swift in Sources */,
 				F67277BF77DE7B9B945C4C65 /* LimitsProviderAppearance.swift in Sources */,
 				D00000000000000000000094 /* LimitsWidgetSnapshot.swift in Sources */,
 				D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift in Sources */,

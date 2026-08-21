@@ -581,9 +581,10 @@ struct WorkUsageBreakdown: View {
                             }
                         }
                         Spacer(minLength: 8)
-                        ProgressView(value: share(of: item))
-                            .progressViewStyle(.linear)
-                            .tint(ProviderAccent.codex.opacity(0.75))
+                        LimitsProgressBar(
+                            progress: share(of: item),
+                            tint: ProviderAccent.codex.opacity(0.75)
+                        )
                             .frame(width: 150)
                         Text(CodexInsightsTextPresentation.compactTokens(item.tokens))
                             .font(.caption.weight(.semibold))
