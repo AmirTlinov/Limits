@@ -208,7 +208,7 @@ struct MenuBarContentView: View {
                     ) {
                         Task { await model.activateAccount(account) }
                     }
-                    .disabled(model.isProviderBusy(.codex))
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
             }
         }
@@ -259,7 +259,7 @@ struct MenuBarContentView: View {
                     ) {
                         Task { await model.activateClaudeAccount(account) }
                     }
-                    .disabled(model.isProviderBusy(.claude))
+                    .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                 }
             }
         }
@@ -272,7 +272,7 @@ struct MenuBarContentView: View {
                 panelActionButton(L10n.tr("action.add"), primary: true) {
                     Task { await model.addAccount() }
                 }
-                .disabled(model.isProviderBusy(.codex))
+                .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
             }
 
             Spacer(minLength: 0)
@@ -281,17 +281,20 @@ struct MenuBarContentView: View {
                 Button(L10n.tr("action.add_account")) {
                     Task { await model.addAccount() }
                 }
+                .disabled(!model.canMutateDomain)
 
                 if model.hasCurrentCLIAuthToImport() {
                     Button(L10n.tr("action.import_current_auth")) {
                         Task { await model.importCurrentCLIAuth() }
                     }
+                    .disabled(!model.canMutateDomain)
                 }
 
                 if model.hasCurrentClaudeAuthToImport() {
                     Button(L10n.tr("action.import_current_claude")) {
                         Task { await model.importCurrentClaudeAuth() }
                     }
+                    .disabled(!model.canMutateDomain)
                 }
 
                 Divider()

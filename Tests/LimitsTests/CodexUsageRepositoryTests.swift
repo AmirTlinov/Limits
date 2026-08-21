@@ -239,13 +239,21 @@ import Testing
         usageRepositoryEvent(threadID: "thread", turnID: "turn", accountID: "acct", occurredAt: observedAt),
     ])
 
-    try await repository.clearUsageHistory()
+    let epoch = observedAt.addingTimeInterval(1)
+    try await repository.beginAnalyticsEpoch(at: epoch, baselines: [])
 
-    #expect(try await repository.snapshot().dailyUsage.isEmpty)
+    let cleared = try await repository.snapshot()
+    #expect(cleared.dailyUsage.isEmpty)
+    #expect(cleared.analyticsEpochStartedAt == epoch)
     #expect(try await repository.accountID(at: observedAt.addingTimeInterval(1)) == "acct")
     #expect(try await repository.importCursor(for: "/tmp/session.jsonl")?.byteOffset == 512)
-    try await repository.clearImportedUsage()
+    _ = try await repository.recordUsageEvents([
+        usageRepositoryEvent(threadID: "old", turnID: "turn", accountID: "acct", occurredAt: observedAt),
+    ])
+    #expect(try await repository.snapshot().dailyUsage.isEmpty)
+    try await repository.resetAnalyticsHistoryForReimport()
     #expect(try await repository.importCursor(for: "/tmp/session.jsonl") == nil)
+    #expect(try await repository.snapshot().analyticsEpochStartedAt == nil)
     await repository.close()
 }
 
@@ -467,7 +475,7 @@ import Testing
     let dataBefore = try Data(contentsOf: database)
     #expect(try await repository.open() == .readOnlyRecovery(schemaVersion: 999))
     await #expect(throws: CodexUsageRepositoryError.self) {
-        try await repository.clearUsageHistory()
+        try await repository.beginAnalyticsEpoch(at: .now, baselines: [])
     }
     await repository.close()
     #expect(try Data(contentsOf: database) == dataBefore)
@@ -521,4 +529,172 @@ private func usageRateRevision(
         sourceHashes: ["fixture": id],
         rates: OpenAIPricingCatalog.bundledRevision.rates
     )
+}
+
+@Test func usageSchemaNineMigratesToAnalyticsEpochSchemaTen() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await first.open()
+    await first.close()
+
+    let database = root.appending(path: "usage.sqlite3")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+    process.arguments = [
+        database.path,
+        "DROP TABLE analytics_epoch; DROP TABLE account_usage_baselines; PRAGMA user_version = 9;",
+    ]
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+
+    let migrated = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    #expect(try await migrated.open() == .readWrite)
+    let boundary = Date(timeIntervalSince1970: 10_000)
+    try await migrated.beginAnalyticsEpoch(at: boundary, baselines: [])
+    #expect(try await migrated.snapshot().analyticsEpochStartedAt == boundary)
+    await migrated.close()
+}
+
+@Test func analyticsEpochKeepsOldServerHistoryBehindStoredBaseline() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await repository.open()
+    let dayOne = CodexUsageRepository.startOfUTCDay(Date(timeIntervalSince1970: 100_000))
+    let dayTwo = dayOne.addingTimeInterval(24 * 60 * 60)
+    let baseline = usageAccountSnapshot(
+        accountID: "acct",
+        observedAt: dayOne,
+        lifetime: 1_000,
+        daily: [(dayOne, 1_000)]
+    )
+    let boundary = dayOne.addingTimeInterval(12 * 60 * 60)
+    try await repository.beginAnalyticsEpoch(at: boundary, baselines: [baseline])
+    try await repository.recordAccountUsage(
+        usageAccountSnapshot(
+            accountID: "acct",
+            observedAt: dayTwo,
+            lifetime: 1_300,
+            daily: [(dayOne, 1_050), (dayTwo, 250)]
+        )
+    )
+
+    let visible = try #require(try await repository.snapshot().accountUsage["acct"])
+    #expect(visible.summary.lifetimeTokens == 300)
+    #expect(visible.dailyActivity == [
+        CodexDailyTokenActivity(date: dayOne, tokens: 50),
+        CodexDailyTokenActivity(date: dayTwo, tokens: 250),
+    ])
+
+    await repository.close()
+    let reopened = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await reopened.open()
+    #expect(try await reopened.snapshot().accountUsage["acct"]?.summary.lifetimeTokens == 300)
+    await reopened.close()
+}
+
+@Test func firstServerSnapshotAfterOfflineClearBecomesPendingBaseline() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await repository.open()
+    let day = CodexUsageRepository.startOfUTCDay(Date(timeIntervalSince1970: 200_000))
+    try await repository.beginAnalyticsEpoch(at: day.addingTimeInterval(60), baselines: [])
+
+    try await repository.recordAccountUsage(
+        usageAccountSnapshot(accountID: "acct", observedAt: day, lifetime: 5_000, daily: [(day, 5_000)])
+    )
+    let zero = try #require(try await repository.snapshot().accountUsage["acct"])
+    #expect(zero.summary.lifetimeTokens == 0)
+    #expect(zero.dailyActivity.isEmpty)
+
+    try await repository.recordAccountUsage(
+        usageAccountSnapshot(
+            accountID: "acct",
+            observedAt: day.addingTimeInterval(60),
+            lifetime: 5_120,
+            daily: [(day, 5_120)]
+        )
+    )
+    let delta = try #require(try await repository.snapshot().accountUsage["acct"])
+    #expect(delta.summary.lifetimeTokens == 120)
+    #expect(delta.dailyActivity == [CodexDailyTokenActivity(date: day, tokens: 120)])
+    await repository.close()
+}
+
+@Test func explicitReimportRemovesEpochAndServerBaseline() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await repository.open()
+    let day = CodexUsageRepository.startOfUTCDay(Date(timeIntervalSince1970: 300_000))
+    let raw = usageAccountSnapshot(accountID: "acct", observedAt: day, lifetime: 1_000, daily: [(day, 1_000)])
+    try await repository.beginAnalyticsEpoch(at: day, baselines: [raw])
+    try await repository.recordAccountUsage(raw)
+    #expect(try await repository.snapshot().accountUsage["acct"]?.summary.lifetimeTokens == 0)
+
+    try await repository.resetAnalyticsHistoryForReimport()
+    try await repository.recordAccountUsage(raw)
+    let restored = try #require(try await repository.snapshot().accountUsage["acct"])
+    #expect(restored.summary.lifetimeTokens == 1_000)
+    #expect(restored.dailyActivity == [CodexDailyTokenActivity(date: day, tokens: 1_000)])
+    #expect(try await repository.snapshot().analyticsEpochStartedAt == nil)
+    await repository.close()
+}
+
+private func usageAccountSnapshot(
+    accountID: String,
+    observedAt: Date,
+    lifetime: Int64,
+    daily: [(Date, Int64)]
+) -> CodexAccountUsageSnapshot {
+    CodexAccountUsageSnapshot(
+        accountID: accountID,
+        observedAt: observedAt,
+        summary: CodexAccountUsageSummary(
+            lifetimeTokens: lifetime,
+            peakDailyTokens: daily.map(\.1).max(),
+            longestRunningTurnSeconds: nil,
+            currentStreakDays: nil,
+            longestStreakDays: nil
+        ),
+        dailyActivity: daily.map { CodexDailyTokenActivity(date: $0.0, tokens: $0.1) }
+    )
+}
+
+@Test func clearingAnExistingEpochMovesTheServerBaselineForward() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await repository.open()
+    let day = CodexUsageRepository.startOfUTCDay(Date(timeIntervalSince1970: 400_000))
+    let first = usageAccountSnapshot(accountID: "acct", observedAt: day, lifetime: 1_000, daily: [(day, 1_000)])
+    try await repository.beginAnalyticsEpoch(at: day, baselines: [first])
+    try await repository.recordAccountUsage(
+        usageAccountSnapshot(
+            accountID: "acct",
+            observedAt: day.addingTimeInterval(60),
+            lifetime: 1_300,
+            daily: [(day, 1_300)]
+        )
+    )
+    #expect(try await repository.snapshot().accountUsage["acct"]?.summary.lifetimeTokens == 300)
+
+    let nextBaselines = try await repository.accountUsageBaselinesForClear(accountIDs: ["acct"])
+    try await repository.beginAnalyticsEpoch(at: day.addingTimeInterval(120), baselines: nextBaselines)
+    try await repository.recordAccountUsage(
+        usageAccountSnapshot(
+            accountID: "acct",
+            observedAt: day.addingTimeInterval(180),
+            lifetime: 1_400,
+            daily: [(day, 1_400)]
+        )
+    )
+
+    let visible = try #require(try await repository.snapshot().accountUsage["acct"])
+    #expect(visible.summary.lifetimeTokens == 100)
+    #expect(visible.dailyActivity == [CodexDailyTokenActivity(date: day, tokens: 100)])
+    await repository.close()
 }

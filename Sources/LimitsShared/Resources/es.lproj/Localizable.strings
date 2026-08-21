@@ -202,7 +202,8 @@
 "accounts.persistence.lock_failed" = "No se pudo bloquear el almacén de cuentas (error %d).";
 "accounts.persistence.atomic_replace_failed" = "No se pudo reemplazar atómicamente el estado de las cuentas (error %d).";
 "accounts.repository.not_opened" = "El almacén de cuentas aún no está abierto.";
-"accounts.repository.read_only" = "Estas cuentas se escribieron con el esquema v%d. Limits las abrió en modo de solo lectura para conservar los datos más recientes.";
+"accounts.repository.read_only.accounts_schema" = "El almacenamiento de cuentas usa el esquema más reciente v%d. Todo el dominio de cuentas está en modo de solo lectura para conservar los datos.";
+"accounts.repository.read_only.usage_schema" = "El almacenamiento de uso usa el esquema más reciente v%d. Todo el dominio de cuentas está en modo de solo lectura para mantener ambos almacenes coherentes.";
 "accounts.repository.revision_conflict" = "Las cuentas cambiaron en otro proceso de Limits (revisión esperada %@, encontrada %@). Repite la acción; Limits cargará automáticamente el estado actual.";
 "accounts.repository.account_missing" = "La cuenta guardada ya no existe.";
 "accounts.repository.credential_missing" = "La credencial guardada ya no existe.";
@@ -291,11 +292,11 @@
 "insights.tokens.millions_suffix" = " M";
 "insights.tokens.billions_suffix" = " mil M";
 "insights.settings.title" = "Estadísticas de Codex";
-"insights.settings.description" = "Limits solo guarda metadatos numéricos. Los eventos sin procesar duran 90 días; los totales diarios permanecen.";
+"insights.settings.description" = "Borrar crea un punto cero duradero: el uso local y del servidor anterior queda fuera del análisis. Importar de nuevo elimina ese límite, relee los JSONL locales y actualiza los totales del servidor; los pronósticos vuelven a recopilarse.";
 "insights.settings.reimport" = "Importar de nuevo el historial";
 "insights.settings.clear" = "Borrar estadísticas";
 "insights.settings.clear.confirm_title" = "¿Borrar todas las estadísticas de Codex?";
-"insights.settings.clear.confirm_message" = "Se eliminarán el historial de tokens y las observaciones de límites existentes. Las cuentas y credenciales permanecen; el uso nuevo seguirá recopilándose automáticamente.";
+"insights.settings.clear.confirm_message" = "Ahora será el nuevo punto cero. El uso local y del servidor anterior quedará fuera del análisis; se conservarán cuentas, credenciales, historial de autenticación, tarifas y posiciones de importación. La actividad nueva contará desde este momento.";
 "insights.settings.clearing" = "Borrando estadísticas de Codex…";
 "insights.settings.importing" = "Importando historial de Codex…";
 "pricing.error.disallowed_source" = "Fuente de precios no permitida: %@.";

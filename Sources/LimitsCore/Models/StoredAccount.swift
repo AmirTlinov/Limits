@@ -223,27 +223,55 @@ public struct RetiredCredential: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-public struct PersistedStateV4: Codable, Sendable {
-    public static let currentSchemaVersion = 4
+public struct PendingAccountCleanup: Codable, Hashable, Identifiable, Sendable {
+    public let id: UUID
+    public let provider: ProviderKind
+    public let sourceRecordID: UUID
+    public let keychainAccount: String
+    public let codexAccountID: String?
+    public let createdAt: Date
+
+    public init(
+        id: UUID = UUID(),
+        provider: ProviderKind,
+        sourceRecordID: UUID,
+        keychainAccount: String,
+        codexAccountID: String?,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.provider = provider
+        self.sourceRecordID = sourceRecordID
+        self.keychainAccount = keychainAccount
+        self.codexAccountID = codexAccountID
+        self.createdAt = createdAt
+    }
+}
+
+public struct PersistedStateV5: Codable, Sendable {
+    public static let currentSchemaVersion = 5
 
     public var schemaVersion: Int
     public var revision: UInt64
     public var accounts: [StoredAccount]
     public var claudeAccounts: [ClaudeStoredAccount]
     public var retiredCredentials: [RetiredCredential]
+    public var pendingAccountCleanups: [PendingAccountCleanup]
 
     public init(
         schemaVersion: Int = Self.currentSchemaVersion,
         revision: UInt64 = 0,
         accounts: [StoredAccount],
         claudeAccounts: [ClaudeStoredAccount] = [],
-        retiredCredentials: [RetiredCredential] = []
+        retiredCredentials: [RetiredCredential] = [],
+        pendingAccountCleanups: [PendingAccountCleanup] = []
     ) {
         self.schemaVersion = schemaVersion
         self.revision = revision
         self.accounts = accounts
         self.claudeAccounts = claudeAccounts
         self.retiredCredentials = retiredCredentials
+        self.pendingAccountCleanups = pendingAccountCleanups
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -252,6 +280,7 @@ public struct PersistedStateV4: Codable, Sendable {
         case accounts
         case claudeAccounts
         case retiredCredentials
+        case pendingAccountCleanups
     }
 
     public init(from decoder: Decoder) throws {
@@ -261,6 +290,10 @@ public struct PersistedStateV4: Codable, Sendable {
         accounts = try container.decodeIfPresent([StoredAccount].self, forKey: .accounts) ?? []
         claudeAccounts = try container.decodeIfPresent([ClaudeStoredAccount].self, forKey: .claudeAccounts) ?? []
         retiredCredentials = try container.decodeIfPresent([RetiredCredential].self, forKey: .retiredCredentials) ?? []
+        pendingAccountCleanups = try container.decodeIfPresent(
+            [PendingAccountCleanup].self,
+            forKey: .pendingAccountCleanups
+        ) ?? []
     }
 }
 

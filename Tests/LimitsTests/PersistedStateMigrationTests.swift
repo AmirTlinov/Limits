@@ -18,7 +18,7 @@ import Testing
         status: .ok,
         validatedAt: now
     )
-    let source = PersistedStateV4(
+    let source = PersistedStateV5(
         schemaVersion: 1,
         accounts: [duplicate, current]
     )
@@ -30,7 +30,7 @@ import Testing
         now: now
     )
 
-    #expect(result.state.schemaVersion == 4)
+    #expect(result.state.schemaVersion == PersistedStateV5.currentSchemaVersion)
     #expect(result.state.accounts.map(\.id) == [current.id])
     #expect(result.state.retiredCredentials.count == 1)
     #expect(result.state.retiredCredentials[0].keychainAccount == duplicate.keychainAccount)
@@ -56,7 +56,7 @@ import Testing
     )
 
     let result = PersistedStateMigrator.migrate(
-        PersistedStateV4(schemaVersion: 1, accounts: [failed, healthy]),
+        PersistedStateV5(schemaVersion: 1, accounts: [failed, healthy]),
         currentCodexFingerprint: nil,
         currentClaudeFingerprint: nil,
         now: now
@@ -66,7 +66,7 @@ import Testing
     #expect(result.state.retiredCredentials.map(\.sourceRecordID) == [failed.id])
 }
 
-@Test func v4MigrationIsIdempotent() {
+@Test func v5MigrationIsIdempotent() {
     let account = makeMigrationAccount(
         label: "Only",
         accountId: "acct_only",
@@ -74,7 +74,7 @@ import Testing
         status: .ok,
         validatedAt: .now
     )
-    let source = PersistedStateV4(accounts: [account])
+    let source = PersistedStateV5(accounts: [account])
 
     let result = PersistedStateMigrator.migrate(
         source,
@@ -95,7 +95,7 @@ import Testing
         status: .ok,
         validatedAt: .now
     )
-    let source = PersistedStateV4(schemaVersion: 2, revision: 7, accounts: [account])
+    let source = PersistedStateV5(schemaVersion: 2, revision: 7, accounts: [account])
 
     let result = PersistedStateMigrator.migrate(
         source,
@@ -104,7 +104,7 @@ import Testing
     )
 
     #expect(result.receipt.didChange)
-    #expect(result.state.schemaVersion == 4)
+    #expect(result.state.schemaVersion == PersistedStateV5.currentSchemaVersion)
     #expect(result.state.revision == 7)
     #expect(result.state.accounts == [account])
 }
@@ -128,7 +128,7 @@ import Testing
     second.keychainAccount = first.keychainAccount
 
     let result = PersistedStateMigrator.migrate(
-        PersistedStateV4(schemaVersion: 1, accounts: [first, second]),
+        PersistedStateV5(schemaVersion: 1, accounts: [first, second]),
         currentCodexFingerprint: first.authFingerprint,
         currentClaudeFingerprint: nil,
         now: now
@@ -187,7 +187,7 @@ import Testing
     let legacyData = Data("{\"accounts\":[]}".utf8)
 
     try persistence.backupBeforeV4Migration(legacyData)
-    try persistence.save(PersistedStateV4(accounts: []))
+    try persistence.save(PersistedStateV5(accounts: []))
 
     #expect(try Data(contentsOf: persistence.preV4BackupURL) == legacyData)
     #expect(posixPermissions(at: persistence.stateDirectoryURL) == 0o700)
@@ -241,4 +241,28 @@ private func legacyAccountObject(
 private func posixPermissions(at url: URL) -> Int {
     let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
     return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
+}
+
+@Test func v4StateMigratesToV5WithAnEmptyCleanupQueue() {
+    let account = makeMigrationAccount(
+        label: "Schema four",
+        accountId: "acct_v4",
+        fingerprint: "v4-fingerprint",
+        status: .ok,
+        validatedAt: Date(timeIntervalSince1970: 50_000)
+    )
+    let source = PersistedStateV5(schemaVersion: 4, revision: 12, accounts: [account])
+
+    let result = PersistedStateMigrator.migrate(
+        source,
+        currentCodexFingerprint: account.authFingerprint,
+        currentClaudeFingerprint: nil
+    )
+
+    #expect(result.receipt.sourceSchemaVersion == 4)
+    #expect(result.receipt.targetSchemaVersion == 5)
+    #expect(result.state.schemaVersion == 5)
+    #expect(result.state.revision == 12)
+    #expect(result.state.accounts == [account])
+    #expect(result.state.pendingAccountCleanups.isEmpty)
 }

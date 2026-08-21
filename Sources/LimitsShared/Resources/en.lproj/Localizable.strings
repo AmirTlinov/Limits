@@ -202,7 +202,8 @@
 "accounts.persistence.lock_failed" = "Could not lock the accounts store (error %d).";
 "accounts.persistence.atomic_replace_failed" = "Could not replace the accounts state atomically (error %d).";
 "accounts.repository.not_opened" = "The accounts store has not been opened yet.";
-"accounts.repository.read_only" = "These accounts were written by schema v%d. Limits opened them read-only so the newer data stays intact.";
+"accounts.repository.read_only.accounts_schema" = "Accounts storage uses newer schema v%d. The whole account domain is open read-only so that data stays intact.";
+"accounts.repository.read_only.usage_schema" = "Usage storage uses newer schema v%d. The whole account domain is open read-only so both stores stay consistent.";
 "accounts.repository.revision_conflict" = "Accounts changed in another Limits process (expected revision %@, found %@). Try the action again; Limits will load the current state automatically.";
 "accounts.repository.account_missing" = "The saved account no longer exists.";
 "accounts.repository.credential_missing" = "The saved credential no longer exists.";
@@ -291,11 +292,11 @@
 "insights.tokens.millions_suffix" = "M";
 "insights.tokens.billions_suffix" = "B";
 "insights.settings.title" = "Codex statistics";
-"insights.settings.description" = "Limits stores only numeric metadata. Raw task events are kept for 90 days; daily totals remain.";
+"insights.settings.description" = "Clear starts a durable zero point: earlier local and server usage stays outside analytics. Import history again removes that boundary, rereads local JSONL and refreshes server totals; quota forecasts start collecting again.";
 "insights.settings.reimport" = "Import history again";
 "insights.settings.clear" = "Clear statistics";
 "insights.settings.clear.confirm_title" = "Clear all Codex statistics?";
-"insights.settings.clear.confirm_message" = "Existing token history and limit observations will be removed. Accounts and credentials stay; new usage will continue to be collected automatically.";
+"insights.settings.clear.confirm_message" = "Now becomes the new zero point. Earlier local and server usage stays outside analytics; accounts, credentials, auth history, rate cards and import positions remain. New activity is counted from this moment.";
 "insights.settings.clearing" = "Clearing Codex statistics…";
 "insights.settings.importing" = "Importing Codex history…";
 "pricing.error.disallowed_source" = "Pricing source is not allowed: %@.";

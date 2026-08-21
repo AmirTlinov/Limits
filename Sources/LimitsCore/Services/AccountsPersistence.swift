@@ -53,11 +53,11 @@ public struct AccountsPersistence: @unchecked Sendable {
         stateDirectoryURL.appending(path: "state.lock")
     }
 
-    public func load() throws -> PersistedStateV4 {
+    public func load() throws -> PersistedStateV5 {
         guard let data = try loadData() else {
-            return PersistedStateV4(accounts: [])
+            return PersistedStateV5(accounts: [])
         }
-        return try JSONDecoder.limits.decode(PersistedStateV4.self, from: data)
+        return try JSONDecoder.limits.decode(PersistedStateV5.self, from: data)
     }
 
     public func loadData() throws -> Data? {
@@ -75,7 +75,7 @@ public struct AccountsPersistence: @unchecked Sendable {
         try writeAtomically(data, to: preV4BackupURL)
     }
 
-    public func save(_ state: PersistedStateV4) throws {
+    public func save(_ state: PersistedStateV5) throws {
         try secureDirectory()
         let data = try JSONEncoder.limits.encode(state)
         try writeAtomically(data, to: stateURL)

@@ -78,12 +78,12 @@ struct SettingsView: View {
                     Button(L10n.tr("insights.settings.reimport")) {
                         Task { await model.reimportCodexHistory() }
                     }
-                    .disabled(model.isProviderBusy(.codex))
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
 
                     Button(L10n.tr("insights.settings.clear"), role: .destructive) {
                         confirmsStatisticsClear = true
                     }
-                    .disabled(model.isProviderBusy(.codex))
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
             }
 

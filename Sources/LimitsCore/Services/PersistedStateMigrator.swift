@@ -12,7 +12,7 @@ public struct PersistedStateMigrationReceipt: Hashable, Sendable {
 }
 
 public struct PersistedStateMigrationResult: Sendable {
-    public let state: PersistedStateV4
+    public let state: PersistedStateV5
     public let legacyLimitObservations: [CodexLimitObservation]
     public let legacyRateLimitSnapshots: [CodexRateLimitsSnapshot]
     public let receipt: PersistedStateMigrationReceipt
@@ -28,9 +28,9 @@ public enum PersistedStateMigrator {
         now: Date = .now
     ) throws -> PersistedStateMigrationResult {
         let header = try JSONDecoder.limits.decode(SchemaHeader.self, from: data)
-        if header.schemaVersion >= PersistedStateV4.currentSchemaVersion {
+        if header.schemaVersion >= PersistedStateV5.currentSchemaVersion {
             return migrate(
-                try JSONDecoder.limits.decode(PersistedStateV4.self, from: data),
+                try JSONDecoder.limits.decode(PersistedStateV5.self, from: data),
                 currentCodexFingerprint: currentCodexFingerprint,
                 currentClaudeFingerprint: currentClaudeFingerprint,
                 now: now
@@ -38,12 +38,13 @@ public enum PersistedStateMigrator {
         }
 
         let legacy = try JSONDecoder.limits.decode(LegacyPersistedState.self, from: data)
-        let source = PersistedStateV4(
+        let source = PersistedStateV5(
             schemaVersion: legacy.schemaVersion,
             revision: legacy.revision,
             accounts: legacy.accounts.map(\.account),
             claudeAccounts: legacy.claudeAccounts,
-            retiredCredentials: legacy.retiredCredentials
+            retiredCredentials: legacy.retiredCredentials,
+            pendingAccountCleanups: legacy.pendingAccountCleanups
         )
         let migrated = migrate(
             source,
@@ -65,7 +66,7 @@ public enum PersistedStateMigrator {
             legacyRateLimitSnapshots: snapshots,
             receipt: PersistedStateMigrationReceipt(
                 sourceSchemaVersion: legacy.schemaVersion,
-                targetSchemaVersion: PersistedStateV4.currentSchemaVersion,
+                targetSchemaVersion: PersistedStateV5.currentSchemaVersion,
                 retiredCredentialCount: migrated.receipt.retiredCredentialCount,
                 importedLimitObservationCount: observations.count
             )
@@ -73,12 +74,12 @@ public enum PersistedStateMigrator {
     }
 
     public static func migrate(
-        _ source: PersistedStateV4,
+        _ source: PersistedStateV5,
         currentCodexFingerprint: String?,
         currentClaudeFingerprint: String?,
         now: Date = .now
     ) -> PersistedStateMigrationResult {
-        guard source.schemaVersion < PersistedStateV4.currentSchemaVersion else {
+        guard source.schemaVersion < PersistedStateV5.currentSchemaVersion else {
             return PersistedStateMigrationResult(
                 state: source,
                 legacyLimitObservations: [],
@@ -110,17 +111,18 @@ public enum PersistedStateMigrator {
         let newlyRetiredCount = max(0, retired.count - source.retiredCredentials.count)
 
         return PersistedStateMigrationResult(
-            state: PersistedStateV4(
+            state: PersistedStateV5(
                 revision: source.revision,
                 accounts: codex,
                 claudeAccounts: claude,
-                retiredCredentials: retired
+                retiredCredentials: retired,
+                pendingAccountCleanups: source.pendingAccountCleanups
             ),
             legacyLimitObservations: [],
             legacyRateLimitSnapshots: [],
             receipt: PersistedStateMigrationReceipt(
                 sourceSchemaVersion: source.schemaVersion,
-                targetSchemaVersion: PersistedStateV4.currentSchemaVersion,
+                targetSchemaVersion: PersistedStateV5.currentSchemaVersion,
                 retiredCredentialCount: newlyRetiredCount,
                 importedLimitObservationCount: 0
             )
@@ -274,9 +276,10 @@ private struct LegacyPersistedState: Decodable {
     let accounts: [LegacyStoredAccount]
     let claudeAccounts: [ClaudeStoredAccount]
     let retiredCredentials: [RetiredCredential]
+    let pendingAccountCleanups: [PendingAccountCleanup]
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, revision, accounts, claudeAccounts, retiredCredentials
+        case schemaVersion, revision, accounts, claudeAccounts, retiredCredentials, pendingAccountCleanups
     }
 
     init(from decoder: Decoder) throws {
@@ -286,6 +289,10 @@ private struct LegacyPersistedState: Decodable {
         accounts = try container.decodeIfPresent([LegacyStoredAccount].self, forKey: .accounts) ?? []
         claudeAccounts = try container.decodeIfPresent([ClaudeStoredAccount].self, forKey: .claudeAccounts) ?? []
         retiredCredentials = try container.decodeIfPresent([RetiredCredential].self, forKey: .retiredCredentials) ?? []
+        pendingAccountCleanups = try container.decodeIfPresent(
+            [PendingAccountCleanup].self,
+            forKey: .pendingAccountCleanups
+        ) ?? []
     }
 }
 

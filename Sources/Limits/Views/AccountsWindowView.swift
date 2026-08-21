@@ -136,7 +136,7 @@ struct AccountsWindowView: View {
                     Image(systemName: "plus")
                 }
                 .help(L10n.tr("action.add_account"))
-                .disabled(model.isProviderBusy(.codex))
+                .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
 
                 if model.hasCurrentCLIAuthToImport() {
                     Button {
@@ -145,7 +145,7 @@ struct AccountsWindowView: View {
                         Image(systemName: "arrow.down.doc")
                     }
                     .help(L10n.tr("action.import_current_auth"))
-                    .disabled(model.isProviderBusy(.codex))
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
 
             }
@@ -278,12 +278,14 @@ struct AccountsWindowView: View {
                                     Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateAccount(account) }
                                     }
+                                    .disabled(!model.canMutateDomain)
                                 }
 
                                 if canReauthenticate {
                                     Button(L10n.tr("action.reauthenticate")) {
                                         Task { await model.reauthenticateAccount(account) }
                                     }
+                                    .disabled(!model.canMutateDomain)
                                 }
 
                                 if canMakeCurrent || canReauthenticate {
@@ -293,6 +295,7 @@ struct AccountsWindowView: View {
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     model.requestDeleteAccount(account)
                                 }
+                                .disabled(!model.canMutateDomain)
                             }
                         }
                     }
@@ -314,12 +317,14 @@ struct AccountsWindowView: View {
                                     Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateClaudeAccount(account) }
                                     }
+                                    .disabled(!model.canMutateDomain)
                                     Divider()
                                 }
 
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     model.requestDeleteClaudeAccount(account)
                                 }
+                                .disabled(!model.canMutateDomain)
                             }
                         }
                     }
@@ -1096,9 +1101,9 @@ private struct CurrentCLIDetailPane: View {
                 subtitle: model.currentCLIProbe?.email ?? model.currentCLIReferenceAccount()?.email,
                 note: overview.note,
                 metaLine: nil,
-                renameTitle: model.currentCLIReferenceAccount().map { account in
+                renameTitle: model.canMutateDomain ? model.currentCLIReferenceAccount().map { account in
                     { title in Task { await model.renameAccount(account, to: title) } }
-                },
+                } : nil,
                 subtitleIsCopyable: true,
                 stateBadge: {
                     CLIStateBadge(source: model.currentCLIState.source)
@@ -1114,13 +1119,13 @@ private struct CurrentCLIDetailPane: View {
                             Task { await model.importCurrentCLIAuth() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex))
+                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                     } else if model.shouldOfferAddAccountAsPrimaryAction() {
                         Button(L10n.tr("action.add_account")) {
                             Task { await model.addAccount() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex))
+                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                     }
 
                 }
@@ -1184,9 +1189,9 @@ private struct CurrentClaudeDetailPane: View {
                 subtitle: email,
                 note: overview.note,
                 metaLine: metaLine,
-                renameTitle: referenceAccount.map { account in
+                renameTitle: model.canMutateDomain ? referenceAccount.map { account in
                     { title in Task { await model.renameAccount(account, to: title) } }
-                },
+                } : nil,
                 subtitleIsCopyable: email != nil,
                 stateBadge: {
                     ClaudeStateBadge(model: model)
@@ -1200,7 +1205,7 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.importCurrentClaudeAuth() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.claude))
+                        .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                     }
 
                     if model.claudeLiveBridgeInstalled() {
@@ -1208,13 +1213,13 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.uninstallClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(model.isProviderBusy(.claude))
+                        .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                     } else if model.currentClaudeStatus?.loggedIn == true {
                         Button(L10n.tr("action.connect_live_limits")) {
                             Task { await model.installClaudeLiveLimitsBridge() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.claude))
+                        .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                     }
                 }
             )
@@ -1325,9 +1330,9 @@ private struct StoredClaudeDetailPane: View {
                 subtitle: account.email,
                 note: accountNote,
                 metaLine: accountMetaLine,
-                renameTitle: { title in
+                renameTitle: model.canMutateDomain ? { title in
                     Task { await model.renameAccount(account, to: title) }
-                },
+                } : nil,
                 subtitleIsCopyable: true,
                 stateBadge: {
                     AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)
@@ -1341,20 +1346,20 @@ private struct StoredClaudeDetailPane: View {
                             Task { await model.activateClaudeAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.claude))
+                        .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                     } else {
                         if model.claudeLiveBridgeInstalled() {
                             Button(L10n.tr("action.disconnect_bridge")) {
                                 Task { await model.uninstallClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.bordered)
-                            .disabled(model.isProviderBusy(.claude))
+                            .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                         } else if model.currentClaudeStatus?.loggedIn == true {
                             Button(L10n.tr("action.connect_live_limits")) {
                                 Task { await model.installClaudeLiveLimitsBridge() }
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isProviderBusy(.claude))
+                            .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                         }
                     }
 
@@ -1362,7 +1367,7 @@ private struct StoredClaudeDetailPane: View {
                         model.requestDeleteClaudeAccount(account)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.claude))
+                    .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                 }
             )
 
@@ -1511,9 +1516,9 @@ private struct StoredAccountDetailPane: View {
                 subtitle: account.email,
                 note: nil,
                 metaLine: nil,
-                renameTitle: { title in
+                renameTitle: model.canMutateDomain ? { title in
                     Task { await model.renameAccount(account, to: title) }
-                },
+                } : nil,
                 subtitleIsCopyable: true,
                 stateBadge: {
                     AccountStatusBadge(status: account.status, isCurrent: isCurrent)
@@ -1527,7 +1532,7 @@ private struct StoredAccountDetailPane: View {
                             Task { await model.activateAccount(account) }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex))
+                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                     }
 
                     if accountIssue?.recommendedAction == .reauthenticate {
@@ -1535,14 +1540,14 @@ private struct StoredAccountDetailPane: View {
                             Task { await model.reauthenticateAccount(account) }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(model.isProviderBusy(.codex))
+                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                     }
 
                     Button(L10n.tr("action.delete"), role: .destructive) {
                         model.requestDeleteAccount(account)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.codex))
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
             )
 

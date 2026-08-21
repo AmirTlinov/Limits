@@ -202,7 +202,8 @@
 "accounts.persistence.lock_failed" = "无法锁定账户存储（错误 %d）。";
 "accounts.persistence.atomic_replace_failed" = "无法以原子方式替换账户状态（错误 %d）。";
 "accounts.repository.not_opened" = "账户存储尚未打开。";
-"accounts.repository.read_only" = "这些账户由架构 v%d 写入。Limits 已用只读模式打开，以保留较新的数据。";
+"accounts.repository.read_only.accounts_schema" = "账户存储使用较新的架构 v%d。整个账户域以只读方式打开，以保留这些数据。";
+"accounts.repository.read_only.usage_schema" = "用量存储使用较新的架构 v%d。整个账户域以只读方式打开，以保持两个存储一致。";
 "accounts.repository.revision_conflict" = "账户已在另一个 Limits 进程中更改（预期修订 %@，实际 %@）。请重试此操作；Limits 会自动加载当前状态。";
 "accounts.repository.account_missing" = "保存的账户已不存在。";
 "accounts.repository.credential_missing" = "保存的凭据已不存在。";
@@ -291,11 +292,11 @@
 "insights.tokens.millions_suffix" = "M";
 "insights.tokens.billions_suffix" = "B";
 "insights.settings.title" = "Codex 统计";
-"insights.settings.description" = "Limits 只保存数值元数据。原始任务事件保留 90 天，每日汇总会长期保留。";
+"insights.settings.description" = "清除会建立持久的零点：此前的本地和服务器用量不再进入分析。重新导入会移除这条边界，重读本地 JSONL 并刷新服务器总量；配额预测也会重新收集。";
 "insights.settings.reimport" = "重新导入历史";
 "insights.settings.clear" = "清除统计";
 "insights.settings.clear.confirm_title" = "清除所有 Codex 统计？";
-"insights.settings.clear.confirm_message" = "现有 token 历史和限额观察将被清除。账户和凭据会保留；新的使用量仍会自动收集。";
+"insights.settings.clear.confirm_message" = "当前时刻将成为新的零点。此前的本地和服务器用量不再进入分析；账户、凭据、认证历史、费率和导入位置都会保留。新活动从此刻开始计入。";
 "insights.settings.clearing" = "正在清除 Codex 统计…";
 "insights.settings.importing" = "正在导入 Codex 历史…";
 "pricing.error.disallowed_source" = "不允许的价格来源：%@。";

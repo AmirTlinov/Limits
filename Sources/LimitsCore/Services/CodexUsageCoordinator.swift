@@ -61,13 +61,20 @@ public actor CodexUsageCoordinator {
     private let accountsRepository: AccountsRepository
     private let usageRepository: CodexUsageRepository
     private let sessionCoordinator: CodexSessionCoordinator
-    private let importer: CodexRolloutUsageImporter?
+    private let importer: (any CodexRolloutImporting)?
     private let pricingCatalog: OpenAIPricingCatalog
     private let codexHome: URL?
     private let allowsServerProbes: Bool
     private var refreshOperation: RefreshOperation?
     private var failureCounts: [EndpointKey: Int] = [:]
     private var watcher: CodexRolloutDirectoryWatcher?
+    private var importInProgress = false
+    private var importDirty = false
+    private var importWaiters: [CheckedContinuation<Void, Never>] = []
+    private var maintenanceInProgress = false
+    private var maintenanceWaiters: [CheckedContinuation<Void, Never>] = []
+    private var directMutationCount = 0
+    private var directMutationWaiters: [CheckedContinuation<Void, Never>] = []
 
     public init(
         accountsRepository: AccountsRepository,
@@ -75,6 +82,7 @@ public actor CodexUsageCoordinator {
         sessionCoordinator: CodexSessionCoordinator,
         codexHome: URL? = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".codex", directoryHint: .isDirectory),
         allowsServerProbes: Bool = true,
+        importer: (any CodexRolloutImporting)? = nil,
         pricingDownloader: any OpenAIPricingDownloading = URLSessionOpenAIPricingDownloader()
     ) {
         self.accountsRepository = accountsRepository
@@ -82,7 +90,9 @@ public actor CodexUsageCoordinator {
         self.sessionCoordinator = sessionCoordinator
         self.codexHome = codexHome
         self.allowsServerProbes = allowsServerProbes
-        importer = codexHome.map { CodexRolloutUsageImporter(repository: usageRepository, codexHome: $0) }
+        self.importer = importer ?? codexHome.map {
+            CodexRolloutUsageImporter(repository: usageRepository, codexHome: $0)
+        }
         pricingCatalog = OpenAIPricingCatalog(repository: usageRepository, downloader: pricingDownloader)
     }
 
@@ -106,6 +116,19 @@ public actor CodexUsageCoordinator {
         forceAccountIDs: Set<UUID> = [],
         now: Date = .now
     ) async throws -> CodexUsageCoordinatorSnapshot {
+        let accounts = try await accountsRepository.reload()
+        if accounts.access != .readWrite {
+            _ = try await usageRepository.open()
+            let usage = try await usageRepository.snapshot()
+            return CodexUsageCoordinatorSnapshot(
+                accounts: accounts,
+                usage: usage,
+                rateCard: usage.rateCardRevisions.last ?? OpenAIPricingCatalog.bundledRevision,
+                priceChange: nil,
+                currentValidation: nil,
+                importReport: nil
+            )
+        }
         let intent = RefreshIntent(
             currentAccountLocalID: currentAccountLocalID,
             selectedAccountLocalID: selectedAccountLocalID,
@@ -121,6 +144,7 @@ public actor CodexUsageCoordinator {
         observedAt: Date = .now,
         transition: CodexAuthIdentityTransition = .observed
     ) async throws {
+        guard try await accountsRepository.reload().access == .readWrite else { return }
         _ = try await usageRepository.open()
         try await usageRepository.recordCurrentAuthIdentity(
             accountID: accountID,
@@ -131,6 +155,7 @@ public actor CodexUsageCoordinator {
     }
 
     private func refresh(_ intent: RefreshIntent) async throws -> CodexUsageCoordinatorSnapshot {
+        await waitForMaintenanceToFinish()
         if let operation = refreshOperation {
             let covered = operation.intent.covers(intent)
             do {
@@ -165,9 +190,29 @@ public actor CodexUsageCoordinator {
         }
     }
 
-    public func clearStatistics() async throws -> CodexUsageRepositorySnapshot {
-        try await usageRepository.clearUsageHistory(keepRateCards: true)
-        return try await usageRepository.snapshot()
+    public func clearStatistics(now: Date = .now) async throws -> CodexUsageRepositorySnapshot {
+        let beforeRefresh = try await accountsRepository.reload()
+        let forcedAccounts = Set(beforeRefresh.state.accounts.map(\.id))
+        _ = try? await refresh(
+            currentAccountLocalID: nil,
+            selectedAccountLocalID: nil,
+            forceAccountIDs: forcedAccounts,
+            now: now
+        )
+
+        await beginMaintenance()
+        do {
+            _ = try await usageRepository.open()
+            let accounts = try await accountsRepository.reload().state.accounts
+            let savedIDs = Set(accounts.compactMap(\.accountId))
+            let baselines = try await usageRepository.accountUsageBaselinesForClear(accountIDs: savedIDs)
+            try await usageRepository.beginAnalyticsEpoch(at: now, baselines: baselines)
+            await finishMaintenanceAndDrainImport()
+            return try await usageRepository.snapshot()
+        } catch {
+            await finishMaintenanceAndDrainImport()
+            throw error
+        }
     }
 
     public func cachedData() async throws -> (CodexUsageRepositorySnapshot, OpenAIRateCardRevision) {
@@ -184,6 +229,12 @@ public actor CodexUsageCoordinator {
         _ result: AccountValidationResult,
         observedAt: Date = .now
     ) async throws -> CodexUsageRepositorySnapshot {
+        await waitForMaintenanceToFinish()
+        guard try await accountsRepository.reload().access == .readWrite else {
+            return try await usageRepository.snapshot()
+        }
+        directMutationCount += 1
+        defer { finishDirectMutation() }
         guard let accountID = result.identity.accountId else { return try await usageRepository.snapshot() }
         _ = try await usageRepository.open()
         let previous = try await usageRepository.snapshot()
@@ -191,14 +242,51 @@ public actor CodexUsageCoordinator {
         return try await usageRepository.snapshot()
     }
 
-    public func reimportHistory() async throws -> CodexUsageRepositorySnapshot {
-        if let importer { _ = try await importer.reimportAll() }
-        return try await usageRepository.snapshot()
+    public func reimportHistory(now: Date = .now) async throws -> CodexUsageRepositorySnapshot {
+        await beginMaintenance()
+        do {
+            _ = try await usageRepository.open()
+            try await usageRepository.resetAnalyticsHistoryForReimport()
+            if let importer { _ = await importer.importChangedFiles() }
+            await finishMaintenanceAndDrainImport()
+        } catch {
+            await finishMaintenanceAndDrainImport()
+            throw error
+        }
+
+        let accounts = try await accountsRepository.reload().state.accounts
+        let refreshed = try await refresh(
+            currentAccountLocalID: nil,
+            selectedAccountLocalID: nil,
+            forceAccountIDs: Set(accounts.map(\.id)),
+            now: now
+        )
+        return refreshed.usage
     }
 
-    private func localFilesChanged() async {
-        guard refreshOperation == nil, let importer else { return }
-        _ = await importer.importChangedFiles()
+    public func deleteAccount(
+        provider: ProviderKind,
+        accountID: UUID,
+        now: Date = .now
+    ) async throws -> AccountsRepositorySnapshot {
+        await beginMaintenance()
+        do {
+            let snapshot = try await accountsRepository.deleteAccount(
+                provider: provider,
+                accountID: accountID,
+                now: now
+            )
+            await finishMaintenanceAndDrainImport()
+            return snapshot
+        } catch {
+            await finishMaintenanceAndDrainImport()
+            throw error
+        }
+    }
+
+    func localFilesChanged() async {
+        importDirty = true
+        _ = await runImportPasses(forcePass: false)
     }
 
     private func performRefresh(
@@ -298,7 +386,7 @@ public actor CodexUsageCoordinator {
         }
 
         let pricing = await pricingCatalog.refreshIfNeeded(now: now)
-        let importReport = await importer?.importChangedFiles()
+        let importReport = await runImportPasses(forcePass: true)
         usageSnapshot = try await usageRepository.snapshot()
         accountSnapshot = try await accountsRepository.reload()
         return CodexUsageCoordinatorSnapshot(
@@ -358,6 +446,84 @@ public actor CodexUsageCoordinator {
         if refreshOperation?.id == id {
             refreshOperation = nil
         }
+    }
+
+    private func runImportPasses(forcePass: Bool) async -> CodexRolloutImportReport? {
+        if forcePass { importDirty = true }
+        guard let importer else {
+            importDirty = false
+            return nil
+        }
+        guard !maintenanceInProgress, !importInProgress, importDirty else { return nil }
+
+        importInProgress = true
+        var aggregate = CodexRolloutImportReport(scannedFiles: 0, importedEvents: 0, unreadableFiles: 0)
+        repeat {
+            importDirty = false
+            let report = await importer.importChangedFiles()
+            aggregate = CodexRolloutImportReport(
+                scannedFiles: aggregate.scannedFiles + report.scannedFiles,
+                importedEvents: aggregate.importedEvents + report.importedEvents,
+                unreadableFiles: aggregate.unreadableFiles + report.unreadableFiles
+            )
+        } while importDirty
+        importInProgress = false
+        let waiters = importWaiters
+        importWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        return aggregate
+    }
+
+    private func beginMaintenance() async {
+        while true {
+            await waitForMaintenanceToFinish()
+            if let operation = refreshOperation {
+                _ = try? await operation.task.value
+                clearRefreshOperation(id: operation.id)
+                continue
+            }
+            if directMutationCount > 0 {
+                await withCheckedContinuation { continuation in
+                    directMutationWaiters.append(continuation)
+                }
+                continue
+            }
+            if importInProgress {
+                await withCheckedContinuation { continuation in
+                    importWaiters.append(continuation)
+                }
+                continue
+            }
+            maintenanceInProgress = true
+            return
+        }
+    }
+
+    private func waitForMaintenanceToFinish() async {
+        guard maintenanceInProgress else { return }
+        await withCheckedContinuation { continuation in
+            maintenanceWaiters.append(continuation)
+        }
+    }
+
+    private func finishMaintenance() {
+        maintenanceInProgress = false
+        let waiters = maintenanceWaiters
+        maintenanceWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
+
+    private func finishMaintenanceAndDrainImport() async {
+        finishMaintenance()
+        _ = await runImportPasses(forcePass: false)
+    }
+
+    private func finishDirectMutation() {
+        directMutationCount = max(0, directMutationCount - 1)
+        guard directMutationCount == 0 else { return }
+        let waiters = directMutationWaiters
+        directMutationWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
 
     private func recordEndpointResult(

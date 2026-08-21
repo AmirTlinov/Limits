@@ -13,13 +13,16 @@ public struct CodexRolloutImportReport: Hashable, Sendable {
     }
 }
 
-public actor CodexRolloutUsageImporter {
+public protocol CodexRolloutImporting: Sendable {
+    func importChangedFiles() async -> CodexRolloutImportReport
+}
+
+public actor CodexRolloutUsageImporter: CodexRolloutImporting {
     public static let schemaAdapter = 1
 
     private let repository: CodexUsageRepository
     private let roots: [URL]
     private let fileManager: SendableFileManager
-    private var importTask: Task<CodexRolloutImportReport, Never>?
 
     public init(
         repository: CodexUsageRepository,
@@ -35,19 +38,7 @@ public actor CodexRolloutUsageImporter {
     }
 
     public func importChangedFiles() async -> CodexRolloutImportReport {
-        if let importTask { return await importTask.value }
-        let task = Task { [repository, roots, fileManager] in
-            await Self.performImport(repository: repository, roots: roots, fileManager: fileManager.value)
-        }
-        importTask = task
-        let report = await task.value
-        importTask = nil
-        return report
-    }
-
-    public func reimportAll() async throws -> CodexRolloutImportReport {
-        try await repository.clearImportedUsage()
-        return await importChangedFiles()
+        await Self.performImport(repository: repository, roots: roots, fileManager: fileManager.value)
     }
 
     private static func performImport(

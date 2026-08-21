@@ -79,7 +79,7 @@ public struct CodexUsagePersistence: @unchecked Sendable {
 }
 
 public actor CodexUsageRepository {
-    public static let currentSchemaVersion = 9
+    public static let currentSchemaVersion = 10
     public static let rawEventRetention: TimeInterval = 90 * 24 * 60 * 60
 
     private let persistence: CodexUsagePersistence
@@ -147,6 +147,7 @@ public actor CodexUsageRepository {
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 2 {
             try migrateSchemaFromV2()
             try migrateSchemaFromV3()
@@ -155,6 +156,7 @@ public actor CodexUsageRepository {
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 3 {
             try migrateSchemaFromV3()
             try migrateSchemaFromV4()
@@ -162,26 +164,34 @@ public actor CodexUsageRepository {
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 4 {
             try migrateSchemaFromV4()
             try migrateSchemaFromV5()
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 5 {
             try migrateSchemaFromV5()
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 6 {
             try migrateSchemaFromV6()
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 7 {
             try migrateSchemaFromV7()
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
         } else if version == 8 {
             try migrateSchemaFromV8()
+            try migrateSchemaFromV9()
+        } else if version == 9 {
+            try migrateSchemaFromV9()
         }
         access = .readWrite
         persistence.secureDatabaseFiles()
@@ -202,14 +212,17 @@ public actor CodexUsageRepository {
             latestLimits: try loadLatestLimits(),
             endpointStatuses: try loadEndpointStatuses(),
             threadUsageEvidence: try loadThreadUsageEvidence(),
-            rateCardRevisions: try loadRateCardRevisions()
+            rateCardRevisions: try loadRateCardRevisions(),
+            analyticsEpochStartedAt: try loadAnalyticsEpochStartedAt()
         )
     }
 
     @discardableResult
     public func recordUsageEvents(_ events: [CodexUsageEvent]) throws -> Int {
-        guard !events.isEmpty else { return 0 }
         try requireWritable()
+        let epoch = try loadAnalyticsEpochStartedAt()
+        let events = epoch.map { boundary in events.filter { $0.occurredAt >= boundary } } ?? events
+        guard !events.isEmpty else { return 0 }
         var inserted = 0
         try transaction {
             for event in events {
@@ -280,8 +293,13 @@ public actor CodexUsageRepository {
 
     public func recordAccountUsage(_ snapshot: CodexAccountUsageSnapshot) throws {
         try requireWritable()
-        let summaryData = try JSONEncoder.limits.encode(snapshot.summary)
         try transaction {
+            let persistedSnapshot = try accountUsageRelativeToAnalyticsEpoch(snapshot)
+            if let existingObservedAt = try accountUsageObservedAt(accountID: persistedSnapshot.accountID),
+               existingObservedAt > persistedSnapshot.observedAt {
+                return
+            }
+            let summaryData = try JSONEncoder.limits.encode(persistedSnapshot.summary)
             let statement = try prepare(
                 """
                 INSERT INTO account_usage_snapshots (account_id, observed_at, summary_json)
@@ -293,12 +311,17 @@ public actor CodexUsageRepository {
                 """
             )
             defer { sqlite3_finalize(statement) }
-            bind(snapshot.accountID, to: 1, in: statement)
-            bind(snapshot.observedAt.timeIntervalSince1970, to: 2, in: statement)
+            bind(persistedSnapshot.accountID, to: 1, in: statement)
+            bind(persistedSnapshot.observedAt.timeIntervalSince1970, to: 2, in: statement)
             bind(summaryData, to: 3, in: statement)
             try stepDone(statement)
 
-            for bucket in snapshot.dailyActivity {
+            let clearActivity = try prepare("DELETE FROM account_daily_activity WHERE account_id = ?")
+            defer { sqlite3_finalize(clearActivity) }
+            bind(persistedSnapshot.accountID, to: 1, in: clearActivity)
+            try stepDone(clearActivity)
+
+            for bucket in persistedSnapshot.dailyActivity where bucket.tokens > 0 {
                 let activity = try prepare(
                     """
                     INSERT INTO account_daily_activity (account_id, day, tokens, observed_at)
@@ -310,10 +333,10 @@ public actor CodexUsageRepository {
                     """
                 )
                 defer { sqlite3_finalize(activity) }
-                bind(snapshot.accountID, to: 1, in: activity)
+                bind(persistedSnapshot.accountID, to: 1, in: activity)
                 bind(Self.startOfUTCDay(bucket.date).timeIntervalSince1970, to: 2, in: activity)
                 bind(bucket.tokens, to: 3, in: activity)
-                bind(snapshot.observedAt.timeIntervalSince1970, to: 4, in: activity)
+                bind(persistedSnapshot.observedAt.timeIntervalSince1970, to: 4, in: activity)
                 try stepDone(activity)
             }
         }
@@ -619,7 +642,7 @@ public actor CodexUsageRepository {
         try transaction {
             for table in [
                 "usage_events", "daily_usage", "account_usage_snapshots",
-                "account_daily_activity", "limit_observations", "latest_limit_snapshots", "endpoint_statuses", "thread_usage_evidence", "auth_intervals",
+                "account_daily_activity", "limit_observations", "latest_limit_snapshots", "endpoint_statuses", "thread_usage_evidence", "auth_intervals", "account_usage_baselines",
             ] {
                 let statement = try prepare("DELETE FROM \(table) WHERE account_id = ?")
                 defer { sqlite3_finalize(statement) }
@@ -629,24 +652,53 @@ public actor CodexUsageRepository {
         }
     }
 
-    public func clearUsageHistory(keepRateCards: Bool = true) throws {
+    public func beginAnalyticsEpoch(
+        at startedAt: Date,
+        baselines: [CodexAccountUsageSnapshot]
+    ) throws {
         try requireWritable()
-        var tables = [
-            "usage_events", "daily_usage", "account_usage_snapshots", "account_daily_activity",
-            "limit_observations", "latest_limit_snapshots", "endpoint_statuses", "thread_usage_evidence",
-        ]
-        if !keepRateCards { tables.append("rate_card_revisions") }
         try transaction {
-            for table in tables { try execute("DELETE FROM \(table)") }
+            try execute("DELETE FROM analytics_epoch")
+            let epoch = try prepare("INSERT INTO analytics_epoch (id, started_at) VALUES (1, ?)")
+            defer { sqlite3_finalize(epoch) }
+            bind(startedAt.timeIntervalSince1970, to: 1, in: epoch)
+            try stepDone(epoch)
+
+            try execute("DELETE FROM account_usage_baselines")
+            for baseline in baselines {
+                try insertAccountUsageBaseline(baseline, epochStartedAt: startedAt)
+            }
+            try clearAnalyticsTables()
         }
     }
 
-    public func clearImportedUsage() throws {
+    public func accountUsageBaselinesForClear(
+        accountIDs: Set<String>
+    ) throws -> [CodexAccountUsageSnapshot] {
+        try requireOpen()
+        let visible = try loadAccountUsage()
+        guard try loadAnalyticsEpochStartedAt() != nil else {
+            return accountIDs.compactMap { visible[$0] }
+        }
+        return try accountIDs.compactMap { accountID -> CodexAccountUsageSnapshot? in
+            let baseline = try accountUsageBaseline(accountID: accountID)
+            if let baseline {
+                if let delta = visible[accountID] {
+                    return combinedAccountUsage(baseline: baseline, delta: delta)
+                }
+                return baseline
+            }
+            return visible[accountID]
+        }
+    }
+
+    public func resetAnalyticsHistoryForReimport() throws {
         try requireWritable()
         try transaction {
-            try execute("DELETE FROM usage_events WHERE source = 'localRollout'")
-            try execute("DELETE FROM daily_usage WHERE source = 'localRollout'")
+            try clearAnalyticsTables()
             try execute("DELETE FROM import_cursors")
+            try execute("DELETE FROM account_usage_baselines")
+            try execute("DELETE FROM analytics_epoch")
         }
     }
 
@@ -805,6 +857,23 @@ public actor CodexUsageRepository {
                     started_at REAL NOT NULL,
                     confirmed_at REAL NOT NULL,
                     ended_at REAL
+                )
+                """
+            )
+            try execute(
+                """
+                CREATE TABLE analytics_epoch (
+                    id INTEGER PRIMARY KEY CHECK(id = 1),
+                    started_at REAL NOT NULL
+                )
+                """
+            )
+            try execute(
+                """
+                CREATE TABLE account_usage_baselines (
+                    account_id TEXT PRIMARY KEY,
+                    epoch_started_at REAL NOT NULL,
+                    payload BLOB NOT NULL
                 )
                 """
             )
@@ -996,7 +1065,155 @@ public actor CodexUsageRepository {
                 """
             )
             try execute("DROP TABLE daily_usage_v8")
+            try execute("PRAGMA user_version = 9")
+        }
+    }
+
+    private func migrateSchemaFromV9() throws {
+        try transaction {
+            try execute(
+                """
+                CREATE TABLE analytics_epoch (
+                    id INTEGER PRIMARY KEY CHECK(id = 1),
+                    started_at REAL NOT NULL
+                )
+                """
+            )
+            try execute(
+                """
+                CREATE TABLE account_usage_baselines (
+                    account_id TEXT PRIMARY KEY,
+                    epoch_started_at REAL NOT NULL,
+                    payload BLOB NOT NULL
+                )
+                """
+            )
             try execute("PRAGMA user_version = \(Self.currentSchemaVersion)")
+        }
+    }
+
+    private func loadAnalyticsEpochStartedAt() throws -> Date? {
+        let statement = try prepare("SELECT started_at FROM analytics_epoch WHERE id = 1")
+        defer { sqlite3_finalize(statement) }
+        guard try stepRow(statement) else { return nil }
+        return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
+    }
+
+    private func accountUsageRelativeToAnalyticsEpoch(
+        _ snapshot: CodexAccountUsageSnapshot
+    ) throws -> CodexAccountUsageSnapshot {
+        guard let epoch = try loadAnalyticsEpochStartedAt() else { return snapshot }
+        guard let baseline = try accountUsageBaseline(accountID: snapshot.accountID) else {
+            try insertAccountUsageBaseline(snapshot, epochStartedAt: epoch)
+            return accountUsageDelta(current: snapshot, baseline: snapshot)
+        }
+        return accountUsageDelta(current: snapshot, baseline: baseline)
+    }
+
+    private func accountUsageBaseline(accountID: String) throws -> CodexAccountUsageSnapshot? {
+        let statement = try prepare("SELECT payload FROM account_usage_baselines WHERE account_id = ?")
+        defer { sqlite3_finalize(statement) }
+        bind(accountID, to: 1, in: statement)
+        guard try stepRow(statement), let payload = columnData(statement, 0) else { return nil }
+        return try JSONDecoder.limits.decode(CodexAccountUsageSnapshot.self, from: payload)
+    }
+
+    private func accountUsageObservedAt(accountID: String) throws -> Date? {
+        let statement = try prepare("SELECT observed_at FROM account_usage_snapshots WHERE account_id = ?")
+        defer { sqlite3_finalize(statement) }
+        bind(accountID, to: 1, in: statement)
+        guard try stepRow(statement) else { return nil }
+        return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
+    }
+
+    private func insertAccountUsageBaseline(
+        _ snapshot: CodexAccountUsageSnapshot,
+        epochStartedAt: Date
+    ) throws {
+        let statement = try prepare(
+            """
+            INSERT INTO account_usage_baselines (account_id, epoch_started_at, payload)
+            VALUES (?, ?, ?)
+            ON CONFLICT(account_id) DO UPDATE SET
+                epoch_started_at = excluded.epoch_started_at,
+                payload = excluded.payload
+            """
+        )
+        defer { sqlite3_finalize(statement) }
+        bind(snapshot.accountID, to: 1, in: statement)
+        bind(epochStartedAt.timeIntervalSince1970, to: 2, in: statement)
+        bind(try JSONEncoder.limits.encode(snapshot), to: 3, in: statement)
+        try stepDone(statement)
+    }
+
+    private func accountUsageDelta(
+        current: CodexAccountUsageSnapshot,
+        baseline: CodexAccountUsageSnapshot
+    ) -> CodexAccountUsageSnapshot {
+        let baselineByDay = baseline.dailyActivity.reduce(into: [Date: Int64]()) { result, bucket in
+            let day = Self.startOfUTCDay(bucket.date)
+            result[day] = max(result[day] ?? 0, bucket.tokens)
+        }
+        let daily = current.dailyActivity.compactMap { bucket -> CodexDailyTokenActivity? in
+            let day = Self.startOfUTCDay(bucket.date)
+            let tokens = max(0, bucket.tokens - (baselineByDay[day] ?? 0))
+            return tokens > 0 ? CodexDailyTokenActivity(date: day, tokens: tokens) : nil
+        }
+        let lifetime: Int64? = {
+            guard let current = current.summary.lifetimeTokens,
+                  let baseline = baseline.summary.lifetimeTokens else { return nil }
+            return max(0, current - baseline)
+        }()
+        return CodexAccountUsageSnapshot(
+            accountID: current.accountID,
+            observedAt: current.observedAt,
+            summary: CodexAccountUsageSummary(
+                lifetimeTokens: lifetime,
+                peakDailyTokens: daily.map(\.tokens).max(),
+                longestRunningTurnSeconds: nil,
+                currentStreakDays: nil,
+                longestStreakDays: nil
+            ),
+            dailyActivity: daily
+        )
+    }
+
+    private func combinedAccountUsage(
+        baseline: CodexAccountUsageSnapshot,
+        delta: CodexAccountUsageSnapshot
+    ) -> CodexAccountUsageSnapshot {
+        var daily = baseline.dailyActivity.reduce(into: [Date: Int64]()) { result, bucket in
+            result[Self.startOfUTCDay(bucket.date), default: 0] += bucket.tokens
+        }
+        for bucket in delta.dailyActivity {
+            daily[Self.startOfUTCDay(bucket.date), default: 0] += bucket.tokens
+        }
+        let lifetime: Int64? = {
+            guard let baseline = baseline.summary.lifetimeTokens else { return nil }
+            return baseline + (delta.summary.lifetimeTokens ?? 0)
+        }()
+        let activity = daily.map { CodexDailyTokenActivity(date: $0.key, tokens: $0.value) }
+            .sorted { $0.date < $1.date }
+        return CodexAccountUsageSnapshot(
+            accountID: baseline.accountID,
+            observedAt: max(baseline.observedAt, delta.observedAt),
+            summary: CodexAccountUsageSummary(
+                lifetimeTokens: lifetime,
+                peakDailyTokens: activity.map(\.tokens).max(),
+                longestRunningTurnSeconds: nil,
+                currentStreakDays: nil,
+                longestStreakDays: nil
+            ),
+            dailyActivity: activity
+        )
+    }
+
+    private func clearAnalyticsTables() throws {
+        for table in [
+            "usage_events", "daily_usage", "account_usage_snapshots", "account_daily_activity",
+            "limit_observations", "latest_limit_snapshots", "endpoint_statuses", "thread_usage_evidence",
+        ] {
+            try execute("DELETE FROM \(table)")
         }
     }
 

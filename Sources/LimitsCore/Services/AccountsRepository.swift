@@ -1,16 +1,21 @@
 import Foundation
 import LimitsShared
 
+@frozen public enum AccountsRecoveryReason: Equatable, Sendable {
+    case accountsSchema(schemaVersion: Int)
+    case usageSchema(schemaVersion: Int)
+}
+
 @frozen public enum AccountsRepositoryAccess: Equatable, Sendable {
     case readWrite
-    case readOnlyRecovery(schemaVersion: Int)
+    case readOnlyRecovery(reason: AccountsRecoveryReason)
 }
 
 public struct AccountsRepositorySnapshot: Sendable {
-    public let state: PersistedStateV4
+    public let state: PersistedStateV5
     public let access: AccountsRepositoryAccess
 
-    public init(state: PersistedStateV4, access: AccountsRepositoryAccess) {
+    public init(state: PersistedStateV5, access: AccountsRepositoryAccess) {
         self.state = state
         self.access = access
     }
@@ -18,7 +23,7 @@ public struct AccountsRepositorySnapshot: Sendable {
 
 public enum AccountsRepositoryError: LocalizedError, Equatable {
     case notOpened
-    case readOnlyRecovery(schemaVersion: Int)
+    case readOnlyRecovery(reason: AccountsRecoveryReason)
     case revisionConflict(expected: UInt64, actual: UInt64)
     case revisionExhausted
     case accountMissing(UUID)
@@ -28,8 +33,13 @@ public enum AccountsRepositoryError: LocalizedError, Equatable {
         switch self {
         case .notOpened:
             return L10n.tr("accounts.repository.not_opened")
-        case .readOnlyRecovery(let schemaVersion):
-            return L10n.tr("accounts.repository.read_only", schemaVersion)
+        case .readOnlyRecovery(let reason):
+            switch reason {
+            case .accountsSchema(let schemaVersion):
+                return L10n.tr("accounts.repository.read_only.accounts_schema", schemaVersion)
+            case .usageSchema(let schemaVersion):
+                return L10n.tr("accounts.repository.read_only.usage_schema", schemaVersion)
+            }
         case .revisionConflict(let expected, let actual):
             return L10n.tr("accounts.repository.revision_conflict", String(expected), String(actual))
         case .revisionExhausted:
@@ -58,6 +68,7 @@ public actor AccountsRepository {
     private let vault: KeychainAuthVault
     private let faultInjector: FaultInjector
     private var cachedSnapshot: AccountsRepositorySnapshot?
+    private var domainRecoveryReason: AccountsRecoveryReason?
 
     public init(
         persistence: AccountsPersistence = AccountsPersistence(),
@@ -79,7 +90,27 @@ public actor AccountsRepository {
         currentClaudeFingerprint: String?,
         now: Date = .now
     ) async throws -> AccountsRepositorySnapshot {
-        _ = try await usageRepository.open()
+        if let future = try persistence.withExclusiveLock({ () -> PersistedStateV5? in
+            guard let data = try persistence.loadData() else { return nil }
+            let header = try JSONDecoder.limits.decode(StateSchemaHeader.self, from: data)
+            guard header.schemaVersion > PersistedStateV5.currentSchemaVersion else { return nil }
+            return try JSONDecoder.limits.decode(PersistedStateV5.self, from: data)
+        }) {
+            return try await finishOpen(
+                AccountsRepositorySnapshot(
+                    state: future,
+                    access: .readOnlyRecovery(
+                        reason: .accountsSchema(schemaVersion: future.schemaVersion)
+                    )
+                )
+            )
+        }
+
+        let usageAccess = try await usageRepository.open()
+        let usageRecoveryReason: AccountsRecoveryReason? = switch usageAccess {
+        case .readWrite: nil
+        case .readOnlyRecovery(let schemaVersion): .usageSchema(schemaVersion: schemaVersion)
+        }
 
         // Migration spans two durable owners. Limits are written to SQLite first;
         // state.json is switched to v4 only after that write succeeds. The second
@@ -91,12 +122,12 @@ public actor AccountsRepository {
                     return PreparedOpen(
                         sourceData: nil,
                         migration: PersistedStateMigrationResult(
-                            state: PersistedStateV4(accounts: []),
+                            state: PersistedStateV5(accounts: []),
                             legacyLimitObservations: [],
                             legacyRateLimitSnapshots: [],
                             receipt: PersistedStateMigrationReceipt(
-                                sourceSchemaVersion: PersistedStateV4.currentSchemaVersion,
-                                targetSchemaVersion: PersistedStateV4.currentSchemaVersion,
+                                sourceSchemaVersion: PersistedStateV5.currentSchemaVersion,
+                                targetSchemaVersion: PersistedStateV5.currentSchemaVersion,
                                 retiredCredentialCount: 0,
                                 importedLimitObservationCount: 0
                             )
@@ -106,8 +137,8 @@ public actor AccountsRepository {
                 }
 
                 let header = try JSONDecoder.limits.decode(StateSchemaHeader.self, from: originalData)
-                if header.schemaVersion > PersistedStateV4.currentSchemaVersion {
-                    let state = try JSONDecoder.limits.decode(PersistedStateV4.self, from: originalData)
+                if header.schemaVersion > PersistedStateV5.currentSchemaVersion {
+                    let state = try JSONDecoder.limits.decode(PersistedStateV5.self, from: originalData)
                     return PreparedOpen(sourceData: originalData, migration: nil, futureSchema: state)
                 }
 
@@ -126,14 +157,23 @@ public actor AccountsRepository {
             if let future = prepared.futureSchema {
                 let snapshot = AccountsRepositorySnapshot(
                     state: future,
-                    access: .readOnlyRecovery(schemaVersion: future.schemaVersion)
+                    access: .readOnlyRecovery(
+                        reason: .accountsSchema(schemaVersion: future.schemaVersion)
+                    )
                 )
-                cachedSnapshot = snapshot
-                return snapshot
+                return try await finishOpen(snapshot)
             }
 
             guard let migration = prepared.migration else {
                 throw AccountsRepositoryError.notOpened
+            }
+            if let usageRecoveryReason {
+                return try await finishOpen(
+                    AccountsRepositorySnapshot(
+                        state: migration.state,
+                        access: .readOnlyRecovery(reason: usageRecoveryReason)
+                    )
+                )
             }
             if !migration.legacyLimitObservations.isEmpty {
                 try await usageRepository.recordLimitObservations(migration.legacyLimitObservations)
@@ -153,13 +193,13 @@ public actor AccountsRepository {
 
             if !migration.receipt.didChange {
                 let snapshot = AccountsRepositorySnapshot(state: migration.state, access: .readWrite)
-                cachedSnapshot = snapshot
-                return snapshot
+                return try await finishOpen(snapshot)
             }
 
             let committed: AccountsRepositorySnapshot? = try persistence.withExclusiveLock {
                 guard try persistence.loadData() == prepared.sourceData else { return nil }
-                if let sourceData = prepared.sourceData {
+                if let sourceData = prepared.sourceData,
+                   migration.receipt.sourceSchemaVersion < 4 {
                     try persistence.backupBeforeV4Migration(sourceData)
                 }
                 var state = migration.state
@@ -170,8 +210,7 @@ public actor AccountsRepository {
                 return AccountsRepositorySnapshot(state: state, access: .readWrite)
             }
             if let committed {
-                cachedSnapshot = committed
-                return committed
+                return try await finishOpen(committed)
             }
         }
 
@@ -188,11 +227,15 @@ public actor AccountsRepository {
 
     public func close() async {
         cachedSnapshot = nil
+        domainRecoveryReason = nil
         await usageRepository.close()
     }
 
     @discardableResult
     public func reload() throws -> AccountsRepositorySnapshot {
+        if let cachedSnapshot, cachedSnapshot.access != .readWrite {
+            return cachedSnapshot
+        }
         let snapshot = try persistence.withExclusiveLock {
             try loadCurrentStateLocked()
         }
@@ -336,9 +379,6 @@ public actor AccountsRepository {
         expectedRevision: UInt64? = nil,
         now: Date = .now
     ) async throws -> AccountsRepositorySnapshot {
-        var retiredReference: String?
-        var retiredID: UUID?
-        var removedCodexStableAccountID: String?
         let removed = try mutate(expectedRevision: expectedRevision) { state in
             switch provider {
             case .codex:
@@ -346,53 +386,33 @@ public actor AccountsRepository {
                     throw AccountsRepositoryError.accountMissing(accountID)
                 }
                 let account = state.accounts.remove(at: index)
-                removedCodexStableAccountID = account.accountId
-                retiredReference = account.keychainAccount
-                let retired = makeRetiredCredential(
+                state.pendingAccountCleanups.append(
+                    PendingAccountCleanup(
                     provider: .codex,
-                    recordID: account.id,
+                    sourceRecordID: account.id,
                     keychainAccount: account.keychainAccount,
-                    stableIdentity: account.accountId.map { "codex:\($0)" },
-                    purgeAfter: now,
-                    now: now
+                    codexAccountID: account.accountId,
+                    createdAt: now
+                    )
                 )
-                retiredID = retired.id
-                state.retiredCredentials.append(retired)
             case .claude:
                 guard let index = state.claudeAccounts.firstIndex(where: { $0.id == accountID }) else {
                     throw AccountsRepositoryError.accountMissing(accountID)
                 }
                 let account = state.claudeAccounts.remove(at: index)
-                retiredReference = account.keychainAccount
-                let identity = account.stableIdentity.map { "claude:\($0.normalizedEmail)|\($0.organizationId ?? "-")" }
-                let retired = makeRetiredCredential(
+                state.pendingAccountCleanups.append(
+                    PendingAccountCleanup(
                     provider: .claude,
-                    recordID: account.id,
+                    sourceRecordID: account.id,
                     keychainAccount: account.keychainAccount,
-                    stableIdentity: identity,
-                    purgeAfter: now,
-                    now: now
+                    codexAccountID: nil,
+                    createdAt: now
+                    )
                 )
-                retiredID = retired.id
-                state.retiredCredentials.append(retired)
             }
         }
-
-        if provider == .codex,
-           let stableAccountID = removedCodexStableAccountID {
-            try await usageRepository.deleteAccount(stableAccountID)
-        }
-
-        guard let retiredReference, let retiredID else { return removed }
-        do {
-            try faultInjector(.beforeCredentialDelete)
-            try vault.delete(account: retiredReference)
-            return try mutate { state in
-                state.retiredCredentials.removeAll { $0.id == retiredID }
-            }
-        } catch {
-            return removed
-        }
+        cachedSnapshot = removed
+        return await performPendingAccountCleanups(startingAt: removed)
     }
 
     @discardableResult
@@ -421,6 +441,41 @@ public actor AccountsRepository {
         }
     }
 
+    private func finishOpen(
+        _ snapshot: AccountsRepositorySnapshot
+    ) async throws -> AccountsRepositorySnapshot {
+        switch snapshot.access {
+        case .readWrite:
+            domainRecoveryReason = nil
+        case .readOnlyRecovery(let reason):
+            domainRecoveryReason = reason
+        }
+        cachedSnapshot = snapshot
+        guard snapshot.access == .readWrite else { return snapshot }
+        return await performPendingAccountCleanups(startingAt: snapshot)
+    }
+
+    private func performPendingAccountCleanups(
+        startingAt snapshot: AccountsRepositorySnapshot
+    ) async -> AccountsRepositorySnapshot {
+        var current = snapshot
+        for cleanup in current.state.pendingAccountCleanups {
+            do {
+                if let accountID = cleanup.codexAccountID {
+                    try await usageRepository.deleteAccount(accountID)
+                }
+                try faultInjector(.beforeCredentialDelete)
+                try vault.delete(account: cleanup.keychainAccount)
+                current = try mutate { state in
+                    state.pendingAccountCleanups.removeAll { $0.id == cleanup.id }
+                }
+            } catch {
+                continue
+            }
+        }
+        return current
+    }
+
     private func replaceCredential(
         provider: ProviderKind,
         recordID: UUID,
@@ -428,7 +483,7 @@ public actor AccountsRepository {
         credential: Data,
         expectedRevision: UInt64?,
         now: Date,
-        update: (inout PersistedStateV4, String) throws -> Void
+        update: (inout PersistedStateV5, String) throws -> Void
     ) throws -> AccountsRepositorySnapshot {
         let result = try persistence.withExclusiveLock {
             var snapshot = try loadCurrentStateLocked()
@@ -461,7 +516,7 @@ public actor AccountsRepository {
                         )
                     )
                 }
-                state.schemaVersion = PersistedStateV4.currentSchemaVersion
+                state.schemaVersion = PersistedStateV5.currentSchemaVersion
                 try advanceRevision(&state)
                 try faultInjector(.beforeStateWrite)
                 try persistence.save(state)
@@ -482,7 +537,7 @@ public actor AccountsRepository {
 
     private func mutate(
         expectedRevision: UInt64? = nil,
-        _ update: (inout PersistedStateV4) throws -> Void
+        _ update: (inout PersistedStateV5) throws -> Void
     ) throws -> AccountsRepositorySnapshot {
         let result = try persistence.withExclusiveLock {
             let loaded = try loadCurrentStateLocked()
@@ -491,7 +546,7 @@ public actor AccountsRepository {
             try faultInjector(.afterReload)
             var state = loaded.state
             try update(&state)
-            state.schemaVersion = PersistedStateV4.currentSchemaVersion
+            state.schemaVersion = PersistedStateV5.currentSchemaVersion
             try advanceRevision(&state)
             try faultInjector(.beforeStateWrite)
             try persistence.save(state)
@@ -504,21 +559,27 @@ public actor AccountsRepository {
 
     private func loadCurrentStateLocked() throws -> AccountsRepositorySnapshot {
         let state = try persistence.load()
-        if state.schemaVersion > PersistedStateV4.currentSchemaVersion {
+        if state.schemaVersion > PersistedStateV5.currentSchemaVersion {
             return AccountsRepositorySnapshot(
                 state: state,
-                access: .readOnlyRecovery(schemaVersion: state.schemaVersion)
+                access: .readOnlyRecovery(
+                    reason: .accountsSchema(schemaVersion: state.schemaVersion)
+                )
             )
         }
-        guard state.schemaVersion == PersistedStateV4.currentSchemaVersion else {
-            throw AccountsRepositoryError.readOnlyRecovery(schemaVersion: state.schemaVersion)
+        guard state.schemaVersion == PersistedStateV5.currentSchemaVersion else {
+            throw AccountsRepositoryError.readOnlyRecovery(
+                reason: .accountsSchema(schemaVersion: state.schemaVersion)
+            )
         }
-        return AccountsRepositorySnapshot(state: state, access: .readWrite)
+        let access = domainRecoveryReason.map { AccountsRepositoryAccess.readOnlyRecovery(reason: $0) }
+            ?? .readWrite
+        return AccountsRepositorySnapshot(state: state, access: access)
     }
 
     private func requireWritable(_ snapshot: AccountsRepositorySnapshot) throws {
-        if case .readOnlyRecovery(let version) = snapshot.access {
-            throw AccountsRepositoryError.readOnlyRecovery(schemaVersion: version)
+        if case .readOnlyRecovery(let reason) = snapshot.access {
+            throw AccountsRepositoryError.readOnlyRecovery(reason: reason)
         }
     }
 
@@ -528,14 +589,14 @@ public actor AccountsRepository {
         }
     }
 
-    private func advanceRevision(_ state: inout PersistedStateV4) throws {
+    private func advanceRevision(_ state: inout PersistedStateV5) throws {
         guard state.revision < UInt64.max else {
             throw AccountsRepositoryError.revisionExhausted
         }
         state.revision += 1
     }
 
-    private func stableIdentity(provider: ProviderKind, recordID: UUID, state: PersistedStateV4) -> String? {
+    private func stableIdentity(provider: ProviderKind, recordID: UUID, state: PersistedStateV5) -> String? {
         switch provider {
         case .codex:
             return state.accounts.first(where: { $0.id == recordID })?.accountId.map { "codex:\($0)" }
@@ -569,7 +630,7 @@ public actor AccountsRepository {
 private struct PreparedOpen {
     let sourceData: Data?
     let migration: PersistedStateMigrationResult?
-    let futureSchema: PersistedStateV4?
+    let futureSchema: PersistedStateV5?
 }
 
 private struct StateSchemaHeader: Decodable {

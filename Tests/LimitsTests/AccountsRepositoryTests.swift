@@ -6,7 +6,7 @@ import Testing
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let persistence = AccountsPersistence(baseURL: root)
-    let legacy = PersistedStateV4(schemaVersion: 2, revision: 4, accounts: [])
+    let legacy = PersistedStateV5(schemaVersion: 2, revision: 4, accounts: [])
     try persistence.save(legacy)
     let originalData = try persistence.loadData()
     let original = try #require(originalData)
@@ -14,7 +14,7 @@ import Testing
 
     let migrated = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
     #expect(migrated.access == .readWrite)
-    #expect(migrated.state.schemaVersion == 4)
+    #expect(migrated.state.schemaVersion == PersistedStateV5.currentSchemaVersion)
     #expect(migrated.state.revision == 5)
     #expect(try Data(contentsOf: persistence.preV4BackupURL) == original)
 
@@ -22,7 +22,7 @@ import Testing
     try futureData.write(to: persistence.stateURL, options: .atomic)
     let futureRepository = AccountsRepository(persistence: persistence, vault: KeychainAuthVault(store: MemoryKeychainStore()))
     let future = try await futureRepository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
-    #expect(future.access == .readOnlyRecovery(schemaVersion: 99))
+    #expect(future.access == .readOnlyRecovery(reason: .accountsSchema(schemaVersion: 99)))
     await #expect(throws: AccountsRepositoryError.self) {
         try await futureRepository.deleteAccount(provider: .codex, accountID: UUID())
     }
@@ -196,7 +196,13 @@ import Testing
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let store = MemoryKeychainStore()
-    let repository = AccountsRepository(persistence: AccountsPersistence(baseURL: root), vault: KeychainAuthVault(store: store))
+    let persistence = AccountsPersistence(baseURL: root)
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let repository = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: store)
+    )
     _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
     let account = repositoryAccount(fingerprint: "one")
     let saved = try await repository.saveCodexAccount(account, credential: Data("one".utf8))
@@ -205,8 +211,21 @@ import Testing
 
     let deleted = try await repository.deleteAccount(provider: .codex, accountID: account.id)
     #expect(deleted.state.accounts.isEmpty)
-    #expect(deleted.state.retiredCredentials.contains { $0.keychainAccount == reference })
+    #expect(deleted.state.retiredCredentials.isEmpty)
+    #expect(deleted.state.pendingAccountCleanups.contains { $0.keychainAccount == reference })
     #expect(store.data(for: reference) == Data("one".utf8))
+
+    store.failDeletes = false
+    await repository.close()
+    let reopened = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: store)
+    )
+    let recovered = try await reopened.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    #expect(recovered.state.accounts.isEmpty)
+    #expect(recovered.state.pendingAccountCleanups.isEmpty)
+    #expect(store.data(for: reference) == nil)
 }
 
 @Test func repositoryKeychainWriteFailureLeavesStateUntouched() async throws {
@@ -228,7 +247,7 @@ import Testing
     defer { try? FileManager.default.removeItem(at: root) }
     let store = MemoryKeychainStore()
     let persistence = AccountsPersistence(baseURL: root)
-    try persistence.save(PersistedStateV4(revision: .max, accounts: []))
+    try persistence.save(PersistedStateV5(revision: .max, accounts: []))
     let repository = AccountsRepository(persistence: persistence, vault: KeychainAuthVault(store: store))
     _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
 
@@ -244,11 +263,11 @@ import Testing
     #expect(store.allAccounts.isEmpty)
 }
 
-@Test func repositoryMigratesV3LimitsIntoSQLiteBeforeSwitchingStateToV4() async throws {
+@Test func repositoryMigratesV3LimitsIntoSQLiteBeforeSwitchingStateToV5() async throws {
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let persistence = AccountsPersistence(baseURL: root)
-    try persistence.save(PersistedStateV4(accounts: []))
+    try persistence.save(PersistedStateV5(accounts: []))
     let legacyData = legacyV3StateData()
     try legacyData.write(to: persistence.stateURL, options: .atomic)
     let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
@@ -261,7 +280,7 @@ import Testing
     let opened = try await repository.open(currentCodexFingerprint: "legacy-fingerprint", currentClaudeFingerprint: nil)
     let usageSnapshot = try await usage.snapshot()
 
-    #expect(opened.state.schemaVersion == 4)
+    #expect(opened.state.schemaVersion == PersistedStateV5.currentSchemaVersion)
     #expect(opened.state.accounts.first?.accountId == "acct_legacy")
     #expect(usageSnapshot.limitObservations["acct_legacy"]?.count == 2)
     #expect(usageSnapshot.latestLimits["acct_legacy"]?.primary?.primary?.usedPercent == 31)
@@ -274,7 +293,7 @@ import Testing
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let persistence = AccountsPersistence(baseURL: root)
-    try persistence.save(PersistedStateV4(accounts: []))
+    try persistence.save(PersistedStateV5(accounts: []))
     let legacyData = legacyV3StateData()
     try legacyData.write(to: persistence.stateURL, options: .atomic)
     let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
@@ -289,7 +308,7 @@ import Testing
     await #expect(throws: RepositoryInjectedFailure.self) {
         try await interrupted.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
     }
-    #expect(try JSONDecoder.limits.decode(PersistedStateV4.self, from: Data(contentsOf: persistence.stateURL)).schemaVersion == 3)
+    #expect(try JSONDecoder.limits.decode(PersistedStateV5.self, from: Data(contentsOf: persistence.stateURL)).schemaVersion == 3)
     #expect(try await usage.snapshot().limitObservations["acct_legacy"]?.count == 2)
 
     let retry = AccountsRepository(
@@ -298,7 +317,7 @@ import Testing
         vault: KeychainAuthVault(store: MemoryKeychainStore())
     )
     let opened = try await retry.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
-    #expect(opened.state.schemaVersion == 4)
+    #expect(opened.state.schemaVersion == PersistedStateV5.currentSchemaVersion)
     #expect(try await usage.snapshot().limitObservations["acct_legacy"]?.count == 2)
 }
 
@@ -451,4 +470,60 @@ private func legacyV3StateData() -> Data {
         }
         """.utf8
     )
+}
+
+@Test func futureUsageSchemaMakesTheWholeAccountDomainReadOnlyBeforeDelete() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let persistence = AccountsPersistence(baseURL: root)
+    let account = repositoryAccount(fingerprint: "future-usage")
+    try persistence.save(PersistedStateV5(accounts: [account]))
+    let store = MemoryKeychainStore()
+    try store.save(Data("secret".utf8), account: account.keychainAccount, label: account.label)
+
+    let database = root.appending(path: "usage.sqlite3")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+    process.arguments = [database.path, "PRAGMA user_version = 999;"]
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let repository = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: store)
+    )
+    let opened = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    #expect(opened.access == .readOnlyRecovery(reason: .usageSchema(schemaVersion: 999)))
+
+    await #expect(throws: AccountsRepositoryError.self) {
+        try await repository.deleteAccount(provider: .codex, accountID: account.id)
+    }
+    let disk = try persistence.load()
+    #expect(disk.accounts == [account])
+    #expect(disk.pendingAccountCleanups.isEmpty)
+    #expect(store.data(for: account.keychainAccount) == Data("secret".utf8))
+    await repository.close()
+}
+
+@Test func futureAccountsSchemaIsDetectedBeforeOpeningUsageStorage() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let persistence = AccountsPersistence(baseURL: root)
+    let future = PersistedStateV5(schemaVersion: 99, accounts: [])
+    try persistence.save(future)
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let repository = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: MemoryKeychainStore())
+    )
+
+    let opened = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+
+    #expect(opened.access == .readOnlyRecovery(reason: .accountsSchema(schemaVersion: 99)))
+    #expect(!FileManager.default.fileExists(atPath: root.appending(path: "usage.sqlite3").path))
+    await repository.close()
 }

@@ -382,3 +382,205 @@ private let coordinatorRolloutFixture = """
 {"timestamp":"2026-08-21T00:02:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":2,"reasoning_output_tokens":1,"total_tokens":12}}}}
 {"timestamp":"2026-08-21T00:03:00Z","type":"event_msg","payload":{"type":"task_complete"}}
 """ + "\n"
+
+@Test func watcherMarksImportDirtyAndRunsASecondPassAfterActiveImport() async throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-import-dirty-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let accounts = AccountsRepository(
+        persistence: AccountsPersistence(baseURL: root),
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: CoordinatorMemoryKeychain())
+    )
+    _ = try await accounts.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let gate = CoordinatorImportGate()
+    let importer = CoordinatorGatedImporter(repository: nil, gate: gate)
+    let coordinator = CodexUsageCoordinator(
+        accountsRepository: accounts,
+        usageRepository: usage,
+        sessionCoordinator: CodexSessionCoordinator(
+            globalStore: CoordinatorGlobalStore(),
+            accountService: CoordinatorCredentialProbeService()
+        ),
+        codexHome: nil,
+        allowsServerProbes: false,
+        importer: importer,
+        pricingDownloader: CoordinatorOfflinePricing()
+    )
+
+    let first = Task { await coordinator.localFilesChanged() }
+    await gate.waitUntilStarted()
+    await coordinator.localFilesChanged()
+    await gate.release()
+    await first.value
+
+    #expect(await importer.passCount == 2)
+    await usage.close()
+}
+
+@Test func clearWaitsForActiveImportAndLeavesDurableEmptyEpoch() async throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-clear-import-race-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let accounts = AccountsRepository(
+        persistence: AccountsPersistence(baseURL: root),
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: CoordinatorMemoryKeychain())
+    )
+    _ = try await accounts.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let boundary = Date(timeIntervalSince1970: 10_000)
+    let gate = CoordinatorImportGate()
+    let importer = CoordinatorGatedImporter(
+        repository: usage,
+        gate: gate,
+        eventDate: boundary.addingTimeInterval(-1)
+    )
+    let coordinator = CodexUsageCoordinator(
+        accountsRepository: accounts,
+        usageRepository: usage,
+        sessionCoordinator: CodexSessionCoordinator(
+            globalStore: CoordinatorGlobalStore(),
+            accountService: CoordinatorCredentialProbeService()
+        ),
+        codexHome: nil,
+        allowsServerProbes: false,
+        importer: importer,
+        pricingDownloader: CoordinatorOfflinePricing()
+    )
+
+    let active = Task {
+        try await coordinator.refresh(currentAccountLocalID: nil, selectedAccountLocalID: nil, now: boundary)
+    }
+    await gate.waitUntilStarted()
+    let clear = Task { try await coordinator.clearStatistics(now: boundary) }
+    try await Task.sleep(for: .milliseconds(10))
+    await gate.release()
+    _ = try await active.value
+    let cleared = try await clear.value
+
+    #expect(cleared.analyticsEpochStartedAt == boundary)
+    #expect(cleared.dailyUsage.isEmpty)
+    await usage.close()
+}
+
+@Test func reimportWaitsForActiveImportThenRestoresTheFullLocalHistory() async throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-reimport-import-race-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let accounts = AccountsRepository(
+        persistence: AccountsPersistence(baseURL: root),
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: CoordinatorMemoryKeychain())
+    )
+    _ = try await accounts.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let boundary = Date(timeIntervalSince1970: 20_000)
+    try await usage.beginAnalyticsEpoch(at: boundary, baselines: [])
+    let gate = CoordinatorImportGate()
+    let importer = CoordinatorGatedImporter(
+        repository: usage,
+        gate: gate,
+        eventDate: boundary.addingTimeInterval(-1)
+    )
+    let coordinator = CodexUsageCoordinator(
+        accountsRepository: accounts,
+        usageRepository: usage,
+        sessionCoordinator: CodexSessionCoordinator(
+            globalStore: CoordinatorGlobalStore(),
+            accountService: CoordinatorCredentialProbeService()
+        ),
+        codexHome: nil,
+        allowsServerProbes: false,
+        importer: importer,
+        pricingDownloader: CoordinatorOfflinePricing()
+    )
+
+    let active = Task {
+        try await coordinator.refresh(currentAccountLocalID: nil, selectedAccountLocalID: nil, now: boundary)
+    }
+    await gate.waitUntilStarted()
+    let reimport = Task { try await coordinator.reimportHistory(now: boundary) }
+    try await Task.sleep(for: .milliseconds(10))
+    await gate.release()
+    _ = try await active.value
+    let restored = try await reimport.value
+
+    #expect(restored.analyticsEpochStartedAt == nil)
+    #expect(restored.dailyUsage.reduce(0) { $0 + $1.usage.totalTokens } == 120)
+    #expect(await importer.passCount >= 2)
+    await usage.close()
+}
+
+private actor CoordinatorImportGate {
+    private var started = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func pauseFirstPass() async {
+        guard !started else { return }
+        started = true
+        let waiters = startWaiters
+        startWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
+private actor CoordinatorGatedImporter: CodexRolloutImporting {
+    private let repository: CodexUsageRepository?
+    private let gate: CoordinatorImportGate
+    private let eventDate: Date
+    private(set) var passCount = 0
+
+    init(
+        repository: CodexUsageRepository?,
+        gate: CoordinatorImportGate,
+        eventDate: Date = Date(timeIntervalSince1970: 1_000)
+    ) {
+        self.repository = repository
+        self.gate = gate
+        self.eventDate = eventDate
+    }
+
+    func importChangedFiles() async -> CodexRolloutImportReport {
+        passCount += 1
+        if passCount == 1 { await gate.pauseFirstPass() }
+        let inserted: Int
+        if let repository {
+            inserted = (try? await repository.recordUsageEvents([coordinatorImportEvent(at: eventDate)])) ?? 0
+        } else {
+            inserted = 0
+        }
+        return CodexRolloutImportReport(scannedFiles: 1, importedEvents: inserted, unreadableFiles: 0)
+    }
+}
+
+private func coordinatorImportEvent(at date: Date) -> CodexUsageEvent {
+    CodexUsageEvent(
+        threadID: "coordinator-import-thread",
+        turnID: "turn",
+        counterEpoch: 0,
+        occurredAt: date,
+        accountID: nil,
+        requestedModel: "gpt-5.6-sol",
+        billedModel: nil,
+        reasoningEffort: nil,
+        speed: nil,
+        usage: CodexTokenUsage(inputTokens: 100, outputTokens: 20, totalTokens: 120),
+        attribution: .unattributed,
+        source: .localRollout
+    )
+}

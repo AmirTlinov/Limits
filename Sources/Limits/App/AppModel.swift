@@ -58,6 +58,7 @@ final class AppModel: ObservableObject {
     typealias SidebarLimitSummary = LimitsCore.SidebarLimitSummary
 
     @Published private(set) var accounts: [StoredAccount] = []
+    @Published private(set) var accountsAccess: AccountsRepositoryAccess = .readWrite
     @Published private(set) var codexUsageData = CodexUsageRepositorySnapshot(
         accountUsage: [:],
         dailyUsage: [],
@@ -100,7 +101,6 @@ final class AppModel: ObservableObject {
     private var bootstrapTask: Task<Void, Never>?
     private var currentValuesRefreshTask: Task<Void, Never>?
     private var currentValuesRefreshID: UUID?
-    private var currentValuesRefreshIsForced = false
     private var codexRateCard = OpenAIPricingCatalog.bundledRevision
     private var selectedCodexAccountID: UUID?
     private var codexPresentationRefreshDepth = 0
@@ -108,6 +108,8 @@ final class AppModel: ObservableObject {
     var codexInsights: CodexInsightsSnapshot {
         codexAnalyticsSnapshots[codexUsagePeriod]
     }
+
+    var canMutateDomain: Bool { accountsAccess == .readWrite }
 
     var isBusy: Bool {
         providerOperationStates.values.contains { $0.phase == .running }
@@ -172,11 +174,12 @@ final class AppModel: ObservableObject {
         do {
             try await loadPersistedState()
             guard persistedStateLoaded else { return }
-            await refreshCurrentValues(forceProbe: false)
+            guard canMutateDomain else { return }
+            await refreshCurrentValues()
 
             if accounts.isEmpty, case .external = currentCLIState.source {
                 try await importCurrentCLIAuthNow()
-                await refreshCurrentValues(forceProbe: false)
+                await refreshCurrentValues()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -188,7 +191,8 @@ final class AppModel: ObservableObject {
             await bootstrapTask.value
         }
         guard persistedStateLoaded else { return }
-        await refreshCurrentValues(forceProbe: false)
+        guard canMutateDomain else { return }
+        await refreshCurrentValues()
     }
 
     private func loadPersistedState() async throws {
@@ -200,19 +204,26 @@ final class AppModel: ObservableObject {
         )
         if snapshot.access == .readWrite {
             snapshot = try await accountsRepository.purgeRetiredCredentials()
-        } else if case .readOnlyRecovery(let version) = snapshot.access {
-            setNotice(AccountsRepositoryError.readOnlyRecovery(schemaVersion: version).localizedDescription, provider: .codex)
+        } else if case .readOnlyRecovery(let reason) = snapshot.access {
+            setNotice(AccountsRepositoryError.readOnlyRecovery(reason: reason).localizedDescription, provider: .codex)
         }
         applyRepositorySnapshot(snapshot)
+        if case .readOnlyRecovery(reason: .accountsSchema(schemaVersion: _)) = snapshot.access {
+            persistedStateLoaded = true
+            return
+        }
         let cached = try await usageCoordinator.cachedData()
         codexUsageData = cached.0
         codexRateCard = cached.1
         rebuildCodexInsights()
-        await usageCoordinator.startLocalHistoryWatcher()
+        if snapshot.access == .readWrite {
+            await usageCoordinator.startLocalHistoryWatcher()
+        }
         persistedStateLoaded = true
     }
 
     private func applyRepositorySnapshot(_ snapshot: AccountsRepositorySnapshot) {
+        accountsAccess = snapshot.access
         accounts = snapshot.state.accounts
         claudeAccounts = snapshot.state.claudeAccounts
         providerCatalog = ProviderCatalogSnapshot(
@@ -244,6 +255,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCurrentCLIState() async {
+        guard canMutateDomain else { return }
         defer { publishWidgetSnapshotIfPossible() }
         let observedAt = Date()
         do {
@@ -296,7 +308,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func refreshCurrentCLIProbe(force: Bool = false) async {
+    func refreshCurrentCLIProbe() async {
+        guard canMutateDomain else { return }
         defer { publishWidgetSnapshotIfPossible() }
         if isCurrentCLIAuthMissing() || isCurrentCLIAuthUnreadable() || currentCLIState.authFingerprint == nil {
             currentCLIProbe = nil
@@ -315,7 +328,7 @@ final class AppModel: ObservableObject {
             let output = try await usageCoordinator.refresh(
                 currentAccountLocalID: currentID,
                 selectedAccountLocalID: selectedCodexAccountID,
-                forceAccountIDs: force ? Set([currentID].compactMap { $0 }) : [],
+                forceAccountIDs: [],
                 now: Date()
             )
             applyUsageCoordinatorSnapshot(output)
@@ -398,12 +411,13 @@ final class AppModel: ObservableObject {
         currentCLIProbeError = endpointError
     }
 
-    func refreshCurrentCLIPanel(forceProbe: Bool = false) async {
+    func refreshCurrentCLIPanel() async {
         await refreshCurrentCLIState()
-        await refreshCurrentCLIProbe(force: forceProbe)
+        await refreshCurrentCLIProbe()
     }
 
     func refreshCurrentClaudeState() async {
+        guard canMutateDomain else { return }
         defer { publishWidgetSnapshotIfPossible() }
         defer {
             providerCatalog = ProviderCatalogSnapshot(
@@ -432,7 +446,7 @@ final class AppModel: ObservableObject {
             }
             try await self.upsertAccount(from: result, preferredLabel: result.email)
             await self.refreshCurrentCLIState()
-            await self.refreshCurrentCLIProbe(force: false)
+            await self.refreshCurrentCLIProbe()
         }
     }
 
@@ -440,7 +454,7 @@ final class AppModel: ObservableObject {
         await runBusy(provider: .codex, L10n.tr("busy.importing_current_cli")) { [self] in
             try await self.importCurrentCLIAuthNow()
             await self.refreshCurrentCLIState()
-            await self.refreshCurrentCLIProbe(force: false)
+            await self.refreshCurrentCLIProbe()
         }
     }
 
@@ -467,7 +481,7 @@ final class AppModel: ObservableObject {
                     transition: .exact
                 )
                 await self.refreshCurrentCLIState()
-                await self.refreshCurrentCLIProbe(force: false)
+                await self.refreshCurrentCLIProbe()
             } catch {
                 await self.refreshCurrentCLIState()
                 throw error
@@ -492,7 +506,7 @@ final class AppModel: ObservableObject {
                 self.setNotice(L10n.tr("account.reauth.different_new", account.label), provider: .codex)
             }
             await self.refreshCurrentCLIState()
-            await self.refreshCurrentCLIProbe(force: false)
+            await self.refreshCurrentCLIProbe()
         }
     }
 
@@ -517,6 +531,7 @@ final class AppModel: ObservableObject {
         accountID: UUID,
         to proposedLabel: String
     ) async {
+        guard canMutateDomain else { return }
         let label = proposedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !label.isEmpty else { return }
         defer { publishWidgetSnapshotIfPossible() }
@@ -581,22 +596,18 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func refreshCurrentValues(forceProbe: Bool) async {
+    func refreshCurrentValues() async {
+        guard canMutateDomain else { return }
         if let activeTask = currentValuesRefreshTask {
-            let needsForcedFollowup = forceProbe && !currentValuesRefreshIsForced
             await activeTask.value
-            if needsForcedFollowup {
-                await refreshCurrentValues(forceProbe: true)
-            }
             return
         }
 
         let refreshID = UUID()
         currentValuesRefreshID = refreshID
-        currentValuesRefreshIsForced = forceProbe
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.performCurrentValuesRefresh(forceProbe: forceProbe)
+            await self.performCurrentValuesRefresh()
             self.finishCurrentValuesRefresh(id: refreshID)
         }
         currentValuesRefreshTask = task
@@ -607,13 +618,12 @@ final class AppModel: ObservableObject {
         if currentValuesRefreshID == id {
             currentValuesRefreshTask = nil
             currentValuesRefreshID = nil
-            currentValuesRefreshIsForced = false
         }
     }
 
-    private func performCurrentValuesRefresh(forceProbe: Bool) async {
+    private func performCurrentValuesRefresh() async {
         if !isProviderBusy(.codex) {
-            await refreshCurrentCLIPanel(forceProbe: forceProbe)
+            await refreshCurrentCLIPanel()
         }
         if !isProviderBusy(.claude) {
             await refreshCurrentClaudeState()
@@ -661,7 +671,7 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshCurrentSurfacesInBackground() async {
-        await refreshCurrentValues(forceProbe: false)
+        await refreshCurrentValues()
     }
 
     private func currentCodexAccountIDForRefreshExclusion() -> UUID? {
@@ -670,26 +680,28 @@ final class AppModel: ObservableObject {
 
     func deleteAccount(_ account: StoredAccount) async {
         await runBusy(provider: .codex, L10n.tr("busy.deleting", account.label)) { [self] in
-            let snapshot = try await self.accountsRepository.deleteAccount(provider: .codex, accountID: account.id)
+            let snapshot = try await self.usageCoordinator.deleteAccount(provider: .codex, accountID: account.id)
             self.applyRepositorySnapshot(snapshot)
             await self.refreshCurrentCLIState()
-            await self.refreshCurrentCLIProbe(force: false)
+            await self.refreshCurrentCLIProbe()
         }
     }
 
     func deleteClaudeAccount(_ account: ClaudeStoredAccount) async {
         await runBusy(provider: .claude, L10n.tr("busy.deleting", account.label)) { [self] in
-            let snapshot = try await self.accountsRepository.deleteAccount(provider: .claude, accountID: account.id)
+            let snapshot = try await self.usageCoordinator.deleteAccount(provider: .claude, accountID: account.id)
             self.applyRepositorySnapshot(snapshot)
             await self.refreshCurrentClaudeState()
         }
     }
 
     func requestDeleteAccount(_ account: StoredAccount) {
+        guard canMutateDomain else { return }
         pendingCredentialDeletion = .codex(account)
     }
 
     func requestDeleteClaudeAccount(_ account: ClaudeStoredAccount) {
+        guard canMutateDomain else { return }
         pendingCredentialDeletion = .claude(account)
     }
 
@@ -1234,6 +1246,7 @@ final class AppModel: ObservableObject {
         canCancel: Bool = false,
         operation: @escaping () async throws -> Void
     ) async {
+        guard canMutateDomain else { return }
         guard !isProviderBusy(provider) else { return }
         let existingNotice = providerOperationStates[provider]?.notice
         providerOperationStates[provider] = ProviderOperationState(

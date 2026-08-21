@@ -202,7 +202,8 @@
 "accounts.persistence.lock_failed" = "Impossible de verrouiller le stockage des comptes (erreur %d).";
 "accounts.persistence.atomic_replace_failed" = "Impossible de remplacer atomiquement l’état des comptes (erreur %d).";
 "accounts.repository.not_opened" = "Le stockage des comptes n’est pas encore ouvert.";
-"accounts.repository.read_only" = "Ces comptes ont été écrits avec le schéma v%d. Limits les a ouverts en lecture seule afin de préserver les données plus récentes.";
+"accounts.repository.read_only.accounts_schema" = "Le stockage des comptes utilise le schéma plus récent v%d. Tout le domaine des comptes est ouvert en lecture seule afin de préserver les données.";
+"accounts.repository.read_only.usage_schema" = "Le stockage d’utilisation utilise le schéma plus récent v%d. Tout le domaine des comptes est ouvert en lecture seule afin de garder les deux stockages cohérents.";
 "accounts.repository.revision_conflict" = "Les comptes ont changé dans un autre processus Limits (révision attendue %@, révision trouvée %@). Répétez l’action ; Limits chargera automatiquement l’état actuel.";
 "accounts.repository.account_missing" = "Le compte enregistré n’existe plus.";
 "accounts.repository.credential_missing" = "Les identifiants enregistrés n’existent plus.";
@@ -291,11 +292,11 @@
 "insights.tokens.millions_suffix" = " M";
 "insights.tokens.billions_suffix" = " Md";
 "insights.settings.title" = "Statistiques Codex";
-"insights.settings.description" = "Limits ne conserve que les métadonnées numériques. Les événements bruts restent 90 jours, les totaux quotidiens sont conservés.";
+"insights.settings.description" = "Effacer crée un point zéro durable : l’usage local et serveur antérieur reste hors des analyses. Réimporter supprime cette frontière, relit les JSONL locaux et actualise les totaux serveur ; les prévisions recommencent leur collecte.";
 "insights.settings.reimport" = "Réimporter l’historique";
 "insights.settings.clear" = "Effacer les statistiques";
 "insights.settings.clear.confirm_title" = "Effacer toutes les statistiques Codex ?";
-"insights.settings.clear.confirm_message" = "L’historique de jetons et les observations de limites existants seront supprimés. Les comptes et identifiants restent; la nouvelle utilisation continuera d’être collectée automatiquement.";
+"insights.settings.clear.confirm_message" = "Maintenant devient le nouveau point zéro. L’usage local et serveur antérieur reste hors des analyses ; comptes, identifiants, historique d’authentification, tarifs et positions d’importation sont conservés. La nouvelle activité compte dès maintenant.";
 "insights.settings.clearing" = "Effacement des statistiques Codex…";
 "insights.settings.importing" = "Import de l’historique Codex…";
 "pricing.error.disallowed_source" = "Source tarifaire non autorisée : %@.";

@@ -1009,6 +1009,7 @@ public struct CodexUsageRepositorySnapshot: Sendable {
     public let endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]]
     public let threadUsageEvidence: [String: CodexThreadUsageEvidence]
     public let rateCardRevisions: [OpenAIRateCardRevision]
+    public let analyticsEpochStartedAt: Date?
 
     public init(
         accountUsage: [String: CodexAccountUsageSnapshot],
@@ -1017,7 +1018,8 @@ public struct CodexUsageRepositorySnapshot: Sendable {
         latestLimits: [String: CodexRateLimitsSnapshot],
         endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]] = [:],
         threadUsageEvidence: [String: CodexThreadUsageEvidence] = [:],
-        rateCardRevisions: [OpenAIRateCardRevision]
+        rateCardRevisions: [OpenAIRateCardRevision],
+        analyticsEpochStartedAt: Date? = nil
     ) {
         self.accountUsage = accountUsage
         self.dailyUsage = dailyUsage
@@ -1026,5 +1028,6 @@ public struct CodexUsageRepositorySnapshot: Sendable {
         self.endpointStatuses = endpointStatuses
         self.threadUsageEvidence = threadUsageEvidence
         self.rateCardRevisions = rateCardRevisions
+        self.analyticsEpochStartedAt = analyticsEpochStartedAt
     }
 }
