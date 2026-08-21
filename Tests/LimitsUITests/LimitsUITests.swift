@@ -108,7 +108,9 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 3))
         replaceText(in: nameField, with: "2042")
         XCTAssertEqual(nameField.value as? String, "2042")
-        nameField.typeKey(.return, modifierFlags: [])
+        let detail = app.scrollViews["accounts.detail.scroll"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 3))
+        detail.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.02)).click()
 
         let renamedTitle = app.staticTexts["account.identity.title"]
         XCTAssertTrue(renamedTitle.waitForExistence(timeout: 3))

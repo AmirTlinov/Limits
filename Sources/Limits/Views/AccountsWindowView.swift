@@ -358,6 +358,10 @@ struct AccountsWindowView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollIndicators(.hidden)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
         .accessibilityIdentifier("accounts.detail.scroll")
         .background(Color.clear)
     }
