@@ -20,6 +20,13 @@ public enum CodexAuthSwitchTransactionError: LocalizedError, Equatable {
 
 public protocol CodexAccountValidating: Sendable {
     func validate(authData: Data) async throws -> AccountValidationResult
+    func validate(authData: Data, request: CodexAccountProbeRequest) async throws -> AccountValidationResult
+}
+
+public extension CodexAccountValidating {
+    func validate(authData: Data, request: CodexAccountProbeRequest) async throws -> AccountValidationResult {
+        try await validate(authData: authData)
+    }
 }
 
 extension CodexAccountService: CodexAccountValidating {}

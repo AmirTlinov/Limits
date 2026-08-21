@@ -1,0 +1,851 @@
+import Foundation
+
+@frozen public enum CodexUsageAttribution: String, Codable, Hashable, Sendable {
+    case confirmed
+    case serverMatched
+    case unattributed
+}
+
+@frozen public enum CodexUsageSource: String, Codable, Hashable, Sendable {
+    case appServer
+    case localRollout
+}
+
+@frozen public enum OpenAIContextTier: String, CaseIterable, Codable, Hashable, Sendable {
+    case standard
+    case long
+    case unknown
+}
+
+public struct CodexTokenUsage: Codable, Hashable, Sendable {
+    public var inputTokens: Int64
+    public var cachedInputTokens: Int64
+    public var cacheWriteInputTokens: Int64
+    public var outputTokens: Int64
+    public var reasoningOutputTokens: Int64
+    public var totalTokens: Int64
+
+    public init(
+        inputTokens: Int64 = 0,
+        cachedInputTokens: Int64 = 0,
+        cacheWriteInputTokens: Int64 = 0,
+        outputTokens: Int64 = 0,
+        reasoningOutputTokens: Int64 = 0,
+        totalTokens: Int64 = 0
+    ) {
+        self.inputTokens = max(0, inputTokens)
+        self.cachedInputTokens = max(0, cachedInputTokens)
+        self.cacheWriteInputTokens = max(0, cacheWriteInputTokens)
+        self.outputTokens = max(0, outputTokens)
+        self.reasoningOutputTokens = max(0, reasoningOutputTokens)
+        self.totalTokens = max(0, totalTokens)
+    }
+
+    public static let zero = CodexTokenUsage()
+
+    public var billableInputTokens: Int64 {
+        max(0, inputTokens - cachedInputTokens - cacheWriteInputTokens)
+    }
+
+    public static func + (lhs: Self, rhs: Self) -> Self {
+        Self(
+            inputTokens: lhs.inputTokens + rhs.inputTokens,
+            cachedInputTokens: lhs.cachedInputTokens + rhs.cachedInputTokens,
+            cacheWriteInputTokens: lhs.cacheWriteInputTokens + rhs.cacheWriteInputTokens,
+            outputTokens: lhs.outputTokens + rhs.outputTokens,
+            reasoningOutputTokens: lhs.reasoningOutputTokens + rhs.reasoningOutputTokens,
+            totalTokens: lhs.totalTokens + rhs.totalTokens
+        )
+    }
+
+    public func monotonicDelta(from previous: Self) -> Self? {
+        let values = [
+            inputTokens - previous.inputTokens,
+            cachedInputTokens - previous.cachedInputTokens,
+            cacheWriteInputTokens - previous.cacheWriteInputTokens,
+            outputTokens - previous.outputTokens,
+            reasoningOutputTokens - previous.reasoningOutputTokens,
+            totalTokens - previous.totalTokens,
+        ]
+        guard values.allSatisfy({ $0 >= 0 }) else { return nil }
+        return Self(
+            inputTokens: values[0],
+            cachedInputTokens: values[1],
+            cacheWriteInputTokens: values[2],
+            outputTokens: values[3],
+            reasoningOutputTokens: values[4],
+            totalTokens: values[5]
+        )
+    }
+}
+
+public struct CodexUsageContextBreakdown: Codable, Hashable, Sendable {
+    public let standard: CodexTokenUsage
+    public let long: CodexTokenUsage
+    public let unknown: CodexTokenUsage
+
+    public init(
+        standard: CodexTokenUsage = .zero,
+        long: CodexTokenUsage = .zero,
+        unknown: CodexTokenUsage = .zero
+    ) {
+        self.standard = standard
+        self.long = long
+        self.unknown = unknown
+    }
+
+    public var total: CodexTokenUsage { standard + long + unknown }
+
+    public func usage(for tier: OpenAIContextTier) -> CodexTokenUsage {
+        switch tier {
+        case .standard: standard
+        case .long: long
+        case .unknown: unknown
+        }
+    }
+}
+
+public struct CodexUsageEvent: Codable, Hashable, Identifiable, Sendable {
+    public let id: String
+    public let threadID: String
+    public let turnID: String
+    public let counterEpoch: Int
+    public let occurredAt: Date
+    public let accountID: String?
+    public let requestedModel: String?
+    public let billedModel: String?
+    public let reasoningEffort: String?
+    public let speed: String?
+    public let usage: CodexTokenUsage
+    public let contextBreakdown: CodexUsageContextBreakdown?
+    public let attribution: CodexUsageAttribution
+    public let source: CodexUsageSource
+
+    public init(
+        threadID: String,
+        turnID: String,
+        counterEpoch: Int,
+        occurredAt: Date,
+        accountID: String?,
+        requestedModel: String?,
+        billedModel: String?,
+        reasoningEffort: String?,
+        speed: String?,
+        usage: CodexTokenUsage,
+        contextBreakdown: CodexUsageContextBreakdown? = nil,
+        attribution: CodexUsageAttribution,
+        source: CodexUsageSource
+    ) {
+        self.threadID = threadID
+        self.turnID = turnID
+        self.counterEpoch = counterEpoch
+        self.id = "\(threadID)|\(turnID)|\(counterEpoch)"
+        self.occurredAt = occurredAt
+        self.accountID = accountID
+        self.requestedModel = requestedModel
+        self.billedModel = billedModel
+        self.reasoningEffort = reasoningEffort
+        self.speed = speed
+        self.usage = usage
+        self.contextBreakdown = contextBreakdown
+        self.attribution = attribution
+        self.source = source
+    }
+
+    public var resolvedModel: String? { billedModel ?? requestedModel }
+}
+
+public struct CodexAccountUsageSummary: Codable, Hashable, Sendable {
+    public let lifetimeTokens: Int64?
+    public let peakDailyTokens: Int64?
+    public let longestRunningTurnSeconds: Int64?
+    public let currentStreakDays: Int64?
+    public let longestStreakDays: Int64?
+
+    public init(
+        lifetimeTokens: Int64?,
+        peakDailyTokens: Int64?,
+        longestRunningTurnSeconds: Int64?,
+        currentStreakDays: Int64?,
+        longestStreakDays: Int64?
+    ) {
+        self.lifetimeTokens = lifetimeTokens
+        self.peakDailyTokens = peakDailyTokens
+        self.longestRunningTurnSeconds = longestRunningTurnSeconds
+        self.currentStreakDays = currentStreakDays
+        self.longestStreakDays = longestStreakDays
+    }
+}
+
+public struct CodexDailyTokenActivity: Codable, Hashable, Identifiable, Sendable {
+    public let date: Date
+    public let tokens: Int64
+
+    public init(date: Date, tokens: Int64) {
+        self.date = date
+        self.tokens = max(0, tokens)
+    }
+
+    public var id: Date { date }
+}
+
+public struct CodexAccountUsageSnapshot: Codable, Hashable, Sendable {
+    public let accountID: String
+    public let observedAt: Date
+    public let summary: CodexAccountUsageSummary
+    public let dailyActivity: [CodexDailyTokenActivity]
+
+    public init(
+        accountID: String,
+        observedAt: Date,
+        summary: CodexAccountUsageSummary,
+        dailyActivity: [CodexDailyTokenActivity]
+    ) {
+        self.accountID = accountID
+        self.observedAt = observedAt
+        self.summary = summary
+        self.dailyActivity = dailyActivity.sorted { $0.date < $1.date }
+    }
+}
+
+public struct CodexThreadUsageEvidence: Codable, Hashable, Identifiable, Sendable {
+    public struct Group: Codable, Hashable, Sendable {
+        public let model: String?
+        public let reasoningEffort: String?
+        public let speed: String?
+        public let usage: CodexTokenUsage
+        public let estimatedCreditsMicros: Int64
+
+        public init(
+            model: String?,
+            reasoningEffort: String?,
+            speed: String?,
+            usage: CodexTokenUsage,
+            estimatedCreditsMicros: Int64
+        ) {
+            self.model = model
+            self.reasoningEffort = reasoningEffort
+            self.speed = speed
+            self.usage = usage
+            self.estimatedCreditsMicros = estimatedCreditsMicros
+        }
+    }
+
+    public let threadID: String
+    public let accountID: String
+    public let observedAt: Date
+    public let estimatedCreditsMicros: Int64
+    public let estimatedUSDMicros: Int64?
+    public let groups: [Group]
+
+    public init(
+        threadID: String,
+        accountID: String,
+        observedAt: Date,
+        estimatedCreditsMicros: Int64,
+        estimatedUSDMicros: Int64?,
+        groups: [Group]
+    ) {
+        self.threadID = threadID
+        self.accountID = accountID
+        self.observedAt = observedAt
+        self.estimatedCreditsMicros = estimatedCreditsMicros
+        self.estimatedUSDMicros = estimatedUSDMicros
+        self.groups = groups
+    }
+
+    public var id: String { threadID }
+}
+
+@frozen public enum CodexLimitWindowKind: String, Codable, Hashable, Sendable {
+    case primary
+    case secondary
+    case individual
+}
+
+public struct CodexLimitObservation: Codable, Hashable, Identifiable, Sendable {
+    public let accountID: String
+    public let limitID: String
+    public let window: CodexLimitWindowKind
+    public let observedAt: Date
+    public let usedPercent: Int
+    public let resetsAt: Date?
+    public let windowDurationMinutes: Int64?
+
+    public init(
+        accountID: String,
+        limitID: String,
+        window: CodexLimitWindowKind,
+        observedAt: Date,
+        usedPercent: Int,
+        resetsAt: Date?,
+        windowDurationMinutes: Int64?
+    ) {
+        self.accountID = accountID
+        self.limitID = limitID
+        self.window = window
+        self.observedAt = observedAt
+        self.usedPercent = min(max(usedPercent, 0), 100)
+        self.resetsAt = resetsAt
+        self.windowDurationMinutes = windowDurationMinutes
+    }
+
+    public var id: String {
+        "\(accountID)|\(limitID)|\(window.rawValue)|\(Int64(observedAt.timeIntervalSince1970 * 1_000))"
+    }
+}
+
+/// The latest complete server response for one account. Historical burn uses
+/// `CodexLimitObservation`; this record preserves presentation-only fields such
+/// as credits and individual spend controls without putting them in state.json.
+public struct CodexRateLimitsSnapshot: Codable, Hashable, Sendable {
+    public let accountID: String
+    public let observedAt: Date
+    public let successfulObservedAt: Date?
+    public let primary: RateLimitSnapshotModel?
+    public let byLimitID: [String: RateLimitSnapshotModel]?
+    public let errorMessage: String?
+
+    public init(
+        accountID: String,
+        observedAt: Date,
+        successfulObservedAt: Date? = nil,
+        primary: RateLimitSnapshotModel?,
+        byLimitID: [String: RateLimitSnapshotModel]?,
+        errorMessage: String?
+    ) {
+        self.accountID = accountID
+        self.observedAt = observedAt
+        self.successfulObservedAt = successfulObservedAt ?? (errorMessage == nil ? observedAt : nil)
+        self.primary = primary
+        self.byLimitID = byLimitID
+        self.errorMessage = errorMessage
+    }
+
+    public var limitsObservedAt: Date? { successfulObservedAt }
+
+    public var observations: [CodexLimitObservation] {
+        guard errorMessage == nil else { return [] }
+        let snapshots: [(String, RateLimitSnapshotModel)]
+        if let byLimitID, !byLimitID.isEmpty {
+            snapshots = byLimitID.sorted { $0.key < $1.key }
+        } else if let primary {
+            snapshots = [(primary.limitId ?? "codex", primary)]
+        } else {
+            snapshots = []
+        }
+        return snapshots.flatMap { limitID, snapshot in
+            var result: [CodexLimitObservation] = []
+            if let window = snapshot.primary {
+                result.append(observation(limitID: limitID, kind: .primary, window: window))
+            }
+            if let window = snapshot.secondary {
+                result.append(observation(limitID: limitID, kind: .secondary, window: window))
+            }
+            if let individual = snapshot.individualLimit {
+                result.append(
+                    CodexLimitObservation(
+                        accountID: accountID,
+                        limitID: limitID,
+                        window: .individual,
+                        observedAt: observedAt,
+                        usedPercent: max(0, 100 - individual.remainingPercent),
+                        resetsAt: Date(timeIntervalSince1970: TimeInterval(individual.resetsAt)),
+                        windowDurationMinutes: nil
+                    )
+                )
+            }
+            return result
+        }
+    }
+
+    private func observation(
+        limitID: String,
+        kind: CodexLimitWindowKind,
+        window: RateLimitWindowSnapshot
+    ) -> CodexLimitObservation {
+        CodexLimitObservation(
+            accountID: accountID,
+            limitID: limitID,
+            window: kind,
+            observedAt: observedAt,
+            usedPercent: window.usedPercent,
+            resetsAt: window.resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+            windowDurationMinutes: window.windowDurationMins
+        )
+    }
+}
+
+public struct UsageCoverage: Codable, Hashable, Sendable {
+    public let observedTokens: Int64
+    public let serverTokens: Int64
+
+    public init(observedTokens: Int64, serverTokens: Int64) {
+        self.observedTokens = max(0, observedTokens)
+        self.serverTokens = max(0, serverTokens)
+    }
+
+    public var fraction: Double? {
+        guard serverTokens > 0 else { return nil }
+        return min(1, Double(observedTokens) / Double(serverTokens))
+    }
+}
+
+@frozen public enum CodexUsageEndpointKind: String, Codable, Hashable, Sendable {
+    case limits
+    case usage
+}
+
+public struct CodexUsageEndpointStatus: Codable, Hashable, Sendable {
+    public let accountID: String
+    public let endpoint: CodexUsageEndpointKind
+    public let attemptedAt: Date
+    public let successfulAt: Date?
+    public let errorMessage: String?
+
+    public init(
+        accountID: String,
+        endpoint: CodexUsageEndpointKind,
+        attemptedAt: Date,
+        successfulAt: Date?,
+        errorMessage: String?
+    ) {
+        self.accountID = accountID
+        self.endpoint = endpoint
+        self.attemptedAt = attemptedAt
+        self.successfulAt = successfulAt
+        self.errorMessage = errorMessage
+    }
+}
+
+public struct OpenAIModelRate: Codable, Hashable, Sendable {
+    public let modelID: String
+    public let creditsPerMillionInput: Decimal?
+    public let creditsPerMillionCachedInput: Decimal?
+    public let creditsPerMillionOutput: Decimal?
+    public let usdPerMillionInput: Decimal?
+    public let usdPerMillionCachedInput: Decimal?
+    public let usdPerMillionCacheWrite: Decimal?
+    public let usdPerMillionOutput: Decimal?
+    public let longContextThreshold: Int64?
+    public let longContextInputMultiplier: Decimal?
+    public let longContextCachedInputMultiplier: Decimal?
+    public let longContextCacheWriteMultiplier: Decimal?
+    public let longContextOutputMultiplier: Decimal?
+    public let creditsFastMultiplier: Decimal?
+    public let fastInputMultiplier: Decimal?
+    public let fastCachedInputMultiplier: Decimal?
+    public let fastCacheWriteMultiplier: Decimal?
+    public let fastOutputMultiplier: Decimal?
+    public let fastLongContextInputMultiplier: Decimal?
+    public let fastLongContextCachedInputMultiplier: Decimal?
+    public let fastLongContextCacheWriteMultiplier: Decimal?
+    public let fastLongContextOutputMultiplier: Decimal?
+
+    public init(
+        modelID: String,
+        creditsPerMillionInput: Decimal?,
+        creditsPerMillionCachedInput: Decimal?,
+        creditsPerMillionOutput: Decimal?,
+        usdPerMillionInput: Decimal?,
+        usdPerMillionCachedInput: Decimal?,
+        usdPerMillionCacheWrite: Decimal?,
+        usdPerMillionOutput: Decimal?,
+        longContextThreshold: Int64? = nil,
+        longContextInputMultiplier: Decimal? = nil,
+        longContextCachedInputMultiplier: Decimal? = nil,
+        longContextCacheWriteMultiplier: Decimal? = nil,
+        longContextOutputMultiplier: Decimal? = nil,
+        creditsFastMultiplier: Decimal? = nil,
+        fastInputMultiplier: Decimal? = nil,
+        fastCachedInputMultiplier: Decimal? = nil,
+        fastCacheWriteMultiplier: Decimal? = nil,
+        fastOutputMultiplier: Decimal? = nil,
+        fastLongContextInputMultiplier: Decimal? = nil,
+        fastLongContextCachedInputMultiplier: Decimal? = nil,
+        fastLongContextCacheWriteMultiplier: Decimal? = nil,
+        fastLongContextOutputMultiplier: Decimal? = nil
+    ) {
+        self.modelID = modelID
+        self.creditsPerMillionInput = creditsPerMillionInput
+        self.creditsPerMillionCachedInput = creditsPerMillionCachedInput
+        self.creditsPerMillionOutput = creditsPerMillionOutput
+        self.usdPerMillionInput = usdPerMillionInput
+        self.usdPerMillionCachedInput = usdPerMillionCachedInput
+        self.usdPerMillionCacheWrite = usdPerMillionCacheWrite
+        self.usdPerMillionOutput = usdPerMillionOutput
+        self.longContextThreshold = longContextThreshold
+        self.longContextInputMultiplier = longContextInputMultiplier
+        self.longContextCachedInputMultiplier = longContextCachedInputMultiplier
+        self.longContextCacheWriteMultiplier = longContextCacheWriteMultiplier
+        self.longContextOutputMultiplier = longContextOutputMultiplier
+        self.creditsFastMultiplier = creditsFastMultiplier
+        self.fastInputMultiplier = fastInputMultiplier
+        self.fastCachedInputMultiplier = fastCachedInputMultiplier
+        self.fastCacheWriteMultiplier = fastCacheWriteMultiplier
+        self.fastOutputMultiplier = fastOutputMultiplier
+        self.fastLongContextInputMultiplier = fastLongContextInputMultiplier
+        self.fastLongContextCachedInputMultiplier = fastLongContextCachedInputMultiplier
+        self.fastLongContextCacheWriteMultiplier = fastLongContextCacheWriteMultiplier
+        self.fastLongContextOutputMultiplier = fastLongContextOutputMultiplier
+    }
+}
+
+public struct OpenAIRateCardRevision: Codable, Hashable, Identifiable, Sendable {
+    public let id: String
+    public let observedAt: Date
+    public let checkedAt: Date?
+    public let sourceHashes: [String: String]
+    public let rates: [String: OpenAIModelRate]
+
+    public init(
+        id: String,
+        observedAt: Date,
+        checkedAt: Date? = nil,
+        sourceHashes: [String: String],
+        rates: [String: OpenAIModelRate]
+    ) {
+        self.id = id
+        self.observedAt = observedAt
+        self.checkedAt = checkedAt
+        self.sourceHashes = sourceHashes
+        self.rates = rates
+    }
+
+    public var lastCheckedAt: Date { checkedAt ?? observedAt }
+}
+
+@frozen public enum CodexUsagePeriod: String, Codable, Hashable, Sendable, CaseIterable {
+    case currentWeek
+    case last30Days
+    case all
+}
+
+public struct CodexUsageTotals: Codable, Hashable, Sendable {
+    public let usage: CodexTokenUsage
+    public let credits: Decimal?
+    public let apiEquivalentUSD: Decimal?
+
+    public init(usage: CodexTokenUsage, credits: Decimal?, apiEquivalentUSD: Decimal?) {
+        self.usage = usage
+        self.credits = credits
+        self.apiEquivalentUSD = apiEquivalentUSD
+    }
+}
+
+public struct CodexModelUsage: Codable, Hashable, Identifiable, Sendable {
+    public let modelID: String
+    public let totals: CodexUsageTotals
+
+    public init(modelID: String, totals: CodexUsageTotals) {
+        self.modelID = modelID
+        self.totals = totals
+    }
+
+    public var id: String { modelID }
+}
+
+public struct CodexDailyUsage: Codable, Hashable, Identifiable, Sendable {
+    public let date: Date
+    public let totals: CodexUsageTotals
+
+    public init(date: Date, totals: CodexUsageTotals) {
+        self.date = date
+        self.totals = totals
+    }
+
+    public var id: Date { date }
+}
+
+@frozen public enum LimitBurnForecastState: String, Codable, Hashable, Sendable {
+    case collecting
+    case stable
+    case exhaustsBeforeReset
+    case lastsUntilReset
+    case stale
+}
+
+public struct LimitBurnForecast: Codable, Hashable, Sendable {
+    public let state: LimitBurnForecastState
+    public let predictedExhaustionAt: Date?
+    public let resetAt: Date?
+    public let remainingPercent: Int?
+    public let percentPerHour: Double?
+    public let latestObservationAt: Date?
+
+    public init(
+        state: LimitBurnForecastState,
+        predictedExhaustionAt: Date?,
+        resetAt: Date?,
+        remainingPercent: Int?,
+        percentPerHour: Double?,
+        latestObservationAt: Date? = nil
+    ) {
+        self.state = state
+        self.predictedExhaustionAt = predictedExhaustionAt
+        self.resetAt = resetAt
+        self.remainingPercent = remainingPercent
+        self.percentPerHour = percentPerHour
+        self.latestObservationAt = latestObservationAt
+    }
+}
+
+public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
+    public let id: String
+    public let localAccountID: UUID?
+    public let label: String
+    public let email: String
+    public let planTitle: String
+    public let monthlyPriceUSD: Decimal?
+    public let forecast: LimitBurnForecast
+    public let totals: CodexUsageTotals
+    public let effectiveSubscriptionUSDPerMillionTokens: Decimal?
+    public let models: [CodexModelUsage]
+    public let daily: [CodexDailyUsage]
+    public let coverage: UsageCoverage?
+    public let observedAt: Date?
+
+    public init(
+        id: String,
+        localAccountID: UUID?,
+        label: String,
+        email: String,
+        planTitle: String,
+        monthlyPriceUSD: Decimal?,
+        forecast: LimitBurnForecast,
+        totals: CodexUsageTotals,
+        effectiveSubscriptionUSDPerMillionTokens: Decimal?,
+        models: [CodexModelUsage],
+        daily: [CodexDailyUsage],
+        coverage: UsageCoverage?,
+        observedAt: Date?
+    ) {
+        self.id = id
+        self.localAccountID = localAccountID
+        self.label = label
+        self.email = email
+        self.planTitle = planTitle
+        self.monthlyPriceUSD = monthlyPriceUSD
+        self.forecast = forecast
+        self.totals = totals
+        self.effectiveSubscriptionUSDPerMillionTokens = effectiveSubscriptionUSDPerMillionTokens
+        self.models = models
+        self.daily = daily
+        self.coverage = coverage
+        self.observedAt = observedAt
+    }
+}
+
+@frozen public enum OpenAIPriceMetric: String, CaseIterable, Codable, Hashable, Sendable {
+    case creditsInput
+    case creditsCachedInput
+    case creditsOutput
+    case creditsFastMultiplier
+    case apiInput
+    case apiCachedInput
+    case apiCacheWrite
+    case apiOutput
+    case apiLongInput
+    case apiLongCachedInput
+    case apiLongCacheWrite
+    case apiLongOutput
+    case apiFastInput
+    case apiFastCachedInput
+    case apiFastCacheWrite
+    case apiFastOutput
+    case apiFastLongInput
+    case apiFastLongCachedInput
+    case apiFastLongCacheWrite
+    case apiFastLongOutput
+
+    public var usesUSD: Bool {
+        switch self {
+        case .apiInput, .apiCachedInput, .apiCacheWrite, .apiOutput,
+             .apiLongInput, .apiLongCachedInput, .apiLongCacheWrite, .apiLongOutput,
+             .apiFastInput, .apiFastCachedInput, .apiFastCacheWrite, .apiFastOutput,
+             .apiFastLongInput, .apiFastLongCachedInput, .apiFastLongCacheWrite, .apiFastLongOutput:
+            true
+        case .creditsInput, .creditsCachedInput, .creditsOutput, .creditsFastMultiplier:
+            false
+        }
+    }
+
+    public var usesMultiplier: Bool { self == .creditsFastMultiplier }
+}
+
+public struct OpenAIPriceChange: Codable, Hashable, Identifiable, Sendable {
+    public let modelID: String
+    public let metric: OpenAIPriceMetric
+    public let previousRevisionID: String
+    public let currentRevisionID: String
+    public let previousValue: Decimal
+    public let currentValue: Decimal
+    public let maximumPercentChange: Decimal
+
+    public init(
+        modelID: String,
+        metric: OpenAIPriceMetric,
+        previousRevisionID: String,
+        currentRevisionID: String,
+        previousValue: Decimal,
+        currentValue: Decimal,
+        maximumPercentChange: Decimal
+    ) {
+        self.modelID = modelID
+        self.metric = metric
+        self.previousRevisionID = previousRevisionID
+        self.currentRevisionID = currentRevisionID
+        self.previousValue = previousValue
+        self.currentValue = currentValue
+        self.maximumPercentChange = maximumPercentChange
+    }
+
+    public var id: String { "\(currentRevisionID)|\(modelID)" }
+}
+
+public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
+    public let period: CodexUsagePeriod
+    public let generatedAt: Date
+    public let accounts: [CodexAccountInsights]
+    public let totals: CodexUsageTotals
+    public let models: [CodexModelUsage]
+    public let daily: [CodexDailyUsage]
+    public let nearestRiskAccountID: String?
+    public let totalMonthlySubscriptionUSD: Decimal?
+    public let effectiveSubscriptionUSDPerMillionTokens: Decimal?
+    public let coverage: UsageCoverage?
+    public let priceChange: OpenAIPriceChange?
+
+    public init(
+        period: CodexUsagePeriod,
+        generatedAt: Date,
+        accounts: [CodexAccountInsights],
+        totals: CodexUsageTotals,
+        models: [CodexModelUsage],
+        daily: [CodexDailyUsage],
+        nearestRiskAccountID: String?,
+        totalMonthlySubscriptionUSD: Decimal?,
+        effectiveSubscriptionUSDPerMillionTokens: Decimal?,
+        coverage: UsageCoverage?,
+        priceChange: OpenAIPriceChange?
+    ) {
+        self.period = period
+        self.generatedAt = generatedAt
+        self.accounts = accounts
+        self.totals = totals
+        self.models = models
+        self.daily = daily
+        self.nearestRiskAccountID = nearestRiskAccountID
+        self.totalMonthlySubscriptionUSD = totalMonthlySubscriptionUSD
+        self.effectiveSubscriptionUSDPerMillionTokens = effectiveSubscriptionUSDPerMillionTokens
+        self.coverage = coverage
+        self.priceChange = priceChange
+    }
+
+    public static func empty(period: CodexUsagePeriod = .currentWeek, now: Date = .now) -> Self {
+        Self(
+            period: period,
+            generatedAt: now,
+            accounts: [],
+            totals: CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil),
+            models: [],
+            daily: [],
+            nearestRiskAccountID: nil,
+            totalMonthlySubscriptionUSD: nil,
+            effectiveSubscriptionUSDPerMillionTokens: nil,
+            coverage: nil,
+            priceChange: nil
+        )
+    }
+}
+
+public struct CodexStoredDailyUsage: Codable, Hashable, Identifiable, Sendable {
+    public let date: Date
+    public let accountID: String?
+    public let modelID: String
+    public let attribution: CodexUsageAttribution
+    public let speed: String?
+    public let source: CodexUsageSource
+    public let rateRevisionID: String?
+    public let contextTier: OpenAIContextTier
+    public let usage: CodexTokenUsage
+
+    public init(
+        date: Date,
+        accountID: String?,
+        modelID: String,
+        attribution: CodexUsageAttribution,
+        speed: String? = nil,
+        source: CodexUsageSource = .localRollout,
+        rateRevisionID: String? = nil,
+        contextTier: OpenAIContextTier = .unknown,
+        usage: CodexTokenUsage
+    ) {
+        self.date = date
+        self.accountID = accountID
+        self.modelID = modelID
+        self.attribution = attribution
+        self.speed = speed
+        self.source = source
+        self.rateRevisionID = rateRevisionID
+        self.contextTier = contextTier
+        self.usage = usage
+    }
+
+    public var id: String {
+        "\(Int64(date.timeIntervalSince1970))|\(accountID ?? "-")|\(modelID)|\(attribution.rawValue)|\(speed ?? "standard")|\(source.rawValue)|\(rateRevisionID ?? "-")|\(contextTier.rawValue)"
+    }
+}
+
+public struct CodexImportCursor: Codable, Hashable, Sendable {
+    public let path: String
+    public let inode: UInt64
+    public let byteOffset: UInt64
+    public let modifiedAt: Date
+    public let schemaAdapter: Int
+    public let parserState: Data?
+
+    public init(
+        path: String,
+        inode: UInt64,
+        byteOffset: UInt64,
+        modifiedAt: Date,
+        schemaAdapter: Int,
+        parserState: Data? = nil
+    ) {
+        self.path = path
+        self.inode = inode
+        self.byteOffset = byteOffset
+        self.modifiedAt = modifiedAt
+        self.schemaAdapter = schemaAdapter
+        self.parserState = parserState
+    }
+}
+
+public struct CodexUsageRepositorySnapshot: Sendable {
+    public let accountUsage: [String: CodexAccountUsageSnapshot]
+    public let dailyUsage: [CodexStoredDailyUsage]
+    public let limitObservations: [String: [CodexLimitObservation]]
+    public let latestLimits: [String: CodexRateLimitsSnapshot]
+    public let endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]]
+    public let threadUsageEvidence: [String: CodexThreadUsageEvidence]
+    public let rateCardRevisions: [OpenAIRateCardRevision]
+
+    public init(
+        accountUsage: [String: CodexAccountUsageSnapshot],
+        dailyUsage: [CodexStoredDailyUsage],
+        limitObservations: [String: [CodexLimitObservation]],
+        latestLimits: [String: CodexRateLimitsSnapshot],
+        endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]] = [:],
+        threadUsageEvidence: [String: CodexThreadUsageEvidence] = [:],
+        rateCardRevisions: [OpenAIRateCardRevision]
+    ) {
+        self.accountUsage = accountUsage
+        self.dailyUsage = dailyUsage
+        self.limitObservations = limitObservations
+        self.latestLimits = latestLimits
+        self.endpointStatuses = endpointStatuses
+        self.threadUsageEvidence = threadUsageEvidence
+        self.rateCardRevisions = rateCardRevisions
+    }
+}

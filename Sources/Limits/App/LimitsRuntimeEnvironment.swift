@@ -6,6 +6,8 @@ struct LimitsRuntimeEnvironment {
     let isolatedRoot: URL?
     let disablesExternalProbes: Bool
     let isUITest: Bool
+    let initialAccountsSelection: String?
+    let testColorScheme: String?
 
     static var current: LimitsRuntimeEnvironment {
         let environment = ProcessInfo.processInfo.environment
@@ -13,8 +15,18 @@ struct LimitsRuntimeEnvironment {
         return LimitsRuntimeEnvironment(
             isolatedRoot: root,
             disablesExternalProbes: environment["LIMITS_DISABLE_EXTERNAL_PROBES"] == "1",
-            isUITest: environment["LIMITS_UI_TEST"] == "1"
+            isUITest: environment["LIMITS_UI_TEST"] == "1",
+            initialAccountsSelection: environment["LIMITS_TEST_ACCOUNTS_SELECTION"],
+            testColorScheme: environment["LIMITS_TEST_COLOR_SCHEME"]
         )
+    }
+
+    func prepareUserDefaults() {
+        guard isUITest, let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
+        UserDefaults.standard.removePersistentDomain(forName: bundleIdentifier)
+        if let initialAccountsSelection {
+            UserDefaults.standard.set(initialAccountsSelection, forKey: "limits.accounts.selection")
+        }
     }
 }
 
@@ -34,7 +46,7 @@ private final class RuntimeMemoryKeychainStore: KeychainAuthDataStore, @unchecke
     }
 
     func delete(account: String) {
-        lock.withLock { values.removeValue(forKey: account) }
+        lock.withLock { _ = values.removeValue(forKey: account) }
     }
 }
 
@@ -72,8 +84,26 @@ struct DisabledCodexAccountService: CodexLoginServicing {
     }
 }
 
+struct FixturePricingDownloader: OpenAIPricingDownloading {
+    let directory: URL
+
+    func download(_ url: URL) async throws -> OpenAIPricingDownload {
+        let filename: String
+        if url.host == "developers.openai.com" {
+            filename = "api.md"
+        } else if url.path.contains("agent-configuration/speed") {
+            filename = "speed.md"
+        } else {
+            filename = "chatgpt.md"
+        }
+        let data = try Data(contentsOf: directory.appending(path: filename))
+        return OpenAIPricingDownload(data: data, statusCode: 200, mimeType: "text/markdown", finalURL: url)
+    }
+}
+
 struct AppModelDependencies {
     let repository: AccountsRepository
+    let usageCoordinator: CodexUsageCoordinator
     let codexCoordinator: CodexSessionCoordinator
     let claudeCoordinator: ClaudeSessionCoordinator
     let widgetPublisher: LimitsWidgetSnapshotPublisher
@@ -81,13 +111,20 @@ struct AppModelDependencies {
 
     static func make(environment: LimitsRuntimeEnvironment = .current) -> AppModelDependencies {
         guard let root = environment.isolatedRoot else {
-            let repository = AccountsRepository()
+            let usageRepository = CodexUsageRepository()
+            let repository = AccountsRepository(usageRepository: usageRepository)
             let globalCodex = GlobalCodexAuthService()
             let globalClaude = GlobalClaudeCredentialService()
             let claudeStatus = ClaudeAuthStatusService()
+            let codexCoordinator = CodexSessionCoordinator(globalStore: globalCodex, accountService: CodexAccountService())
             return AppModelDependencies(
                 repository: repository,
-                codexCoordinator: CodexSessionCoordinator(globalStore: globalCodex, accountService: CodexAccountService()),
+                usageCoordinator: CodexUsageCoordinator(
+                    accountsRepository: repository,
+                    usageRepository: usageRepository,
+                    sessionCoordinator: codexCoordinator
+                ),
+                codexCoordinator: codexCoordinator,
                 claudeCoordinator: ClaudeSessionCoordinator(
                     globalStore: globalClaude,
                     statusReader: claudeStatus,
@@ -98,8 +135,11 @@ struct AppModelDependencies {
             )
         }
 
+        let stateRoot = root.appending(path: "Application Support/Limits")
+        let usageRepository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: stateRoot))
         let repository = AccountsRepository(
-            persistence: AccountsPersistence(baseURL: root.appending(path: "Application Support/Limits")),
+            persistence: AccountsPersistence(baseURL: stateRoot),
+            usageRepository: usageRepository,
             vault: KeychainAuthVault(store: RuntimeMemoryKeychainStore())
         )
         let globalCodex = GlobalCodexAuthService(authURL: root.appending(path: "Codex/auth.json"))
@@ -107,9 +147,18 @@ struct AppModelDependencies {
         let claudeStatus: any ClaudeSessionStatusReading = environment.disablesExternalProbes
             ? DisabledClaudeStatusReader()
             : ClaudeAuthStatusService()
+        let codexCoordinator = CodexSessionCoordinator(globalStore: globalCodex, accountService: DisabledCodexAccountService())
         return AppModelDependencies(
             repository: repository,
-            codexCoordinator: CodexSessionCoordinator(globalStore: globalCodex, accountService: DisabledCodexAccountService()),
+            usageCoordinator: CodexUsageCoordinator(
+                accountsRepository: repository,
+                usageRepository: usageRepository,
+                sessionCoordinator: codexCoordinator,
+                codexHome: root.appending(path: "Codex", directoryHint: .isDirectory),
+                allowsServerProbes: false,
+                pricingDownloader: FixturePricingDownloader(directory: root.appending(path: "Pricing"))
+            ),
+            codexCoordinator: codexCoordinator,
             claudeCoordinator: ClaudeSessionCoordinator(
                 globalStore: globalClaude,
                 statusReader: claudeStatus,

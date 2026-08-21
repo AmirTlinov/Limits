@@ -91,8 +91,8 @@ import LimitsShared
 
 @Test func sidebarFilterDefaultDestinationMatchesProvider() {
     let catalog = ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: .loggedOut)
-    #expect(AccountsPresentationLogic.defaultDestination(for: .all, catalog: catalog) == .currentCodexCLI)
-    #expect(AccountsPresentationLogic.defaultDestination(for: .codex, catalog: catalog) == .currentCodexCLI)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .all, catalog: catalog) == .codexOverview)
+    #expect(AccountsPresentationLogic.defaultDestination(for: .codex, catalog: catalog) == .codexOverview)
     #expect(AccountsPresentationLogic.defaultDestination(for: .claude, catalog: catalog) == .currentClaudeCode)
 }
 
@@ -227,14 +227,11 @@ import LimitsShared
         rateLimitsByLimitId: ["codex": weeklyOnly],
         validatedAt: now.addingTimeInterval(-30)
     )
-    let account = makeStoredAccount(
-        label: "weekly@example.com",
-        lastRateLimit: weeklyOnly,
-        lastValidatedAt: now.addingTimeInterval(-30)
-    )
+    let account = makeStoredAccount(label: "weekly@example.com", lastValidatedAt: now.addingTimeInterval(-30))
+    let stored = makeStoredLimits(account: account, snapshot: weeklyOnly, observedAt: now.addingTimeInterval(-30))
 
     #expect(!CodexRefreshPolicy.canReuse(probe, expectedFingerprint: "fingerprint", now: now))
-    #expect(CodexRefreshPolicy.accountNeedsRefresh(account, now: now))
+    #expect(CodexRefreshPolicy.accountNeedsRefresh(stored, now: now))
 }
 
 @Test func spendControlResetBoundaryAlsoRequestsRefresh() {
@@ -297,14 +294,24 @@ import LimitsShared
     let pastReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 15)))
     let futureReset = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 17)))
 
-    let current = makeStoredAccount(label: "current@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
-    let throttled = makeStoredAccount(label: "throttled@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
-    let candidate = makeStoredAccount(label: "candidate@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
-    let fresh = makeStoredAccount(label: "fresh@example.com", lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10))
-    let reauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth, lastRateLimit: makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100))
+    let current = makeStoredAccount(label: "current@example.com")
+    let throttled = makeStoredAccount(label: "throttled@example.com")
+    let candidate = makeStoredAccount(label: "candidate@example.com")
+    let fresh = makeStoredAccount(label: "fresh@example.com")
+    let reauth = makeStoredAccount(label: "reauth@example.com", status: .needsReauth)
+    let latestLimits = Dictionary(uniqueKeysWithValues: [
+        (current, makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100)),
+        (throttled, makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100)),
+        (candidate, makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100)),
+        (fresh, makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 10)),
+        (reauth, makeRateLimitSnapshot(resetDate: pastReset, usedPercent: 100)),
+    ].compactMap { account, snapshot in
+        account.accountId.map { ($0, makeStoredLimits(account: account, snapshot: snapshot, observedAt: now.addingTimeInterval(-60))) }
+    })
 
     let selected = CodexRefreshPolicy.nextStoredAccountID(
         accounts: [fresh, current, throttled, candidate, reauth],
+        latestLimits: latestLimits,
         currentAccountID: current.id,
         lastAttempts: [throttled.id: now.addingTimeInterval(-120)],
         now: now,
@@ -335,19 +342,15 @@ import LimitsShared
 @Test func openingSurfaceRefreshesOldStoredAccountsButKeepsRecentOnesCached() {
     let now = Date(timeIntervalSince1970: 2_000_000)
     let futureReset = now.addingTimeInterval(3_600)
-    let old = makeStoredAccount(
-        label: "old@example.com",
-        lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20),
-        lastValidatedAt: now.addingTimeInterval(-LimitsFreshnessPolicy.defaultTTL - 1)
-    )
-    let recent = makeStoredAccount(
-        label: "recent@example.com",
-        lastRateLimit: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20),
-        lastValidatedAt: now.addingTimeInterval(-60)
-    )
+    let old = makeStoredAccount(label: "old@example.com", lastValidatedAt: now.addingTimeInterval(-LimitsFreshnessPolicy.defaultTTL - 1))
+    let recent = makeStoredAccount(label: "recent@example.com", lastValidatedAt: now.addingTimeInterval(-60))
+    let oldLimits = makeStoredLimits(account: old, snapshot: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20), observedAt: now.addingTimeInterval(-LimitsFreshnessPolicy.defaultTTL - 1))
+    let recentLimits = makeStoredLimits(account: recent, snapshot: makeRateLimitSnapshot(resetDate: futureReset, usedPercent: 20), observedAt: now.addingTimeInterval(-60))
+    let latestLimits = [old.accountId!: oldLimits, recent.accountId!: recentLimits]
 
     let selected = CodexRefreshPolicy.nextStoredAccountID(
         accounts: [recent, old],
+        latestLimits: latestLimits,
         currentAccountID: nil,
         lastAttempts: [:],
         now: now,
@@ -356,7 +359,7 @@ import LimitsShared
     )
 
     #expect(selected == old.id)
-    #expect(!CodexRefreshPolicy.accountNeedsRefresh(recent, now: now, maximumAge: LimitsFreshnessPolicy.defaultTTL))
+    #expect(!CodexRefreshPolicy.accountNeedsRefresh(recentLimits, now: now, maximumAge: LimitsFreshnessPolicy.defaultTTL))
 }
 
 @Test func trayStatusSegmentsUseProviderIconsWithCompactMetrics() {
@@ -448,7 +451,6 @@ import LimitsShared
 private func makeStoredAccount(
     label: String,
     status: AccountStatus = .ok,
-    lastRateLimit: RateLimitSnapshotModel? = nil,
     lastValidatedAt: Date? = nil
 ) -> StoredAccount {
     let id = UUID()
@@ -463,11 +465,22 @@ private func makeStoredAccount(
         lastValidatedAt: lastValidatedAt,
         status: status,
         statusMessage: nil,
-        lastRateLimit: lastRateLimit,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: "fingerprint-\(id.uuidString)",
-        keychainAccount: "account.\(id.uuidString)",
-        lastRateLimitObservedAt: lastValidatedAt
+        keychainAccount: "account.\(id.uuidString)"
+    )
+}
+
+private func makeStoredLimits(
+    account: StoredAccount,
+    snapshot: RateLimitSnapshotModel,
+    observedAt: Date
+) -> CodexRateLimitsSnapshot {
+    CodexRateLimitsSnapshot(
+        accountID: account.accountId!,
+        observedAt: observedAt,
+        primary: snapshot,
+        byLimitID: [snapshot.limitId ?? "codex": snapshot],
+        errorMessage: nil
     )
 }
 

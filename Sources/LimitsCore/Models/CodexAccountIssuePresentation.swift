@@ -20,26 +20,6 @@ public struct CodexAccountIssuePresentation: Hashable, Sendable {
 
 public enum CodexAccountIssuePresentationPolicy {
     public static func presentation(for account: StoredAccount) -> CodexAccountIssuePresentation? {
-        let limitsIssue = account.limitsIssue
-            ?? CodexAccountValidationPolicy.legacyLimitsIssue(from: account.statusMessage)
-
-        switch limitsIssue {
-        case .authorizationExpired:
-            return CodexAccountIssuePresentation(
-                title: L10n.tr("limits.authorization_expired.title"),
-                message: L10n.tr("limits.authorization_expired.message"),
-                recommendedAction: .reauthenticate
-            )
-        case .temporarilyUnavailable:
-            return CodexAccountIssuePresentation(
-                title: L10n.tr("limits.unavailable.title"),
-                message: L10n.tr("limits.unavailable.message"),
-                recommendedAction: .automaticRetry
-            )
-        case nil:
-            break
-        }
-
         switch account.status {
         case .needsReauth:
             return CodexAccountIssuePresentation(

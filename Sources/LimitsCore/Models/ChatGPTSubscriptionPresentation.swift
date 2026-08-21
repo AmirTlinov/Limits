@@ -36,29 +36,41 @@ public struct ChatGPTSubscriptionCyclePresentation: Hashable, Sendable {
 
 public enum ChatGPTSubscriptionPresentationPolicy {
     public static func plan(for planType: String) -> ChatGPTPlanPresentation {
+        let definition = definition(for: planType)
+        guard let dollars = definition.monthlyPriceUSD else {
+            return ChatGPTPlanPresentation(title: definition.title, monthlyPrice: nil)
+        }
+        return priced(definition.title, dollars: dollars)
+    }
+
+    public static func monthlyPriceUSD(for planType: String) -> Decimal? {
+        definition(for: planType).monthlyPriceUSD.map { Decimal($0) }
+    }
+
+    private static func definition(for planType: String) -> (title: String, monthlyPriceUSD: Int?) {
         switch planType.lowercased() {
         case "free":
-            return priced("ChatGPT Free", dollars: 0)
+            return ("ChatGPT Free", 0)
         case "go":
-            return priced("ChatGPT Go", dollars: 8)
+            return ("ChatGPT Go", 8)
         case "plus":
-            return priced("ChatGPT Plus", dollars: 20)
+            return ("ChatGPT Plus", 20)
         case "prolite":
-            return priced("ChatGPT Pro 5×", dollars: 100)
+            return ("ChatGPT Pro 5×", 100)
         case "pro":
-            return priced("ChatGPT Pro 20×", dollars: 200)
+            return ("ChatGPT Pro 20×", 200)
         case "team":
-            return ChatGPTPlanPresentation(title: "ChatGPT Team", monthlyPrice: nil)
+            return ("ChatGPT Team", nil)
         case "self_serve_business_prolite", "self_serve_business_usage_based", "business":
-            return ChatGPTPlanPresentation(title: "ChatGPT Business", monthlyPrice: nil)
+            return ("ChatGPT Business", nil)
         case "ent26", "enterprise_cbp_automation", "enterprise_cbp_usage_based", "enterprise":
-            return ChatGPTPlanPresentation(title: "ChatGPT Enterprise", monthlyPrice: nil)
+            return ("ChatGPT Enterprise", nil)
         case "edu":
-            return ChatGPTPlanPresentation(title: "ChatGPT Edu", monthlyPrice: nil)
+            return ("ChatGPT Edu", nil)
         case "unknown":
-            return ChatGPTPlanPresentation(title: L10n.tr("plan.unknown"), monthlyPrice: nil)
+            return (L10n.tr("plan.unknown"), nil)
         default:
-            return ChatGPTPlanPresentation(title: planType, monthlyPrice: nil)
+            return (planType, nil)
         }
     }
 

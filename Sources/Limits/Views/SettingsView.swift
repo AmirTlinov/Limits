@@ -3,18 +3,21 @@ import LimitsCore
 import LimitsShared
 
 struct SettingsView: View {
-    let catalog: ProviderCatalogSnapshot
+    @ObservedObject var model: AppModel
     let languageDidChange: () -> Void
     let checkForUpdates: () -> Void
     @State private var selectedLanguage: String
     @StateObject private var launchAtLogin = LaunchAtLoginController()
+    @State private var confirmsStatisticsClear = false
 
-    init(catalog: ProviderCatalogSnapshot, languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
-        self.catalog = catalog
+    init(model: AppModel, languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
+        self.model = model
         self.languageDidChange = languageDidChange
         self.checkForUpdates = checkForUpdates
         _selectedLanguage = State(initialValue: L10n.selectedLanguageOverride ?? "")
     }
+
+    private var catalog: ProviderCatalogSnapshot { model.providerCatalog }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -66,6 +69,25 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
+                Text(L10n.tr("insights.settings.title"))
+                    .font(.headline)
+                Text(L10n.tr("insights.settings.description"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Button(L10n.tr("insights.settings.reimport")) {
+                        Task { await model.reimportCodexHistory() }
+                    }
+                    .disabled(model.isProviderBusy(.codex))
+
+                    Button(L10n.tr("insights.settings.clear"), role: .destructive) {
+                        confirmsStatisticsClear = true
+                    }
+                    .disabled(model.isProviderBusy(.codex))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text(L10n.tr("settings.language.title"))
                     .font(.headline)
                 Text(L10n.tr("settings.language.description"))
@@ -107,9 +129,21 @@ struct SettingsView: View {
             Spacer(minLength: 0)
         }
         .padding(28)
-        .frame(width: 560, height: 560, alignment: .topLeading)
+        .frame(width: 560, height: 640, alignment: .topLeading)
         .onAppear {
             launchAtLogin.refresh()
+        }
+        .confirmationDialog(
+            L10n.tr("insights.settings.clear.confirm_title"),
+            isPresented: $confirmsStatisticsClear,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.tr("insights.settings.clear"), role: .destructive) {
+                Task { await model.clearCodexStatistics() }
+            }
+            Button(L10n.tr("action.cancel"), role: .cancel) {}
+        } message: {
+            Text(L10n.tr("insights.settings.clear.confirm_message"))
         }
     }
 

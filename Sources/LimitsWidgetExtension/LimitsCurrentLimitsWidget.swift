@@ -149,12 +149,28 @@ private struct LimitsWidgetView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(compact: false)
 
-            ForEach(providers.prefix(2)) { provider in
-                ProviderCard(
-                    provider: provider,
-                    stale: !provider.isFresh(at: entry.date),
-                    maxLimits: family == .systemExtraLarge ? 4 : 2
+            if let analytics = snapshot.codexAnalytics {
+                WidgetCodexAnalyticsCard(
+                    summary: analytics,
+                    now: entry.date,
+                    stale: analytics.forecastState == .stale || (
+                        analytics.forecastObservedAt != nil
+                            && !LimitsFreshnessPolicy.isFresh(
+                                observedAt: analytics.forecastObservedAt,
+                                at: entry.date
+                            )
+                    )
                 )
+            }
+
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(providers.prefix(2)) { provider in
+                    ProviderCard(
+                        provider: provider,
+                        stale: !provider.isFresh(at: entry.date),
+                        maxLimits: family == .systemExtraLarge ? 3 : 2
+                    )
+                }
             }
 
             Spacer(minLength: 0)
@@ -204,6 +220,81 @@ private struct LimitsWidgetView: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
+    }
+}
+
+private struct WidgetCodexAnalyticsCard: View {
+    let summary: CodexAnalyticsSummary
+    let now: Date
+    let stale: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(summary.accountLabel ?? L10n.tr("insights.overview.title"))
+                        .font(.headline)
+                        .lineLimit(1)
+                    if let plan = summary.planTitle {
+                        Text(plan).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                Text(stale ? L10n.tr("insights.forecast.stale") : forecastText)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(forecastColor)
+                    .lineLimit(1)
+            }
+
+            ProgressView(value: stale ? 0 : Double(summary.remainingPercent ?? 0) / 100)
+                .progressViewStyle(.linear)
+                .tint(forecastColor)
+
+            HStack(spacing: 16) {
+                Label(compactTokens(summary.weeklyTokens), systemImage: "text.word.spacing")
+                Label(
+                    summary.weeklyCredits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
+                    systemImage: "sparkles"
+                )
+            }
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+        }
+        .padding(11)
+        .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var forecastText: String {
+        switch summary.forecastState {
+        case .collecting: L10n.tr("insights.forecast.collecting")
+        case .stale: L10n.tr("insights.forecast.stale")
+        case .lastsUntilReset: L10n.tr("insights.forecast.lasts")
+        case .exhaustsBeforeReset:
+            if let exhaustion = summary.predictedExhaustionAt,
+               let countdown = L10n.countdown(until: Int64(exhaustion.timeIntervalSince1970), now: now) {
+                L10n.tr("insights.forecast.exhausts_in", countdown)
+            } else {
+                L10n.tr("insights.forecast.exhausted")
+            }
+        @unknown default:
+            L10n.tr("insights.forecast.collecting")
+        }
+    }
+
+    private var forecastColor: Color {
+        if stale { return .secondary }
+        return summary.forecastState == .exhaustsBeforeReset ? .orange : .blue
+    }
+
+    private func compactTokens(_ tokens: Int64) -> String {
+        if tokens >= 1_000_000 {
+            return "\(L10n.localizedDecimal(Decimal(tokens) / 1_000_000, maximumFractionDigits: 1))\(L10n.tr("insights.tokens.millions_suffix"))"
+        }
+        if tokens >= 1_000 {
+            return "\(L10n.localizedDecimal(Decimal(tokens) / 1_000, maximumFractionDigits: 1))\(L10n.tr("insights.tokens.thousands_suffix"))"
+        }
+        return L10n.localizedInteger(tokens)
     }
 }
 
@@ -399,7 +490,18 @@ private extension LimitsWidgetSnapshot {
                     freshUntil: generatedAt.addingTimeInterval(LimitsFreshnessPolicy.defaultTTL),
                     note: nil
                 ),
-            ]
+            ],
+            codexAnalytics: CodexAnalyticsSummary(
+                accountLabel: "Demo account",
+                planTitle: "ChatGPT Pro 20×",
+                forecastState: .lastsUntilReset,
+                predictedExhaustionAt: nil,
+                resetAt: generatedAt.addingTimeInterval(86_400),
+                remainingPercent: 81,
+                forecastObservedAt: generatedAt,
+                weeklyTokens: 12_400_000,
+                weeklyCredits: 482
+            )
         )
     }
 }

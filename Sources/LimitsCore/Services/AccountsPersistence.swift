@@ -45,19 +45,19 @@ public struct AccountsPersistence: @unchecked Sendable {
             .appending(path: "state.json")
     }
 
-    public var preV3BackupURL: URL {
-        stateDirectoryURL.appending(path: "state.pre-v3.json")
+    public var preV4BackupURL: URL {
+        stateDirectoryURL.appending(path: "state.pre-v4.json")
     }
 
     public var lockURL: URL {
         stateDirectoryURL.appending(path: "state.lock")
     }
 
-    public func load() throws -> PersistedStateV3 {
+    public func load() throws -> PersistedStateV4 {
         guard let data = try loadData() else {
-            return PersistedStateV3(accounts: [])
+            return PersistedStateV4(accounts: [])
         }
-        return try JSONDecoder.limits.decode(PersistedStateV3.self, from: data)
+        return try JSONDecoder.limits.decode(PersistedStateV4.self, from: data)
     }
 
     public func loadData() throws -> Data? {
@@ -67,15 +67,15 @@ public struct AccountsPersistence: @unchecked Sendable {
         return try Data(contentsOf: stateURL)
     }
 
-    public func backupBeforeV3Migration(_ data: Data) throws {
+    public func backupBeforeV4Migration(_ data: Data) throws {
         try secureDirectory()
-        guard !fileManager.fileExists(atPath: preV3BackupURL.path) else {
+        guard !fileManager.fileExists(atPath: preV4BackupURL.path) else {
             return
         }
-        try writeAtomically(data, to: preV3BackupURL)
+        try writeAtomically(data, to: preV4BackupURL)
     }
 
-    public func save(_ state: PersistedStateV3) throws {
+    public func save(_ state: PersistedStateV4) throws {
         try secureDirectory()
         let data = try JSONEncoder.limits.encode(state)
         try writeAtomically(data, to: stateURL)

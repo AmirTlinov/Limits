@@ -74,6 +74,9 @@ import LimitsShared
         #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "plus").summary == "ChatGPT Plus · $20/month")
         #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "prolite").summary == "ChatGPT Pro 5× · $100/month")
         #expect(ChatGPTSubscriptionPresentationPolicy.plan(for: "pro").summary == "ChatGPT Pro 20× · $200/month")
+        #expect(ChatGPTSubscriptionPresentationPolicy.monthlyPriceUSD(for: "plus") == 20)
+        #expect(ChatGPTSubscriptionPresentationPolicy.monthlyPriceUSD(for: "prolite") == 100)
+        #expect(ChatGPTSubscriptionPresentationPolicy.monthlyPriceUSD(for: "pro") == 200)
     }
 }
 
@@ -232,8 +235,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         lastValidatedAt: nil,
         status: .ok,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: "stored-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )
@@ -264,8 +265,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
             lastValidatedAt: baseDate,
             status: .ok,
             statusMessage: nil,
-            lastRateLimit: nil,
-            lastRateLimitsByLimitId: nil,
             authFingerprint: "first",
             keychainAccount: "account.\(firstID.uuidString)"
         ),
@@ -280,8 +279,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
             lastValidatedAt: baseDate,
             status: .ok,
             statusMessage: nil,
-            lastRateLimit: nil,
-            lastRateLimitsByLimitId: nil,
             authFingerprint: "second",
             keychainAccount: "account.\(secondID.uuidString)"
         ),
@@ -316,8 +313,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         lastValidatedAt: nil,
         status: .ok,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: "same-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )
@@ -345,8 +340,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         lastValidatedAt: nil,
         status: .ok,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: "old-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )
@@ -375,8 +368,6 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         lastValidatedAt: nil,
         status: .ok,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: "old-fingerprint",
         keychainAccount: "account.\(id.uuidString)"
     )
@@ -391,7 +382,7 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     #expect(match?.id == id)
 }
 
-@Test func persistedStateDecodesWithoutClaudeAccountsField() throws {
+@Test func legacyPersistedStateMigratesWithoutClaudeAccountsField() throws {
     let data = """
     {
       "schemaVersion": 3,
@@ -414,17 +405,20 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     }
     """.data(using: .utf8)!
 
-    let state = try JSONDecoder.limits.decode(PersistedStateV3.self, from: data)
+    let migration = try PersistedStateMigrator.decodeAndMigrate(
+        data,
+        currentCodexFingerprint: nil,
+        currentClaudeFingerprint: nil
+    )
+    let state = migration.state
 
     let account = try #require(state.accounts.first)
-    #expect(account.lastRateLimitObservedAt == nil)
     #expect(account.subscriptionPeriod == nil)
-    #expect(account.limitsIssue == nil)
-    #expect(account.rateLimitObservedAt == account.lastValidatedAt)
+    #expect(migration.legacyLimitObservations.isEmpty)
     #expect(state.claudeAccounts.isEmpty)
 }
 
-@Test func validationMergePreservesLastKnownLimitsWhenOnlyRateLimitEndpointFails() throws {
+@Test func validationMergeUpdatesIdentityWithoutOwningLimitData() throws {
     let oldObservedAt = Date(timeIntervalSince1970: 1_000_000)
     let now = oldObservedAt.addingTimeInterval(600)
     let oldSnapshot = RateLimitSnapshotModel(
@@ -454,13 +448,10 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         createdAt: oldObservedAt,
         updatedAt: oldObservedAt,
         lastValidatedAt: oldObservedAt,
-        status: .limitReached,
-        statusMessage: "Rate Limit Exceeded",
-        lastRateLimit: oldSnapshot,
-        lastRateLimitsByLimitId: ["codex": oldSnapshot],
+        status: .ok,
+        statusMessage: nil,
         authFingerprint: "old-fingerprint",
         keychainAccount: "account-key",
-        lastRateLimitObservedAt: oldObservedAt,
         subscriptionPeriod: paidPeriod
     )
     let result = AccountValidationResult(
@@ -477,21 +468,25 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     let updated = CodexAccountValidationPolicy.applying(result, to: account, observedAt: now)
 
     #expect(updated.lastValidatedAt == now)
-    #expect(updated.lastRateLimitObservedAt == oldObservedAt)
-    #expect(updated.lastRateLimit == oldSnapshot)
-    #expect(updated.lastRateLimitsByLimitId == ["codex": oldSnapshot])
     #expect(updated.subscriptionPeriod == paidPeriod)
     #expect(updated.status == .ok)
     #expect(updated.statusMessage == nil)
-    #expect(updated.limitsIssue == .temporarilyUnavailable)
     #expect(updated.authFingerprint == "new-fingerprint")
-    #expect(
-        CodexAccountIssuePresentationPolicy.presentation(for: updated)?.recommendedAction
-            == .automaticRetry
+    #expect(CodexAccountIssuePresentationPolicy.presentation(for: updated) == nil)
+
+    let limits = CodexRateLimitsSnapshot(
+        accountID: "acct_123",
+        observedAt: now,
+        successfulObservedAt: oldObservedAt,
+        primary: oldSnapshot,
+        byLimitID: ["codex": oldSnapshot],
+        errorMessage: result.rateLimitError
     )
+    #expect(limits.limitsObservedAt == oldObservedAt)
+    #expect(limits.primary == oldSnapshot)
 }
 
-@Test func revokedLimitTokenBecomesOneHumanReauthenticationIssue() throws {
+@Test func rateLimitEndpointAuthorizationErrorDoesNotOverrideSuccessfulAccountIdentity() throws {
     let now = Date(timeIntervalSince1970: 2_000_000)
     let result = AccountValidationResult(
         authData: Data("credential".utf8),
@@ -511,20 +506,9 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         observedAt: now
     )
 
-    #expect(account.limitsIssue == .authorizationExpired)
+    #expect(account.status == .ok)
     #expect(account.statusMessage == nil)
-    L10n.withLanguage("ru") {
-        let issue = CodexAccountIssuePresentationPolicy.presentation(for: account)
-        #expect(issue?.title == "Вход устарел")
-        #expect(issue?.message == "Войдите снова, чтобы восстановить лимиты этого аккаунта.")
-        #expect(issue?.recommendedAction == .reauthenticate)
-    }
-
-    var legacy = account
-    legacy.limitsIssue = nil
-    legacy.statusMessage = "GET https://chatgpt.com/backend-api/wham/usage failed: 401 Unauthorized; token_revoked"
-    let legacyIssue = CodexAccountIssuePresentationPolicy.presentation(for: legacy)
-    #expect(legacyIssue?.recommendedAction == .reauthenticate)
+    #expect(CodexAccountIssuePresentationPolicy.presentation(for: account) == nil)
 }
 
 @Test func validationMergeUsesEveryExactBucketWhenDeterminingAvailability() {
@@ -557,8 +541,8 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
         observedAt: now
     )
 
-    #expect(account.status == .limitReached)
-    #expect(account.lastRateLimitObservedAt == now)
+    #expect(account.status == .ok)
+    #expect(spendControl.isReached)
 }
 
 @Test func decodesClaudeAuthStatusJson() throws {

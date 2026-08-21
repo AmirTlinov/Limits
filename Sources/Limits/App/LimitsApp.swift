@@ -41,18 +41,26 @@ struct LimitsApp: App {
     @StateObject private var model: AppModel
     private let presentMainWindowAtLaunch: Bool
     private let recordsFirstWindowPresentation: Bool
+    private let testColorScheme: ColorScheme?
 
     init() {
-        _model = StateObject(wrappedValue: AppModel())
         let runtime = LimitsRuntimeEnvironment.current
+        runtime.prepareUserDefaults()
+        _model = StateObject(wrappedValue: AppModel())
         presentMainWindowAtLaunch = runtime.isUITest || FirstLaunchPolicy.shouldPresent()
         recordsFirstWindowPresentation = !runtime.isUITest
+        testColorScheme = switch runtime.testColorScheme?.lowercased() {
+        case "light": .light
+        case "dark": .dark
+        default: nil
+        }
         ApplicationLaunchState.presentsMainWindow = presentMainWindowAtLaunch
     }
 
     var body: some Scene {
         Window(L10n.tr("app.title"), id: LimitsSceneID.accounts) {
             AccountsWindowView(model: model)
+                .preferredColorScheme(testColorScheme)
                 .background(WindowActivationTracker(kind: .accounts))
                 .onAppear {
                     if presentMainWindowAtLaunch, recordsFirstWindowPresentation {
@@ -71,6 +79,7 @@ struct LimitsApp: App {
         .handlesExternalEvents(matching: ["open"])
         MenuBarExtra {
             NativeMenuBarContent(model: model)
+                .preferredColorScheme(testColorScheme)
         } label: {
             NativeMenuBarLabel(model: model)
         }
@@ -78,7 +87,7 @@ struct LimitsApp: App {
 
         Settings {
             SettingsView(
-                catalog: model.providerCatalog,
+                model: model,
                 languageDidChange: {
                     model.invalidateLocalizedText()
                     model.publishWidgetSnapshotNow()

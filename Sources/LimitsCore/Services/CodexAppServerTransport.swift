@@ -127,6 +127,15 @@ final class CodexAppServerTransport: @unchecked Sendable {
         )
     }
 
+    func readAccountUsage(threadID: String? = nil) async throws -> AppServerAccountUsageResponse {
+        let params: [String: Any]? = threadID.map { ["threadId": $0] }
+        return try await request(
+            method: "account/usage/read",
+            params: params,
+            responseType: AppServerAccountUsageResponse.self
+        )
+    }
+
     func waitForLoginCompletion(loginId: String, timeout: TimeInterval = 300) async throws -> AppServerLoginCompletedNotification {
         try await withCheckedThrowingContinuation { continuation in
             let waiterID = UUID()

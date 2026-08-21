@@ -111,7 +111,7 @@ import Testing
     #expect(limits[1].remainingPercent == 60)
 }
 
-@Test func widgetSnapshotJSONCarriesNoCredentialShapedFields() throws {
+@Test func widgetSnapshotJSONCarriesOnlySafeAggregatedAnalytics() throws {
     let snapshot = LimitsWidgetSnapshot(
         generatedAt: Date(timeIntervalSince1970: 1_779_876_000),
         providers: [
@@ -125,16 +125,53 @@ import Testing
                 freshUntil: nil,
                 note: "No live limit data yet."
             ),
-        ]
+        ],
+        codexAnalytics: CodexAnalyticsSummary(
+            accountLabel: "Primary",
+            planTitle: "ChatGPT Pro",
+            forecastState: .lastsUntilReset,
+            predictedExhaustionAt: nil,
+            resetAt: nil,
+            remainingPercent: 80,
+            forecastObservedAt: Date(timeIntervalSince1970: 1_779_876_000),
+            weeklyTokens: 42_000,
+            weeklyCredits: 12
+        )
     )
 
     let json = String(decoding: try JSONEncoder.limitsWidget.encode(snapshot), as: UTF8.self).lowercased()
 
-    #expect(!json.contains("token"))
+    #expect(json.contains("weeklytokens"))
     #expect(!json.contains("authfingerprint"))
     #expect(!json.contains("keychain"))
     #expect(!json.contains("credential"))
     #expect(!json.contains("updatedat"))
+}
+
+@Test func widgetV3AnalyticsWithoutForecastTimestampRemainsDecodable() throws {
+    let data = Data(
+        """
+        {
+          "schemaVersion": 3,
+          "generatedAt": "2026-08-21T00:00:00Z",
+          "providers": [],
+          "codexAnalytics": {
+            "accountLabel": "Primary",
+            "planTitle": "ChatGPT Pro",
+            "forecastState": "lastsUntilReset",
+            "remainingPercent": 75,
+            "weeklyTokens": 42000,
+            "weeklyCredits": 12
+          }
+        }
+        """.utf8
+    )
+
+    let snapshot = try JSONDecoder.limitsWidget.decode(LimitsWidgetSnapshot.self, from: data)
+
+    #expect(snapshot.codexAnalytics?.accountLabel == "Primary")
+    #expect(snapshot.codexAnalytics?.forecastObservedAt == nil)
+    #expect(snapshot.codexAnalytics?.weeklyTokens == 42_000)
 }
 
 @Test func widgetPublisherReloadsTimelineOnlyWhenProviderEvidenceChanges() throws {

@@ -113,7 +113,7 @@ import Testing
     let first = claudeAccount(email: "same@example.com", orgID: "org-a", fingerprint: "a")
     let second = claudeAccount(email: "SAME@example.com", orgID: "org-b", fingerprint: "b")
     let result = PersistedStateMigrator.migrate(
-        PersistedStateV3(schemaVersion: 2, accounts: [], claudeAccounts: [first, second]),
+        PersistedStateV4(schemaVersion: 2, accounts: [], claudeAccounts: [first, second]),
         currentCodexFingerprint: nil,
         currentClaudeFingerprint: nil
     )

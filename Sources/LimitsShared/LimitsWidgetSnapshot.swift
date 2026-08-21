@@ -12,6 +12,47 @@ public enum LimitsWidgetProviderStatus: String, Codable, Hashable, Sendable {
     case error
 }
 
+public enum LimitsWidgetForecastState: String, Codable, Hashable, Sendable {
+    case collecting
+    case exhaustsBeforeReset
+    case lastsUntilReset
+    case stale
+}
+
+public struct CodexAnalyticsSummary: Codable, Hashable, Sendable {
+    public let accountLabel: String?
+    public let planTitle: String?
+    public let forecastState: LimitsWidgetForecastState
+    public let predictedExhaustionAt: Date?
+    public let resetAt: Date?
+    public let remainingPercent: Int?
+    public let forecastObservedAt: Date?
+    public let weeklyTokens: Int64
+    public let weeklyCredits: Decimal?
+
+    public init(
+        accountLabel: String?,
+        planTitle: String?,
+        forecastState: LimitsWidgetForecastState,
+        predictedExhaustionAt: Date?,
+        resetAt: Date?,
+        remainingPercent: Int?,
+        forecastObservedAt: Date?,
+        weeklyTokens: Int64,
+        weeklyCredits: Decimal?
+    ) {
+        self.accountLabel = accountLabel
+        self.planTitle = planTitle
+        self.forecastState = forecastState
+        self.predictedExhaustionAt = predictedExhaustionAt
+        self.resetAt = resetAt
+        self.remainingPercent = remainingPercent
+        self.forecastObservedAt = forecastObservedAt
+        self.weeklyTokens = weeklyTokens
+        self.weeklyCredits = weeklyCredits
+    }
+}
+
 public struct LimitsWidgetLimitSnapshot: Codable, Hashable, Sendable, Identifiable {
     public let id: String
     public let title: String
@@ -112,20 +153,38 @@ public struct LimitsWidgetProviderSnapshot: Codable, Hashable, Sendable, Identif
 }
 
 public struct LimitsWidgetSnapshot: Codable, Hashable, Sendable {
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
 
     public let schemaVersion: Int
     public let generatedAt: Date
     public let providers: [LimitsWidgetProviderSnapshot]
+    public let codexAnalytics: CodexAnalyticsSummary?
 
-    public init(schemaVersion: Int = Self.currentSchemaVersion, generatedAt: Date, providers: [LimitsWidgetProviderSnapshot]) {
+    public init(
+        schemaVersion: Int = Self.currentSchemaVersion,
+        generatedAt: Date,
+        providers: [LimitsWidgetProviderSnapshot],
+        codexAnalytics: CodexAnalyticsSummary? = nil
+    ) {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
         self.providers = providers
+        self.codexAnalytics = codexAnalytics
     }
 
     public func provider(_ id: LimitsWidgetProviderID) -> LimitsWidgetProviderSnapshot? {
         providers.first { $0.id == id }
+    }
+
+
+    private enum CodingKeys: String, CodingKey { case schemaVersion, generatedAt, providers, codexAnalytics }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+        providers = try container.decodeIfPresent([LimitsWidgetProviderSnapshot].self, forKey: .providers) ?? []
+        codexAnalytics = try container.decodeIfPresent(CodexAnalyticsSummary.self, forKey: .codexAnalytics)
     }
 }
 

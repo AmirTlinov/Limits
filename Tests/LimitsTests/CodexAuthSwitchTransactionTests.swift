@@ -258,8 +258,6 @@ private func makeSwitchAccount(accountID: String, credential: Data) -> StoredAcc
         lastValidatedAt: nil,
         status: .unknown,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: CodexAuthBlob.fingerprint(for: credential),
         keychainAccount: "account.\(id.uuidString)"
     )

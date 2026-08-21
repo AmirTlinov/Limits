@@ -20,7 +20,8 @@ public struct LimitsWidgetSnapshotPublisher {
     public func publish(_ snapshot: LimitsWidgetSnapshot) throws -> Bool {
         if let current = try store.readSnapshot(),
            current.schemaVersion == snapshot.schemaVersion,
-           current.providers == snapshot.providers {
+           current.providers == snapshot.providers,
+           current.codexAnalytics == snapshot.codexAnalytics {
             return false
         }
         try store.writeSnapshot(snapshot)

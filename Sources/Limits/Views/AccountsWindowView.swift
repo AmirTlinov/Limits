@@ -1,9 +1,11 @@
 import AppKit
+import Charts
 import SwiftUI
 import LimitsCore
 import LimitsShared
 
 private enum AccountsSidebarSelection: Hashable {
+    case codexOverview
     case currentCodexCLI
     case codexAccount(UUID)
     case currentClaudeCode
@@ -11,6 +13,8 @@ private enum AccountsSidebarSelection: Hashable {
 
     var rawValue: String {
         switch self {
+        case .codexOverview:
+            return "codex-overview"
         case .currentCodexCLI:
             return "current-cli"
         case .codexAccount(let id):
@@ -23,6 +27,10 @@ private enum AccountsSidebarSelection: Hashable {
     }
 
     init?(rawValue: String) {
+        if rawValue == "codex-overview" {
+            self = .codexOverview
+            return
+        }
         if rawValue == "current-cli" {
             self = .currentCodexCLI
             return
@@ -56,7 +64,7 @@ private enum AccountsSidebarSelection: Hashable {
 
 struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
-    @AppStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.currentCodexCLI.rawValue
+    @AppStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.codexOverview.rawValue
     @AppStorage(AccountsSidebarFilter.providerFilterStorageKey) private var sidebarFilterRaw = AccountsSidebarFilter.all.rawValue
 
     private var overview: AppModel.CurrentCLIOverview {
@@ -69,8 +77,8 @@ struct AccountsWindowView: View {
 
     private var selectionBinding: Binding<AccountsSidebarSelection?> {
         Binding(
-            get: { AccountsSidebarSelection(rawValue: sidebarSelectionRaw) ?? .currentCodexCLI },
-            set: { sidebarSelectionRaw = ($0 ?? .currentCodexCLI).rawValue }
+            get: { AccountsSidebarSelection(rawValue: sidebarSelectionRaw) ?? .codexOverview },
+            set: { sidebarSelectionRaw = ($0 ?? .codexOverview).rawValue }
         )
     }
 
@@ -149,7 +157,11 @@ struct AccountsWindowView: View {
         }
         .onAppear {
             sidebarFilterRaw = sidebarFilter.rawValue
-            ensureValidSelection()
+            if model.persistedStateLoaded { ensureValidSelection() }
+            model.selectCodexAccountForUsageRefresh(selectedCodexAccount?.id)
+        }
+        .onChange(of: model.persistedStateLoaded) { _, loaded in
+            if loaded { ensureValidSelection() }
         }
         .onChange(of: model.accounts) { _, _ in
             ensureValidSelection()
@@ -167,6 +179,10 @@ struct AccountsWindowView: View {
         }
         .onChange(of: sidebarFilterRaw) { _, _ in
             ensureValidSelection()
+        }
+        .onChange(of: sidebarSelectionRaw) { _, _ in
+            model.selectCodexAccountForUsageRefresh(selectedCodexAccount?.id)
+            Task { await model.refreshForPresentation() }
         }
         .confirmationDialog(
             L10n.tr("delete.confirm.title", model.pendingCredentialDeletion?.accountName ?? ""),
@@ -212,6 +228,15 @@ struct AccountsWindowView: View {
             List(selection: selectionBinding) {
                 Section {
                     if sidebarFilter.includesCodex {
+                        SidebarRowView(
+                            icon: "chart.xyaxis.line",
+                            title: L10n.tr("insights.overview.title"),
+                            subtitle: overviewRiskSubtitle,
+                            trailing: overviewCreditsText,
+                            accent: ProviderAccent.codex
+                        )
+                        .tag(AccountsSidebarSelection.codexOverview)
+
                         SidebarRowView(
                             icon: "person.crop.circle.fill.badge.checkmark",
                             title: TrayStatusProvider.codex.displayTitle,
@@ -316,6 +341,10 @@ struct AccountsWindowView: View {
                     StoredClaudeDetailPane(model: model, account: selectedClaudeAccount)
                 } else if detailDestination == .currentClaudeCode {
                     CurrentClaudeDetailPane(model: model)
+                } else if detailDestination == .codexOverview {
+                    CodexOverviewPane(model: model) { accountID in
+                        sidebarSelectionRaw = AccountsSidebarSelection.codexAccount(accountID).rawValue
+                    }
                 } else {
                     CurrentCLIDetailPane(model: model)
                 }
@@ -329,6 +358,24 @@ struct AccountsWindowView: View {
 
     private var currentCLITrailingText: String? {
         model.currentCLIDisplaySidebarLimitSummary()?.compactLimitText()
+    }
+
+    private var overviewRiskSubtitle: String? {
+        guard let riskID = model.codexInsights.nearestRiskAccountID,
+              let account = model.codexInsights.accounts.first(where: { $0.id == riskID }) else {
+            let forecasts = model.codexInsights.accounts.map(\.forecast.state)
+            guard !forecasts.isEmpty else { return nil }
+            if forecasts.allSatisfy({ [.lastsUntilReset, .stable].contains($0) }) {
+                return L10n.tr("insights.risk.all_safe")
+            }
+            if forecasts.contains(.stale) { return L10n.tr("insights.forecast.stale") }
+            return L10n.tr("insights.forecast.collecting")
+        }
+        return account.label
+    }
+
+    private var overviewCreditsText: String? {
+        model.codexInsights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) }
     }
 
     private var currentClaudeTrailingText: String? {
@@ -355,6 +402,7 @@ struct AccountsWindowView: View {
         if model.isCurrentCLIAccount(account) {
             return ProviderAccent.codex
         }
+        if model.codexAccountIsSpendBlocked(account) { return .orange }
 
         switch account.status {
         case .ok:
@@ -398,6 +446,7 @@ struct AccountsWindowView: View {
     }
 
     private func ensureValidSelection(for filter: AccountsSidebarFilter? = nil) {
+        guard model.persistedStateLoaded else { return }
         let activeFilter = filter ?? sidebarFilter
         let destination = AccountsPresentationLogic.detailDestination(
             selectionRaw: sidebarSelectionRaw,
@@ -420,6 +469,8 @@ struct AccountsWindowView: View {
 
     private func sidebarSelection(for destination: AccountsDetailDestination) -> AccountsSidebarSelection {
         switch destination {
+        case .codexOverview:
+            return .codexOverview
         case .currentCodexCLI:
             return .currentCodexCLI
         case .currentClaudeCode:
@@ -499,6 +550,440 @@ private struct SidebarRowView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+private struct CodexOverviewPane: View {
+    @ObservedObject var model: AppModel
+    let openAccount: (UUID) -> Void
+
+    private var snapshot: CodexInsightsSnapshot { model.codexInsights }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.tr("insights.overview.title"))
+                        .font(.largeTitle.weight(.semibold))
+                        .accessibilityIdentifier("codex.insights.overview")
+                    Text(L10n.tr("insights.overview.subtitle"))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                Picker(L10n.tr("insights.period.label"), selection: $model.codexUsagePeriod) {
+                    Text(L10n.tr("insights.period.week")).tag(CodexUsagePeriod.currentWeek)
+                    Text(L10n.tr("insights.period.30_days")).tag(CodexUsagePeriod.last30Days)
+                    Text(L10n.tr("insights.period.all")).tag(CodexUsagePeriod.all)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 260)
+                .accessibilityIdentifier("codex.insights.period")
+            }
+
+            if let change = snapshot.priceChange {
+                PriceChangeNotice(change: change, dismiss: model.dismissCodexPriceChange)
+            }
+
+            if snapshot.accounts.isEmpty {
+                ContentUnavailableView(
+                    L10n.tr("insights.empty.title"),
+                    systemImage: "chart.xyaxis.line",
+                    description: Text(L10n.tr("insights.empty.message"))
+                )
+                .frame(maxWidth: .infinity, minHeight: 360)
+            } else {
+                WeeklyRiskCard(snapshot: snapshot, now: model.presentationNow)
+                InsightsMetricsGrid(snapshot: snapshot)
+                ModelUsageStrip(models: snapshot.models)
+                UsageTrendChart(daily: snapshot.daily)
+                    .frame(height: 118)
+                InsightsAccountList(accounts: snapshot.accounts, openAccount: openAccount)
+            }
+        }
+    }
+}
+
+private struct PriceChangeNotice: View {
+    let change: OpenAIPriceChange
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.up.arrow.down")
+                .foregroundStyle(ProviderAccent.codex)
+            Text(
+                L10n.tr(
+                    "insights.price_change.message",
+                    L10n.tr(
+                        "insights.price_change.subject",
+                        CodexInsightsTextPresentation.modelTitle(change.modelID),
+                        CodexInsightsTextPresentation.priceMetricTitle(change.metric)
+                    ),
+                    CodexInsightsTextPresentation.priceValue(change.previousValue, metric: change.metric),
+                    CodexInsightsTextPresentation.priceValue(change.currentValue, metric: change.metric),
+                    L10n.localizedDecimal(change.maximumPercentChange, maximumFractionDigits: 1)
+                )
+            )
+            .font(.callout)
+            .lineLimit(2)
+            .accessibilityIdentifier("codex.insights.price-change")
+            Spacer(minLength: 8)
+            Button(action: dismiss) {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain)
+            .help(L10n.tr("action.dismiss"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(ProviderAccent.codex.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+private struct WeeklyRiskCard: View {
+    let snapshot: CodexInsightsSnapshot
+    let now: Date
+
+    private var account: CodexAccountInsights? {
+        if let id = snapshot.nearestRiskAccountID {
+            return snapshot.accounts.first { $0.id == id }
+        }
+        return snapshot.accounts.min {
+            ($0.forecast.remainingPercent ?? 101) < ($1.forecast.remainingPercent ?? 101)
+        }
+    }
+
+    private var allSafe: Bool {
+        snapshot.nearestRiskAccountID == nil
+            && snapshot.accounts.allSatisfy { [.lastsUntilReset, .stable].contains($0.forecast.state) }
+    }
+
+    var body: some View {
+        if let account {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(riskHeading(for: account))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let reset = CodexInsightsTextPresentation.reset(account.forecast, now: now) {
+                        Text(reset).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(account.label).font(.title2.weight(.semibold)).lineLimit(1)
+                    Text(account.planTitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(CodexInsightsTextPresentation.forecast(account.forecast, now: now))
+                        .font(.headline)
+                        .foregroundStyle(forecastColor(account.forecast.state))
+                        .lineLimit(1)
+                }
+                ForecastProgressBar(forecast: account.forecast)
+            }
+            .padding(14)
+            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("codex.insights.weekly-risk")
+        }
+    }
+
+    private func riskHeading(for account: CodexAccountInsights) -> String {
+        if allSafe { return L10n.tr("insights.risk.all_safe") }
+        if account.forecast.state == .exhaustsBeforeReset { return L10n.tr("insights.risk.nearest") }
+        return L10n.tr("insights.limit.weekly")
+    }
+}
+
+private struct ForecastProgressBar: View {
+    let forecast: LimitBurnForecast
+
+    var body: some View {
+        let remaining = forecast.remainingPercent.map { Double($0) / 100 }
+        HStack(spacing: 10) {
+            ProgressView(value: min(max(remaining ?? 0, 0), 1))
+                .progressViewStyle(.linear)
+                .tint(remaining == nil ? Color.secondary : forecastColor(forecast.state))
+                .opacity(remaining == nil ? 0.35 : 1)
+            Text(forecast.remainingPercent.map { L10n.tr("insights.remaining.percent", $0) } ?? "—")
+                .font(.callout.weight(.semibold))
+                .monospacedDigit()
+                .frame(width: 82, alignment: .trailing)
+        }
+    }
+}
+
+private struct InsightsMetricsGrid: View {
+    let snapshot: CodexInsightsSnapshot
+
+    var body: some View {
+        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            GridRow {
+                InsightsMetric(
+                    identifier: "codex.insights.metric.tokens",
+                    title: L10n.tr("insights.metric.tokens"),
+                    value: CodexInsightsTextPresentation.compactTokens(snapshot.totals.usage.totalTokens),
+                    subtitle: coverageText
+                )
+                InsightsMetric(
+                    identifier: "codex.insights.metric.credits",
+                    title: L10n.tr("insights.metric.credits"),
+                    value: snapshot.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
+                    subtitle: L10n.tr("insights.metric.credits.subtitle")
+                )
+                InsightsMetric(
+                    identifier: "codex.insights.metric.api-equivalent",
+                    title: L10n.tr("insights.metric.api_equivalent"),
+                    value: snapshot.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
+                    subtitle: L10n.tr("insights.metric.api_equivalent.subtitle")
+                )
+                InsightsMetric(
+                    identifier: "codex.insights.metric.subscriptions",
+                    title: L10n.tr("insights.metric.subscriptions"),
+                    value: snapshot.totalMonthlySubscriptionUSD.map { L10n.localizedCurrencyUSD($0, maximumFractionDigits: 0) } ?? "—",
+                    subtitle: snapshot.effectiveSubscriptionUSDPerMillionTokens.map {
+                        L10n.tr("insights.metric.effective_per_million", L10n.localizedCurrencyUSD($0))
+                    } ?? L10n.tr("insights.metric.effective.collecting")
+                )
+            }
+        }
+    }
+
+    private var coverageText: String {
+        guard let percent = snapshot.coverage?.fraction else { return L10n.tr("insights.coverage.unavailable") }
+        return L10n.tr("insights.coverage.percent", Int((percent * 100).rounded()))
+    }
+}
+
+private struct InsightsMetric: View {
+    let identifier: String
+    let title: String
+    let value: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(value).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+            Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+private struct ModelUsageStrip: View {
+    let models: [CodexModelUsage]
+
+    private var buckets: [ModelUsageBucket] { ModelUsageBucket.make(from: models) }
+    private var totalKnownCredits: Decimal { buckets.compactMap(\.credits).reduce(0, +) }
+    private var totalTokens: Int64 { buckets.reduce(0) { $0 + $1.usage.totalTokens } }
+    private var unknownTokens: Int64 { buckets.filter { $0.credits == nil }.reduce(0) { $0 + $1.usage.totalTokens } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            GeometryReader { proxy in
+                let availableWidth = max(0, proxy.size.width - CGFloat(max(0, buckets.count - 1)) * 2)
+                HStack(spacing: 2) {
+                    ForEach(buckets) { bucket in
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(bucket.color)
+                            .frame(width: max(3, availableWidth * fraction(for: bucket)))
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .frame(height: 12)
+
+            HStack(spacing: 16) {
+                ForEach(buckets) { bucket in
+                    HStack(spacing: 6) {
+                        Circle().fill(bucket.color).frame(width: 7, height: 7)
+                        Text(bucket.title).font(.caption.weight(.semibold))
+                        Text(bucket.creditShareText(of: totalKnownCredits))
+                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text(CodexInsightsTextPresentation.compactTokens(bucket.usage.totalTokens))
+                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityIdentifier("codex.insights.models")
+    }
+
+    private func fraction(for bucket: ModelUsageBucket) -> Double {
+        guard totalTokens > 0 else { return 0 }
+        guard totalKnownCredits > 0 else {
+            return Double(bucket.usage.totalTokens) / Double(totalTokens)
+        }
+        let unknownFraction = Double(unknownTokens) / Double(totalTokens)
+        if let credits = bucket.credits {
+            let creditShare = NSDecimalNumber(decimal: credits / totalKnownCredits).doubleValue
+            return (1 - unknownFraction) * creditShare
+        }
+        guard unknownTokens > 0 else { return 0 }
+        return unknownFraction * Double(bucket.usage.totalTokens) / Double(unknownTokens)
+    }
+}
+
+private struct ModelUsageBucket: Identifiable {
+    enum Kind: String, CaseIterable { case sol, terra, luna, other }
+    let kind: Kind
+    let usage: CodexTokenUsage
+    let credits: Decimal?
+
+    var id: String { kind.rawValue }
+    var title: String {
+        switch kind {
+        case .sol: "Sol"
+        case .terra: "Terra"
+        case .luna: "Luna"
+        case .other: L10n.tr("insights.model.other")
+        }
+    }
+    var color: Color {
+        switch kind {
+        case .sol: ProviderAccent.codex
+        case .terra: ProviderAccent.codex.opacity(0.72)
+        case .luna: ProviderAccent.codex.opacity(0.45)
+        case .other: Color.secondary.opacity(0.42)
+        }
+    }
+    func creditShareText(of total: Decimal) -> String {
+        guard let credits, total > 0 else { return "—" }
+        let percent = credits / total * 100
+        return "\(L10n.localizedDecimal(percent, maximumFractionDigits: 0))%"
+    }
+
+    static func make(from models: [CodexModelUsage]) -> [Self] {
+        Dictionary(grouping: models) { model -> Kind in
+            let id = model.modelID.lowercased()
+            if id.contains("sol") || id == "gpt-5.6" { return .sol }
+            if id.contains("terra") { return .terra }
+            if id.contains("luna") { return .luna }
+            return .other
+        }
+        .map { kind, models in
+            let usage = models.reduce(CodexTokenUsage.zero) { $0 + $1.totals.usage }
+            let credits = models.allSatisfy { $0.totals.credits != nil }
+                ? models.compactMap { $0.totals.credits }.reduce(0, +)
+                : nil
+            return Self(kind: kind, usage: usage, credits: credits)
+        }
+        .sorted { Kind.allCases.firstIndex(of: $0.kind)! < Kind.allCases.firstIndex(of: $1.kind)! }
+    }
+}
+
+private struct UsageTrendChart: View {
+    let daily: [CodexDailyUsage]
+    @State private var selectedDate: Date?
+
+    private var selected: CodexDailyUsage? {
+        guard let selectedDate else { return nil }
+        return daily.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(L10n.tr("insights.trend.title")).font(.caption.weight(.semibold))
+                Spacer()
+                if let selected {
+                    Text(
+                        L10n.tr(
+                            "insights.trend.selection",
+                            L10n.shortDayTime(selected.date),
+                            CodexInsightsTextPresentation.compactTokens(selected.totals.usage.totalTokens),
+                            selected.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—"
+                        )
+                    )
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            Chart(daily) { day in
+                if let credits = day.totals.credits {
+                    BarMark(
+                        x: .value(L10n.tr("insights.chart.date"), day.date, unit: .day),
+                        y: .value(L10n.tr("insights.chart.credits"), NSDecimalNumber(decimal: credits).doubleValue)
+                    )
+                    .foregroundStyle(ProviderAccent.codex.gradient)
+                    .cornerRadius(3)
+                }
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) {
+                    AxisGridLine().foregroundStyle(.quaternary)
+                    AxisValueLabel().font(.caption2)
+                }
+            }
+            .chartXSelection(value: $selectedDate)
+            .accessibilityRepresentation {
+                VStack(alignment: .leading) {
+                    Text(L10n.tr("insights.trend.accessibility_summary", daily.count))
+                    ForEach(daily) { day in
+                        Text(
+                            L10n.tr(
+                                "insights.trend.accessibility_row",
+                                L10n.shortDayTime(day.date),
+                                CodexInsightsTextPresentation.compactTokens(day.totals.usage.totalTokens),
+                                day.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—"
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("codex.insights.trend")
+    }
+}
+
+private struct InsightsAccountList: View {
+    let accounts: [CodexAccountInsights]
+    let openAccount: (UUID) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(accounts) { account in
+                if let localID = account.localAccountID {
+                    Button { openAccount(localID) } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(account.label).font(.callout.weight(.semibold)).lineLimit(1)
+                                Text(account.planTitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            Text(CodexInsightsTextPresentation.forecast(account.forecast))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(forecastColor(account.forecast.state))
+                                .lineLimit(1)
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
+                    .accessibilityIdentifier("codex.insights.account.\(localID.uuidString)")
+                }
+            }
+        }
+    }
+}
+
+private func forecastColor(_ state: LimitBurnForecastState) -> Color {
+    switch state {
+    case .exhaustsBeforeReset: .orange
+    case .stale: .secondary
+    case .collecting: .secondary
+    case .stable, .lastsUntilReset: ProviderAccent.codex
     }
 }
 
@@ -940,6 +1425,10 @@ private struct StoredAccountDetailPane: View {
         model.codexAccountIssue(for: account)
     }
 
+    private var insights: CodexAccountInsights? {
+        model.codexInsights(for: account)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
@@ -982,6 +1471,11 @@ private struct StoredAccountDetailPane: View {
                 }
             )
 
+            if let insights {
+                MinimalSeparator()
+                AccountAnalyticsPanel(insights: insights, now: model.presentationNow)
+            }
+
             if let accountIssue {
                 MinimalSeparator()
                 CodexAccountIssueCard(issue: accountIssue)
@@ -1006,6 +1500,63 @@ private struct StoredAccountDetailPane: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private struct AccountAnalyticsPanel: View {
+    let insights: CodexAccountInsights
+    let now: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.tr("insights.account.title"))
+                .font(.title2.weight(.semibold))
+                .accessibilityIdentifier("codex.insights.account-detail")
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text(L10n.tr("insights.limit.weekly")).font(.headline)
+                    Spacer()
+                    Text(CodexInsightsTextPresentation.forecast(insights.forecast, now: now))
+                        .font(.headline)
+                        .foregroundStyle(forecastColor(insights.forecast.state))
+                }
+                ForecastProgressBar(forecast: insights.forecast)
+                if let reset = CodexInsightsTextPresentation.reset(insights.forecast, now: now) {
+                    Text(reset).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            HStack(spacing: 8) {
+                InsightsMetric(
+                    identifier: "codex.insights.account.metric.tokens",
+                    title: L10n.tr("insights.metric.tokens"),
+                    value: CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
+                    subtitle: insights.coverage?.fraction.map {
+                        L10n.tr("insights.coverage.percent", Int(($0 * 100).rounded()))
+                    } ?? L10n.tr("insights.coverage.unavailable")
+                )
+                InsightsMetric(
+                    identifier: "codex.insights.account.metric.credits",
+                    title: L10n.tr("insights.metric.credits"),
+                    value: insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
+                    subtitle: L10n.tr("insights.metric.credits.subtitle")
+                )
+                InsightsMetric(
+                    identifier: "codex.insights.account.metric.api-equivalent",
+                    title: L10n.tr("insights.metric.api_equivalent"),
+                    value: insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
+                    subtitle: insights.effectiveSubscriptionUSDPerMillionTokens.map {
+                        L10n.tr("insights.metric.effective_per_million", L10n.localizedCurrencyUSD($0))
+                    } ?? L10n.tr("insights.metric.effective.collecting")
+                )
+            }
+
+            ModelUsageStrip(models: insights.models)
+            UsageTrendChart(daily: insights.daily).frame(height: 130)
         }
     }
 }

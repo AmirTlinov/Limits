@@ -18,7 +18,7 @@ import Testing
         status: .ok,
         validatedAt: now
     )
-    let source = PersistedStateV3(
+    let source = PersistedStateV4(
         schemaVersion: 1,
         accounts: [duplicate, current]
     )
@@ -30,7 +30,7 @@ import Testing
         now: now
     )
 
-    #expect(result.state.schemaVersion == 3)
+    #expect(result.state.schemaVersion == 4)
     #expect(result.state.accounts.map(\.id) == [current.id])
     #expect(result.state.retiredCredentials.count == 1)
     #expect(result.state.retiredCredentials[0].keychainAccount == duplicate.keychainAccount)
@@ -56,7 +56,7 @@ import Testing
     )
 
     let result = PersistedStateMigrator.migrate(
-        PersistedStateV3(schemaVersion: 1, accounts: [failed, healthy]),
+        PersistedStateV4(schemaVersion: 1, accounts: [failed, healthy]),
         currentCodexFingerprint: nil,
         currentClaudeFingerprint: nil,
         now: now
@@ -66,7 +66,7 @@ import Testing
     #expect(result.state.retiredCredentials.map(\.sourceRecordID) == [failed.id])
 }
 
-@Test func v3MigrationIsIdempotent() {
+@Test func v4MigrationIsIdempotent() {
     let account = makeMigrationAccount(
         label: "Only",
         accountId: "acct_only",
@@ -74,7 +74,7 @@ import Testing
         status: .ok,
         validatedAt: .now
     )
-    let source = PersistedStateV3(accounts: [account])
+    let source = PersistedStateV4(accounts: [account])
 
     let result = PersistedStateMigrator.migrate(
         source,
@@ -95,7 +95,7 @@ import Testing
         status: .ok,
         validatedAt: .now
     )
-    let source = PersistedStateV3(schemaVersion: 2, revision: 7, accounts: [account])
+    let source = PersistedStateV4(schemaVersion: 2, revision: 7, accounts: [account])
 
     let result = PersistedStateMigrator.migrate(
         source,
@@ -104,7 +104,7 @@ import Testing
     )
 
     #expect(result.receipt.didChange)
-    #expect(result.state.schemaVersion == 3)
+    #expect(result.state.schemaVersion == 4)
     #expect(result.state.revision == 7)
     #expect(result.state.accounts == [account])
 }
@@ -128,7 +128,7 @@ import Testing
     second.keychainAccount = first.keychainAccount
 
     let result = PersistedStateMigrator.migrate(
-        PersistedStateV3(schemaVersion: 1, accounts: [first, second]),
+        PersistedStateV4(schemaVersion: 1, accounts: [first, second]),
         currentCodexFingerprint: first.authFingerprint,
         currentClaudeFingerprint: nil,
         now: now
@@ -138,6 +138,47 @@ import Testing
     #expect(result.state.retiredCredentials.isEmpty)
 }
 
+@Test func duplicateMigrationKeepsEveryHistoricalLimitObservationUnderStableIdentity() throws {
+    let now = Date(timeIntervalSince1970: 40_000)
+    let winner = makeMigrationAccount(
+        label: "Winner",
+        accountId: "acct_same",
+        fingerprint: "current",
+        status: .ok,
+        validatedAt: now
+    )
+    let loser = makeMigrationAccount(
+        label: "Older copy",
+        accountId: "acct_same",
+        fingerprint: "old",
+        status: .ok,
+        validatedAt: now.addingTimeInterval(-60)
+    )
+    let state: [String: Any] = [
+        "schemaVersion": 3,
+        "revision": 8,
+        "accounts": [
+            try legacyAccountObject(winner, usedPercent: 20, observedAt: now),
+            try legacyAccountObject(loser, usedPercent: 10, observedAt: now.addingTimeInterval(-60)),
+        ],
+        "claudeAccounts": [],
+        "retiredCredentials": [],
+    ]
+    let data = try JSONSerialization.data(withJSONObject: state, options: [.sortedKeys])
+
+    let result = try PersistedStateMigrator.decodeAndMigrate(
+        data,
+        currentCodexFingerprint: winner.authFingerprint,
+        currentClaudeFingerprint: nil,
+        now: now
+    )
+
+    #expect(result.state.accounts.map(\.id) == [winner.id])
+    #expect(result.legacyLimitObservations.map(\.usedPercent).sorted() == [10, 20])
+    #expect(result.legacyRateLimitSnapshots.count == 2)
+    #expect(result.legacyLimitObservations.allSatisfy { $0.accountID == "acct_same" })
+}
+
 @Test func persistenceSecuresStateAndPreMigrationBackup() throws {
     let root = FileManager.default.temporaryDirectory
         .appending(path: "limits-persistence-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -145,13 +186,13 @@ import Testing
     let persistence = AccountsPersistence(baseURL: root)
     let legacyData = Data("{\"accounts\":[]}".utf8)
 
-    try persistence.backupBeforeV3Migration(legacyData)
-    try persistence.save(PersistedStateV3(accounts: []))
+    try persistence.backupBeforeV4Migration(legacyData)
+    try persistence.save(PersistedStateV4(accounts: []))
 
-    #expect(try Data(contentsOf: persistence.preV3BackupURL) == legacyData)
+    #expect(try Data(contentsOf: persistence.preV4BackupURL) == legacyData)
     #expect(posixPermissions(at: persistence.stateDirectoryURL) == 0o700)
     #expect(posixPermissions(at: persistence.stateURL) == 0o600)
-    #expect(posixPermissions(at: persistence.preV3BackupURL) == 0o600)
+    #expect(posixPermissions(at: persistence.preV4BackupURL) == 0o600)
 }
 
 private func makeMigrationAccount(
@@ -173,11 +214,28 @@ private func makeMigrationAccount(
         lastValidatedAt: validatedAt,
         status: status,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: fingerprint,
         keychainAccount: "account.\(id.uuidString)"
     )
+}
+
+private func legacyAccountObject(
+    _ account: StoredAccount,
+    usedPercent: Int,
+    observedAt: Date
+) throws -> [String: Any] {
+    let encoded = try JSONEncoder.limits.encode(account)
+    var object = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+    object["lastRateLimitObservedAt"] = ISO8601DateFormatter().string(from: observedAt)
+    object["lastRateLimit"] = [
+        "limitId": "codex",
+        "secondary": [
+            "resetsAt": Int64(observedAt.addingTimeInterval(86_400).timeIntervalSince1970),
+            "usedPercent": usedPercent,
+            "windowDurationMins": 10_080,
+        ],
+    ]
+    return object
 }
 
 private func posixPermissions(at url: URL) -> Int {

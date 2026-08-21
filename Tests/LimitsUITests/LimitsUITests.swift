@@ -1,4 +1,7 @@
 import AppKit
+import CryptoKit
+import LimitsCore
+import Security
 import XCTest
 
 final class LimitsUITests: XCTestCase {
@@ -10,6 +13,18 @@ final class LimitsUITests: XCTestCase {
         let productionAuth = home.appending(path: ".codex/auth.json")
         let stateBefore = try dataIfPresent(productionState)
         let authBefore = try dataIfPresent(productionAuth)
+        let productionUsageURLs = ["", "-wal", "-shm"].map {
+            URL(fileURLWithPath: home.appending(path: "Library/Application Support/Limits/usage.sqlite3").path + $0)
+        }
+        let usageBefore = try productionUsageURLs.map(dataIfPresent)
+        let keychainBefore = keychainMetadataSnapshot()
+        let stableSessionsBefore = stableSessionMetadataSnapshot(
+            roots: [
+                home.appending(path: ".codex/sessions", directoryHint: .isDirectory),
+                home.appending(path: ".codex/archived_sessions", directoryHint: .isDirectory),
+            ],
+            olderThan: Date().addingTimeInterval(-10 * 60)
+        )
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-test-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
 
@@ -27,15 +42,21 @@ final class LimitsUITests: XCTestCase {
         app.terminate()
         XCTAssertEqual(try dataIfPresent(productionState), stateBefore)
         XCTAssertEqual(try dataIfPresent(productionAuth), authBefore)
+        XCTAssertEqual(try productionUsageURLs.map(dataIfPresent), usageBefore)
+        XCTAssertEqual(keychainMetadataSnapshot(), keychainBefore)
+        XCTAssertEqual(
+            fileMetadataSnapshot(paths: Array(stableSessionsBefore.keys)),
+            stableSessionsBefore
+        )
         XCTAssertTrue(fileManager.fileExists(atPath: isolatedRoot.appending(path: "Application Support/Limits").path))
     }
 
     @MainActor
-    func testTrayShowsSavedAccountsWhenContentBecomesScrollable() throws {
+    func testTrayShowsSavedAccountsWhenContentBecomesScrollable() async throws {
         let fileManager = FileManager.default
-        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-scroll-(UUID().uuidString)")
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-scroll-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
-        try writeCodexFixture(to: isolatedRoot, accountCount: 6)
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 6)
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
@@ -60,11 +81,11 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
-    func testAccountDetailsShowExactChatGPTTierAndConfirmedPaidPeriod() throws {
+    func testAccountDetailsShowExactChatGPTTierAndConfirmedPaidPeriod() async throws {
         let fileManager = FileManager.default
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-subscription-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
-        try writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1)
         let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
         let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
 
@@ -72,9 +93,9 @@ final class LimitsUITests: XCTestCase {
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
         app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
         app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "account:\(accountID.uuidString)"
         app.launchArguments += [
             "-limits.language.override", "en",
-            "-limits.accounts.selection", "account:\(accountID.uuidString)",
         ]
         app.launch()
         app.activate()
@@ -118,11 +139,100 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
-    func testRevokedLimitTokenShowsOneHumanIssueWithoutServerPayload() throws {
+    func testCodexOverviewShowsWeeklyRiskCostsAndOpensAccountWithoutClaude() async throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-insights-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 2)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "codex-overview"
+        app.launchArguments += [
+            "-limits.language.override", "en",
+        ]
+        app.launch()
+        app.activate()
+
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.weekly-risk"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.tokens"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.credits"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.api-equivalent"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.models"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.trend"].exists)
+        XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
+        XCTAssertFalse(app.buttons["Refresh"].exists)
+
+        let accountButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "codex.insights.account.")
+        ).firstMatch
+        XCTAssertTrue(accountButton.waitForExistence(timeout: 3))
+        accountButton.click()
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.account-detail"].waitForExistence(timeout: 3))
+        app.terminate()
+    }
+
+    @MainActor
+    func testTrayShowsTheSameCurrentAccountForecast() async throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-tray-forecast-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchArguments += ["-limits.language.override", "en"]
+        app.launch()
+        app.activate()
+
+        let statusItem = app.menuBars.statusItems.firstMatch
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 8))
+        statusItem.click()
+        let forecast = app.descendants(matching: .any)["codex.tray.forecast"]
+        XCTAssertTrue(forecast.waitForExistence(timeout: 3))
+        XCTAssertTrue(forecast.label.contains("Collecting pace") || ((forecast.value as? String)?.contains("Collecting pace") == true))
+        app.terminate()
+    }
+
+    @MainActor
+    func testOverviewExplainsOneConfirmedPriceChangeWithoutANotification() async throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-price-change-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        try writePricingChangeFixture(to: isolatedRoot)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "codex-overview"
+        app.launchArguments += ["-limits.language.override", "en"]
+        app.launch()
+        app.activate()
+
+        let notice = app.descendants(matching: .any)["codex.insights.price-change"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 8))
+        let text = (notice.value as? String) ?? notice.label
+        XCTAssertTrue(text.contains("Sol"))
+        XCTAssertTrue(text.contains("input credits"))
+        XCTAssertTrue(text.contains("125"))
+        XCTAssertTrue(text.contains("250"))
+        XCTAssertTrue(text.contains("100%"))
+        app.terminate()
+    }
+
+    @MainActor
+    func testRevokedLimitTokenShowsOneHumanIssueWithoutServerPayload() async throws {
         let fileManager = FileManager.default
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-account-issue-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
-        try writeCodexFixture(to: isolatedRoot, accountCount: 1, limitsIssue: "authorizationExpired")
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1, limitsIssue: "authorizationExpired")
         let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
         let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
 
@@ -130,9 +240,9 @@ final class LimitsUITests: XCTestCase {
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
         app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
         app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "account:\(accountID.uuidString)"
         app.launchArguments += [
             "-limits.language.override", "en",
-            "-limits.accounts.selection", "account:\(accountID.uuidString)",
         ]
         app.launch()
         app.activate()
@@ -151,17 +261,16 @@ final class LimitsUITests: XCTestCase {
         statusItem.click()
         let panel = app.dialogs.firstMatch
         XCTAssertTrue(panel.waitForExistence(timeout: 3))
-        let trayAccount = panel.buttons.matching(
-            NSPredicate(format: "label CONTAINS %@", "Sign-in expired")
-        ).firstMatch
-        XCTAssertTrue(trayAccount.waitForExistence(timeout: 3))
+        let trayIssue = panel.staticTexts["codex.tray.forecast"]
+        XCTAssertTrue(trayIssue.waitForExistence(timeout: 3))
+        XCTAssertEqual((trayIssue.value as? String) ?? trayIssue.label, "Sign-in expired")
         XCTAssertFalse(app.debugDescription.contains("backend-api/wham/usage"))
         XCTAssertFalse(app.debugDescription.contains("token_revoked"))
         app.terminate()
     }
 
     @MainActor
-    func testCaptureDocumentationScreenshots() throws {
+    func testCaptureDocumentationScreenshots() async throws {
         let repositoryRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -172,29 +281,24 @@ final class LimitsUITests: XCTestCase {
         }
         let isolatedRoot = FileManager.default.temporaryDirectory.appending(path: "limits-screenshot-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: isolatedRoot) }
-        try writeCodexFixture(to: isolatedRoot, accountCount: 1)
-        let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
-        let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 2)
 
-        let app = XCUIApplication()
-        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
-        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
-        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
-        app.launchArguments += ["-limits.accounts.selection", "account:\(accountID.uuidString)"]
-        app.launch()
-        app.activate()
-        XCTAssertTrue(app.staticTexts["Demo Codex"].waitForExistence(timeout: 8))
-        let window = app.windows.containing(.staticText, identifier: "Demo Codex").firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 8))
-        let windowAttachment = XCTAttachment(screenshot: window.screenshot())
+        let lightApp = documentationApp(root: isolatedRoot, colorScheme: "light")
+        lightApp.launch()
+        lightApp.activate()
+        XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
+        XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.models"].waitForExistence(timeout: 3))
+        let lightWindow = lightApp.windows.firstMatch
+        XCTAssertTrue(lightWindow.waitForExistence(timeout: 8))
+        let windowAttachment = XCTAttachment(screenshot: lightWindow.screenshot())
         windowAttachment.name = "limits-window.png"
         windowAttachment.lifetime = .keepAlways
         add(windowAttachment)
 
-        let statusItem = app.menuBars.statusItems.firstMatch
+        let statusItem = lightApp.menuBars.statusItems.firstMatch
         if statusItem.waitForExistence(timeout: 3) {
             statusItem.click()
-            let panel = app.dialogs.firstMatch
+            let panel = lightApp.dialogs.firstMatch
             XCTAssertTrue(panel.waitForExistence(timeout: 3))
             let trayAttachment = XCTAttachment(screenshot: panel.screenshot())
             trayAttachment.name = "limits-tray.png"
@@ -203,12 +307,102 @@ final class LimitsUITests: XCTestCase {
         } else {
             throw XCTSkip("The runner did not expose the menu bar status item.")
         }
-        app.terminate()
+        lightApp.terminate()
+
+        let darkApp = documentationApp(root: isolatedRoot, colorScheme: "dark")
+        darkApp.launch()
+        darkApp.activate()
+        XCTAssertTrue(darkApp.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
+        XCTAssertTrue(darkApp.descendants(matching: .any)["codex.insights.models"].waitForExistence(timeout: 3))
+        let darkWindow = darkApp.windows.firstMatch
+        XCTAssertTrue(darkWindow.waitForExistence(timeout: 8))
+        let darkAttachment = XCTAttachment(screenshot: darkWindow.screenshot())
+        darkAttachment.name = "limits-window-dark.png"
+        darkAttachment.lifetime = .keepAlways
+        add(darkAttachment)
+        darkApp.terminate()
+    }
+
+    @MainActor
+    private func documentationApp(root: URL, colorScheme: String) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = root.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "codex-overview"
+        app.launchEnvironment["LIMITS_TEST_COLOR_SCHEME"] = colorScheme
+        app.launchArguments += ["-limits.language.override", "en"]
+        return app
     }
 
     private func dataIfPresent(_ url: URL) throws -> Data? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return try Data(contentsOf: url)
+    }
+
+    private func keychainMetadataSnapshot() -> [String] {
+        ["com.amir.Limits.authblob", "Claude Code-credentials"].flatMap { service -> [String] in
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecReturnAttributes as String: true,
+                kSecReturnPersistentRef as String: true,
+                kSecMatchLimit as String: kSecMatchLimitAll,
+            ]
+            var result: CFTypeRef?
+            let status = SecItemCopyMatching(query as CFDictionary, &result)
+            if status == errSecItemNotFound { return ["\(service)|empty"] }
+            guard status == errSecSuccess else { return ["\(service)|status:\(status)"] }
+            let items: [[String: Any]]
+            if let values = result as? [[String: Any]] {
+                items = values
+            } else if let value = result as? [String: Any] {
+                items = [value]
+            } else {
+                return ["\(service)|unreadable"]
+            }
+            return items.map { item in
+                let account = item[kSecAttrAccount as String] as? String ?? ""
+                let label = item[kSecAttrLabel as String] as? String ?? ""
+                let persistentReference = (item[kSecValuePersistentRef as String] as? Data)?.base64EncodedString() ?? ""
+                return "\(service)|\(account)|\(label)|\(persistentReference)"
+            }
+            .sorted()
+        }
+    }
+
+    private func stableSessionMetadataSnapshot(roots: [URL], olderThan cutoff: Date) -> [String: String] {
+        let manager = FileManager.default
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]
+        var paths: [String] = []
+        for root in roots {
+            guard let enumerator = manager.enumerator(
+                at: root,
+                includingPropertiesForKeys: keys,
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { continue }
+            for case let url as URL in enumerator {
+                guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                      values.isRegularFile == true,
+                      values.isSymbolicLink != true,
+                      (values.contentModificationDate ?? .distantFuture) < cutoff else { continue }
+                paths.append(url.path)
+            }
+        }
+        return fileMetadataSnapshot(paths: paths)
+    }
+
+    private func fileMetadataSnapshot(paths: [String]) -> [String: String] {
+        let manager = FileManager.default
+        return Dictionary(uniqueKeysWithValues: paths.map { path in
+            guard let attributes = try? manager.attributesOfItem(atPath: path) else {
+                return (path, "missing")
+            }
+            let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
+            let modified = (attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
+            return (path, "\(inode)|\(size)|\(modified)")
+        })
     }
 
     @MainActor
@@ -244,9 +438,12 @@ final class LimitsUITests: XCTestCase {
         field.typeText(value)
     }
 
-    private func writeCodexFixture(to root: URL, accountCount: Int, limitsIssue: String? = nil) throws {
+    @MainActor
+    private func writeCodexFixture(to root: URL, accountCount: Int, limitsIssue: String? = nil) async throws {
         let now = Date()
         let formatter = ISO8601DateFormatter()
+        let currentAuthData = Data("{\"auth_mode\":\"chatgpt\",\"tokens\":{\"account_id\":\"fixture-account-1\"}}".utf8)
+        let currentFingerprint = SHA256.hash(data: currentAuthData).map { String(format: "%02x", $0) }.joined()
         let stateDirectory = root.appending(path: "Application Support/Limits")
         try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
         let accounts: [[String: Any]] = (1...accountCount).map { index in
@@ -281,7 +478,7 @@ final class LimitsUITests: XCTestCase {
                         "windowDurationMins": 10_080,
                     ],
                 ],
-                "authFingerprint": "fixture-fingerprint-\(index)",
+                "authFingerprint": index == 1 ? currentFingerprint : "fixture-fingerprint-\(index)",
                 "keychainAccount": "fixture-keychain-reference-\(index)",
             ]
             if index == 1, let limitsIssue {
@@ -299,5 +496,84 @@ final class LimitsUITests: XCTestCase {
         ]
         let data = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys])
         try data.write(to: stateDirectory.appending(path: "state.json"), options: .atomic)
+        let codexDirectory = root.appending(path: "Codex", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: codexDirectory, withIntermediateDirectories: true)
+        try currentAuthData.write(to: codexDirectory.appending(path: "auth.json"), options: .atomic)
+        let usageRepository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: stateDirectory))
+        _ = try await usageRepository.open()
+        try await usageRepository.recordCurrentAuthIdentity(
+            accountID: "fixture-account-1",
+            fingerprint: currentFingerprint,
+            observedAt: now.addingTimeInterval(-2 * 60 * 60),
+            transition: .exact
+        )
+        await usageRepository.close()
+        try writeNumericRolloutFixture(to: root, now: now)
+    }
+
+    private func writeNumericRolloutFixture(to root: URL, now: Date) throws {
+        let formatter = ISO8601DateFormatter()
+        let directory = root.appending(path: "Codex/sessions/2026/08/21", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let lines = [
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_600)), "type": "session_meta", "payload": ["id": "fixture-thread"]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_500)), "type": "turn_context", "payload": ["turn_id": "fixture-turn-1", "model": "gpt-5.6-sol", "effort": "high"]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_000)), "type": "event_msg", "payload": ["type": "token_count", "info": ["total_token_usage": ["input_tokens": 2_000_000, "cached_input_tokens": 1_000_000, "cache_write_input_tokens": 100_000, "output_tokens": 100_000, "reasoning_output_tokens": 70_000, "total_tokens": 2_100_000]]]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-2_900)), "type": "turn_context", "payload": ["turn_id": "fixture-turn-2", "model": "gpt-5.6-terra", "effort": "medium"]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-2_400)), "type": "event_msg", "payload": ["type": "token_count", "info": ["total_token_usage": ["input_tokens": 2_450_000, "cached_input_tokens": 1_200_000, "cache_write_input_tokens": 100_000, "output_tokens": 150_000, "reasoning_output_tokens": 90_000, "total_tokens": 2_600_000]]]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-2_300)), "type": "event_msg", "payload": ["type": "task_complete"]],
+        ] as [[String: Any]]
+        let data = try lines.reduce(into: Data()) { output, line in
+            output.append(try JSONSerialization.data(withJSONObject: line, options: [.sortedKeys]))
+            output.append(0x0A)
+        }
+        try data.write(to: directory.appending(path: "fixture.jsonl"), options: .atomic)
+    }
+
+    private func writePricingChangeFixture(to root: URL) throws {
+        let directory = root.appending(path: "Pricing", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let chatGPT = """
+        # Pricing
+        <table>
+          <thead><tr><th>Credits per 1M tokens</th><th>Input Tokens</th><th>Cached input tokens</th><th>Output Tokens</th></tr></thead>
+          <tbody>
+            <tr><td>GPT-5.6 Sol</td><td>250 credits</td><td>12.5 credits</td><td>750 credits</td></tr>
+            <tr><td>GPT-5.6 Terra</td><td>50 credits</td><td>5 credits</td><td>300 credits</td></tr>
+            <tr><td>GPT-5.6 Luna</td><td>5 credits</td><td>0.5 credits</td><td>30 credits</td></tr>
+            <tr><td>GPT-5.5</td><td>125 credits</td><td>12.5 credits</td><td>750 credits</td></tr>
+            <tr><td>GPT-5.4</td><td>62.5 credits</td><td>6.25 credits</td><td>375 credits</td></tr>
+            <tr><td>GPT-5.4 mini</td><td>18.75 credits</td><td>1.875 credits</td><td>113 credits</td></tr>
+          </tbody>
+        </table>
+        """
+        let header = "| Model | Short context input | Short context cached input | Short context cache writes | Short context output | Long context input | Long context cached input | Long context cache writes | Long context output |"
+        let separator = "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+        let standard = [
+            "| gpt-5.6-sol | $5.00 | $0.50 | $6.25 | $30.00 | $10.00 | $1.00 | $12.50 | $45.00 |",
+            "| gpt-5.6-terra | $2.00 | $0.20 | $2.50 | $12.00 | $4.00 | $0.40 | $5.00 | $18.00 |",
+            "| gpt-5.6-luna | $0.20 | $0.02 | $0.25 | $1.20 | $0.40 | $0.04 | $0.50 | $1.80 |",
+            "| gpt-5.5 (<272K context length) | $5.00 | $0.50 | - | $30.00 | $10.00 | $1.00 | - | $45.00 |",
+            "| gpt-5.4 (<272K context length) | $2.50 | $0.25 | - | $15.00 | $5.00 | $0.50 | - | $22.50 |",
+            "| gpt-5.4-mini | $0.75 | $0.075 | - | $4.50 | - | - | - | - |",
+        ]
+        let fast = [
+            "| gpt-5.6-sol | $10.00 | $1.00 | $12.50 | $60.00 | $20.00 | $2.00 | $25.00 | $90.00 |",
+            "| gpt-5.6-terra | $4.00 | $0.40 | $5.00 | $24.00 | $8.00 | $0.80 | $10.00 | $36.00 |",
+            "| gpt-5.6-luna | $0.40 | $0.04 | $0.50 | $2.40 | $0.80 | $0.08 | $1.00 | $3.60 |",
+            "| gpt-5.5 (<272K context length) | $12.50 | $1.25 | - | $75.00 | - | - | - | - |",
+            "| gpt-5.4 (<272K context length) | $5.00 | $0.50 | - | $30.00 | - | - | - | - |",
+            "| gpt-5.4-mini | $1.50 | $0.15 | - | $9.00 | - | - | - | - |",
+        ]
+        let api = (["# Pricing", "### Standard pricing data", header, separator] + standard
+            + ["", "### Fast pricing data", header, separator] + fast).joined(separator: "\n")
+        let speed = """
+        # Speed
+        GPT-5.6 and GPT-5.5 consume credits at 2.5x the Standard rate;
+        GPT-5.4 consumes credits at 2x the Standard rate.
+        """
+        try chatGPT.write(to: directory.appending(path: "chatgpt.md"), atomically: true, encoding: .utf8)
+        try api.write(to: directory.appending(path: "api.md"), atomically: true, encoding: .utf8)
+        try speed.write(to: directory.appending(path: "speed.md"), atomically: true, encoding: .utf8)
     }
 }

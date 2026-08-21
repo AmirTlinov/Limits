@@ -1,6 +1,7 @@
 import Foundation
 
 @frozen public enum AccountsDetailDestination: Equatable, Sendable {
+    case codexOverview
     case currentCodexCLI
     case currentClaudeCode
     case codexAccount(UUID)
@@ -78,6 +79,10 @@ public enum AccountsPresentationLogic {
             return .currentClaudeCode
         }
 
+        if selectionRaw == "codex-overview" {
+            return .codexOverview
+        }
+
         if selectionRaw.hasPrefix("account:") {
             let rawID = String(selectionRaw.dropFirst("account:".count))
             if let id = UUID(uuidString: rawID), codexAccountIDs.contains(id) {
@@ -94,7 +99,7 @@ public enum AccountsPresentationLogic {
             return .currentClaudeCode
         }
 
-        return .currentCodexCLI
+        return .codexOverview
     }
 
     public static func isVisible(
@@ -104,7 +109,7 @@ public enum AccountsPresentationLogic {
     ) -> Bool {
         let isClaudeDestination: Bool = switch destination {
         case .currentClaudeCode, .claudeAccount: true
-        case .currentCodexCLI, .codexAccount: false
+        case .codexOverview, .currentCodexCLI, .codexAccount: false
         }
         if isClaudeDestination, !catalog.contains(.claude) { return false }
         switch filter {
@@ -112,7 +117,7 @@ public enum AccountsPresentationLogic {
             return true
         case .codex:
             switch destination {
-            case .currentCodexCLI, .codexAccount:
+            case .codexOverview, .currentCodexCLI, .codexAccount:
                 return true
             case .currentClaudeCode, .claudeAccount:
                 return false
@@ -121,7 +126,7 @@ public enum AccountsPresentationLogic {
             switch destination {
             case .currentClaudeCode, .claudeAccount:
                 return true
-            case .currentCodexCLI, .codexAccount:
+            case .codexOverview, .currentCodexCLI, .codexAccount:
                 return false
             }
         }
@@ -133,7 +138,7 @@ public enum AccountsPresentationLogic {
     ) -> AccountsDetailDestination {
         switch catalog.normalized(filter) {
         case .all, .codex:
-            return .currentCodexCLI
+            return .codexOverview
         case .claude:
             return .currentClaudeCode
         }

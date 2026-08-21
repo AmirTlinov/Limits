@@ -49,8 +49,6 @@ private func makeReauthenticationAccount(accountID: String, fingerprint: String)
         lastValidatedAt: nil,
         status: .needsReauth,
         statusMessage: nil,
-        lastRateLimit: nil,
-        lastRateLimitsByLimitId: nil,
         authFingerprint: fingerprint,
         keychainAccount: "account.\(id.uuidString)"
     )

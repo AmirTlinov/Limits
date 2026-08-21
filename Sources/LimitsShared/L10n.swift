@@ -228,6 +228,29 @@ public enum L10n {
         return formatter.string(from: date)
     }
 
+    public static func localizedDecimal(_ value: Decimal, maximumFractionDigits: Int = 2) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = maximumFractionDigits
+        return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+    }
+
+    public static func localizedCurrencyUSD(_ value: Decimal, maximumFractionDigits: Int = 2) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = maximumFractionDigits
+        return formatter.string(from: value as NSDecimalNumber) ?? "$\(value)"
+    }
+
+    public static func localizedInteger(_ value: Int64) -> String {
+        value.formatted(.number.locale(locale))
+    }
+
     public static func shortTime(_ date: Date) -> String {
         shortTimeFormatter.string(from: date)
     }

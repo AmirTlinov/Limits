@@ -44,6 +44,7 @@ public actor CodexSessionCoordinator {
     private struct RefreshOperation {
         let id: UUID
         let fingerprint: String
+        let request: CodexAccountProbeRequest
         let task: Task<CodexSessionRefreshOutcome, Error>
     }
 
@@ -92,7 +93,7 @@ public actor CodexSessionCoordinator {
         )
     }
 
-    public func refreshCurrent() async throws -> CodexSessionRefreshOutcome {
+    public func refreshCurrent(request: CodexAccountProbeRequest = .all) async throws -> CodexSessionRefreshOutcome {
         let snapshot = try globalStore.readSnapshot()
         guard let authData = snapshot.data else {
             throw GlobalCodexAuthServiceError.missingAuthFile
@@ -100,7 +101,9 @@ public actor CodexSessionCoordinator {
         let fingerprint = CodexAuthBlob.fingerprint(for: authData)
         observe(fingerprint)
 
-        if let refreshOperation, refreshOperation.fingerprint == fingerprint {
+        if let refreshOperation,
+           refreshOperation.fingerprint == fingerprint,
+           refreshOperation.request.covers(request) {
             return try await refreshOperation.task.value
         }
 
@@ -108,9 +111,15 @@ public actor CodexSessionCoordinator {
         let epoch = operationEpoch
         let task = Task { [weak self] in
             guard let self else { throw CancellationError() }
-            return try await self.performRefresh(snapshot: snapshot, authData: authData, fingerprint: fingerprint, epoch: epoch)
+            return try await self.performRefresh(
+                snapshot: snapshot,
+                authData: authData,
+                fingerprint: fingerprint,
+                request: request,
+                epoch: epoch
+            )
         }
-        refreshOperation = RefreshOperation(id: id, fingerprint: fingerprint, task: task)
+        refreshOperation = RefreshOperation(id: id, fingerprint: fingerprint, request: request, task: task)
         do {
             let result = try await task.value
             clearRefresh(id: id)
@@ -122,9 +131,16 @@ public actor CodexSessionCoordinator {
     }
 
     public func validateStored(authData: Data) async throws -> AccountValidationResult {
+        try await validateStored(authData: authData, request: .all)
+    }
+
+    public func validateStored(
+        authData: Data,
+        request: CodexAccountProbeRequest
+    ) async throws -> AccountValidationResult {
         await beginExclusiveOperation()
         defer { finishExclusiveOperation() }
-        return try await accountService.validate(authData: authData)
+        return try await accountService.validate(authData: authData, request: request)
     }
 
     public func loginNewAccount(
@@ -175,10 +191,16 @@ public actor CodexSessionCoordinator {
         )
     }
 
-    private func performRefresh(snapshot: GlobalCodexAuthSnapshot, authData: Data, fingerprint: String, epoch: UInt64) async throws -> CodexSessionRefreshOutcome {
+    private func performRefresh(
+        snapshot: GlobalCodexAuthSnapshot,
+        authData: Data,
+        fingerprint: String,
+        request: CodexAccountProbeRequest,
+        epoch: UInt64
+    ) async throws -> CodexSessionRefreshOutcome {
         await beginExclusiveOperation()
         defer { finishExclusiveOperation() }
-        let validation = try await accountService.validate(authData: authData)
+        let validation = try await accountService.validate(authData: authData, request: request)
         let sourceIdentity = try CodexAuthBlob.identity(from: authData).stableIdentity
         guard sourceIdentity != nil, validation.identity.stableIdentity == sourceIdentity else {
             throw CodexAuthSwitchTransactionError.identityMismatch

@@ -7,10 +7,10 @@ import LimitsShared
 }
 
 public struct AccountsRepositorySnapshot: Sendable {
-    public let state: PersistedStateV3
+    public let state: PersistedStateV4
     public let access: AccountsRepositoryAccess
 
-    public init(state: PersistedStateV3, access: AccountsRepositoryAccess) {
+    public init(state: PersistedStateV4, access: AccountsRepositoryAccess) {
         self.state = state
         self.access = access
     }
@@ -54,16 +54,21 @@ public actor AccountsRepository {
     public typealias FaultInjector = @Sendable (AccountsRepositoryCheckpoint) throws -> Void
 
     private let persistence: AccountsPersistence
+    private let usageRepository: CodexUsageRepository
     private let vault: KeychainAuthVault
     private let faultInjector: FaultInjector
     private var cachedSnapshot: AccountsRepositorySnapshot?
 
     public init(
         persistence: AccountsPersistence = AccountsPersistence(),
+        usageRepository: CodexUsageRepository? = nil,
         vault: KeychainAuthVault = KeychainAuthVault(),
         faultInjector: @escaping FaultInjector = { _ in }
     ) {
         self.persistence = persistence
+        self.usageRepository = usageRepository ?? CodexUsageRepository(
+            persistence: CodexUsagePersistence(baseURL: persistence.stateDirectoryURL)
+        )
         self.vault = vault
         self.faultInjector = faultInjector
     }
@@ -73,39 +78,105 @@ public actor AccountsRepository {
         currentCodexFingerprint: String?,
         currentClaudeFingerprint: String?,
         now: Date = .now
-    ) throws -> AccountsRepositorySnapshot {
-        let snapshot = try persistence.withExclusiveLock {
-            let originalData = try persistence.loadData()
-            let source = try originalData.map { try JSONDecoder.limits.decode(PersistedStateV3.self, from: $0) }
-                ?? PersistedStateV3(accounts: [])
+    ) async throws -> AccountsRepositorySnapshot {
+        _ = try await usageRepository.open()
 
-            if source.schemaVersion > PersistedStateV3.currentSchemaVersion {
-                return AccountsRepositorySnapshot(
-                    state: source,
-                    access: .readOnlyRecovery(schemaVersion: source.schemaVersion)
+        // Migration spans two durable owners. Limits are written to SQLite first;
+        // state.json is switched to v4 only after that write succeeds. The second
+        // lock verifies that another process did not replace the source meanwhile.
+        for _ in 0..<3 {
+            let prepared = try persistence.withExclusiveLock {
+                let originalData = try persistence.loadData()
+                guard let originalData else {
+                    return PreparedOpen(
+                        sourceData: nil,
+                        migration: PersistedStateMigrationResult(
+                            state: PersistedStateV4(accounts: []),
+                            legacyLimitObservations: [],
+                            legacyRateLimitSnapshots: [],
+                            receipt: PersistedStateMigrationReceipt(
+                                sourceSchemaVersion: PersistedStateV4.currentSchemaVersion,
+                                targetSchemaVersion: PersistedStateV4.currentSchemaVersion,
+                                retiredCredentialCount: 0,
+                                importedLimitObservationCount: 0
+                            )
+                        ),
+                        futureSchema: nil
+                    )
+                }
+
+                let header = try JSONDecoder.limits.decode(StateSchemaHeader.self, from: originalData)
+                if header.schemaVersion > PersistedStateV4.currentSchemaVersion {
+                    let state = try JSONDecoder.limits.decode(PersistedStateV4.self, from: originalData)
+                    return PreparedOpen(sourceData: originalData, migration: nil, futureSchema: state)
+                }
+
+                return PreparedOpen(
+                    sourceData: originalData,
+                    migration: try PersistedStateMigrator.decodeAndMigrate(
+                        originalData,
+                        currentCodexFingerprint: currentCodexFingerprint,
+                        currentClaudeFingerprint: currentClaudeFingerprint,
+                        now: now
+                    ),
+                    futureSchema: nil
                 )
             }
 
-            let migration = PersistedStateMigrator.migrate(
-                source,
-                currentCodexFingerprint: currentCodexFingerprint,
-                currentClaudeFingerprint: currentClaudeFingerprint,
-                now: now
-            )
-            var state = migration.state
-            if migration.receipt.didChange {
-                if let originalData {
-                    try persistence.backupBeforeV3Migration(originalData)
+            if let future = prepared.futureSchema {
+                let snapshot = AccountsRepositorySnapshot(
+                    state: future,
+                    access: .readOnlyRecovery(schemaVersion: future.schemaVersion)
+                )
+                cachedSnapshot = snapshot
+                return snapshot
+            }
+
+            guard let migration = prepared.migration else {
+                throw AccountsRepositoryError.notOpened
+            }
+            if !migration.legacyLimitObservations.isEmpty {
+                try await usageRepository.recordLimitObservations(migration.legacyLimitObservations)
+            }
+            for snapshot in migration.legacyRateLimitSnapshots {
+                try await usageRepository.recordRateLimits(snapshot)
+                try await usageRepository.recordEndpointStatus(
+                    CodexUsageEndpointStatus(
+                        accountID: snapshot.accountID,
+                        endpoint: .limits,
+                        attemptedAt: snapshot.observedAt,
+                        successfulAt: snapshot.limitsObservedAt,
+                        errorMessage: snapshot.errorMessage
+                    )
+                )
+            }
+
+            if !migration.receipt.didChange {
+                let snapshot = AccountsRepositorySnapshot(state: migration.state, access: .readWrite)
+                cachedSnapshot = snapshot
+                return snapshot
+            }
+
+            let committed: AccountsRepositorySnapshot? = try persistence.withExclusiveLock {
+                guard try persistence.loadData() == prepared.sourceData else { return nil }
+                if let sourceData = prepared.sourceData {
+                    try persistence.backupBeforeV4Migration(sourceData)
                 }
+                var state = migration.state
                 try advanceRevision(&state)
                 try faultInjector(.beforeStateWrite)
                 try persistence.save(state)
                 try faultInjector(.afterStateWrite)
+                return AccountsRepositorySnapshot(state: state, access: .readWrite)
             }
-            return AccountsRepositorySnapshot(state: state, access: .readWrite)
+            if let committed {
+                cachedSnapshot = committed
+                return committed
+            }
         }
-        cachedSnapshot = snapshot
-        return snapshot
+
+        let actual = try persistence.withExclusiveLock { try persistence.load().revision }
+        throw AccountsRepositoryError.revisionConflict(expected: 0, actual: actual)
     }
 
     public func snapshot() throws -> AccountsRepositorySnapshot {
@@ -113,6 +184,11 @@ public actor AccountsRepository {
             throw AccountsRepositoryError.notOpened
         }
         return cachedSnapshot
+    }
+
+    public func close() async {
+        cachedSnapshot = nil
+        await usageRepository.close()
     }
 
     @discardableResult
@@ -259,9 +335,10 @@ public actor AccountsRepository {
         accountID: UUID,
         expectedRevision: UInt64? = nil,
         now: Date = .now
-    ) throws -> AccountsRepositorySnapshot {
+    ) async throws -> AccountsRepositorySnapshot {
         var retiredReference: String?
         var retiredID: UUID?
+        var removedCodexStableAccountID: String?
         let removed = try mutate(expectedRevision: expectedRevision) { state in
             switch provider {
             case .codex:
@@ -269,6 +346,7 @@ public actor AccountsRepository {
                     throw AccountsRepositoryError.accountMissing(accountID)
                 }
                 let account = state.accounts.remove(at: index)
+                removedCodexStableAccountID = account.accountId
                 retiredReference = account.keychainAccount
                 let retired = makeRetiredCredential(
                     provider: .codex,
@@ -298,6 +376,11 @@ public actor AccountsRepository {
                 retiredID = retired.id
                 state.retiredCredentials.append(retired)
             }
+        }
+
+        if provider == .codex,
+           let stableAccountID = removedCodexStableAccountID {
+            try await usageRepository.deleteAccount(stableAccountID)
         }
 
         guard let retiredReference, let retiredID else { return removed }
@@ -345,7 +428,7 @@ public actor AccountsRepository {
         credential: Data,
         expectedRevision: UInt64?,
         now: Date,
-        update: (inout PersistedStateV3, String) throws -> Void
+        update: (inout PersistedStateV4, String) throws -> Void
     ) throws -> AccountsRepositorySnapshot {
         let result = try persistence.withExclusiveLock {
             var snapshot = try loadCurrentStateLocked()
@@ -378,7 +461,7 @@ public actor AccountsRepository {
                         )
                     )
                 }
-                state.schemaVersion = PersistedStateV3.currentSchemaVersion
+                state.schemaVersion = PersistedStateV4.currentSchemaVersion
                 try advanceRevision(&state)
                 try faultInjector(.beforeStateWrite)
                 try persistence.save(state)
@@ -399,7 +482,7 @@ public actor AccountsRepository {
 
     private func mutate(
         expectedRevision: UInt64? = nil,
-        _ update: (inout PersistedStateV3) throws -> Void
+        _ update: (inout PersistedStateV4) throws -> Void
     ) throws -> AccountsRepositorySnapshot {
         let result = try persistence.withExclusiveLock {
             let loaded = try loadCurrentStateLocked()
@@ -408,7 +491,7 @@ public actor AccountsRepository {
             try faultInjector(.afterReload)
             var state = loaded.state
             try update(&state)
-            state.schemaVersion = PersistedStateV3.currentSchemaVersion
+            state.schemaVersion = PersistedStateV4.currentSchemaVersion
             try advanceRevision(&state)
             try faultInjector(.beforeStateWrite)
             try persistence.save(state)
@@ -421,13 +504,13 @@ public actor AccountsRepository {
 
     private func loadCurrentStateLocked() throws -> AccountsRepositorySnapshot {
         let state = try persistence.load()
-        if state.schemaVersion > PersistedStateV3.currentSchemaVersion {
+        if state.schemaVersion > PersistedStateV4.currentSchemaVersion {
             return AccountsRepositorySnapshot(
                 state: state,
                 access: .readOnlyRecovery(schemaVersion: state.schemaVersion)
             )
         }
-        guard state.schemaVersion == PersistedStateV3.currentSchemaVersion else {
+        guard state.schemaVersion == PersistedStateV4.currentSchemaVersion else {
             throw AccountsRepositoryError.readOnlyRecovery(schemaVersion: state.schemaVersion)
         }
         return AccountsRepositorySnapshot(state: state, access: .readWrite)
@@ -445,14 +528,14 @@ public actor AccountsRepository {
         }
     }
 
-    private func advanceRevision(_ state: inout PersistedStateV3) throws {
+    private func advanceRevision(_ state: inout PersistedStateV4) throws {
         guard state.revision < UInt64.max else {
             throw AccountsRepositoryError.revisionExhausted
         }
         state.revision += 1
     }
 
-    private func stableIdentity(provider: ProviderKind, recordID: UUID, state: PersistedStateV3) -> String? {
+    private func stableIdentity(provider: ProviderKind, recordID: UUID, state: PersistedStateV4) -> String? {
         switch provider {
         case .codex:
             return state.accounts.first(where: { $0.id == recordID })?.accountId.map { "codex:\($0)" }
@@ -480,5 +563,22 @@ public actor AccountsRepository {
             retiredAt: now,
             purgeAfter: purgeAfter
         )
+    }
+}
+
+private struct PreparedOpen {
+    let sourceData: Data?
+    let migration: PersistedStateMigrationResult?
+    let futureSchema: PersistedStateV4?
+}
+
+private struct StateSchemaHeader: Decodable {
+    let schemaVersion: Int
+
+    private enum CodingKeys: String, CodingKey { case schemaVersion }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
     }
 }

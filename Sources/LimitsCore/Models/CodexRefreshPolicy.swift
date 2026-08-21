@@ -4,7 +4,7 @@ import LimitsShared
 public enum CodexRefreshPolicy {
     public static let currentSnapshotTTL = LimitsFreshnessPolicy.defaultTTL
     public static let currentFailureRetryInterval: TimeInterval = 5 * 60
-    public static let storedPresentationTTL = LimitsFreshnessPolicy.defaultTTL
+    public static let storedPresentationTTL: TimeInterval = 60 * 60
 
     public static func canReuse(
         _ probe: CodexSessionProbe,
@@ -36,6 +36,7 @@ public enum CodexRefreshPolicy {
 
     public static func nextStoredAccountID(
         accounts: [StoredAccount],
+        latestLimits: [String: CodexRateLimitsSnapshot] = [:],
         currentAccountID: UUID?,
         lastAttempts: [UUID: Date],
         now: Date,
@@ -45,7 +46,8 @@ public enum CodexRefreshPolicy {
         accounts
             .filter { account in
                 guard account.id != currentAccountID, account.status != .needsReauth else { return false }
-                guard accountNeedsRefresh(account, now: now, maximumAge: maximumAge) else { return false }
+                let snapshot = account.accountId.flatMap { latestLimits[$0] }
+                guard accountNeedsRefresh(snapshot, now: now, maximumAge: maximumAge) else { return false }
                 return canAttemptRefresh(
                     lastAttempt: lastAttempts[account.id],
                     now: now,
@@ -53,12 +55,14 @@ public enum CodexRefreshPolicy {
                 )
             }
             .sorted { lhs, rhs in
-                let lhsPriority = refreshPriority(for: lhs, now: now)
-                let rhsPriority = refreshPriority(for: rhs, now: now)
+                let lhsSnapshot = lhs.accountId.flatMap { latestLimits[$0] }
+                let rhsSnapshot = rhs.accountId.flatMap { latestLimits[$0] }
+                let lhsPriority = refreshPriority(for: lhsSnapshot, now: now)
+                let rhsPriority = refreshPriority(for: rhsSnapshot, now: now)
                 if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
 
-                let lhsObserved = lhs.rateLimitObservedAt ?? .distantPast
-                let rhsObserved = rhs.rateLimitObservedAt ?? .distantPast
+                let lhsObserved = lhsSnapshot?.limitsObservedAt ?? .distantPast
+                let rhsObserved = rhsSnapshot?.limitsObservedAt ?? .distantPast
                 if lhsObserved != rhsObserved { return lhsObserved < rhsObserved }
                 return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
             }
@@ -66,23 +70,24 @@ public enum CodexRefreshPolicy {
     }
 
     public static func accountNeedsRefresh(
-        _ account: StoredAccount,
+        _ snapshot: CodexRateLimitsSnapshot?,
         now: Date,
         maximumAge: TimeInterval? = nil
     ) -> Bool {
-        let hasSnapshot = account.lastRateLimit != nil || account.lastRateLimitsByLimitId?.isEmpty == false
+        guard let snapshot, snapshot.errorMessage == nil else { return true }
+        let hasSnapshot = snapshot.primary != nil || snapshot.byLimitID?.isEmpty == false
         guard hasSnapshot else { return true }
 
         if snapshotHasPassedReset(
-            primary: account.lastRateLimit,
-            byLimitId: account.lastRateLimitsByLimitId,
+            primary: snapshot.primary,
+            byLimitId: snapshot.byLimitID,
             now: now
         ) {
             return true
         }
 
         guard let maximumAge else { return false }
-        guard let observedAt = account.rateLimitObservedAt else { return true }
+        let observedAt = snapshot.observedAt
         let age = now.timeIntervalSince(observedAt)
         return age < 0 || age >= maximumAge
     }
@@ -104,10 +109,11 @@ public enum CodexRefreshPolicy {
         snapshots(primary: primary, byLimitId: byLimitId).flatMap { resetDates(from: $0) }
     }
 
-    private static func refreshPriority(for account: StoredAccount, now: Date) -> Int {
-        let hasSnapshot = account.lastRateLimit != nil || account.lastRateLimitsByLimitId?.isEmpty == false
+    private static func refreshPriority(for snapshot: CodexRateLimitsSnapshot?, now: Date) -> Int {
+        guard let snapshot else { return 0 }
+        let hasSnapshot = snapshot.primary != nil || snapshot.byLimitID?.isEmpty == false
         if !hasSnapshot { return 0 }
-        if snapshotHasPassedReset(primary: account.lastRateLimit, byLimitId: account.lastRateLimitsByLimitId, now: now) {
+        if snapshotHasPassedReset(primary: snapshot.primary, byLimitId: snapshot.byLimitID, now: now) {
             return 1
         }
         return 2

@@ -6,7 +6,7 @@ import Testing
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let persistence = AccountsPersistence(baseURL: root)
-    let legacy = PersistedStateV3(schemaVersion: 2, revision: 4, accounts: [])
+    let legacy = PersistedStateV4(schemaVersion: 2, revision: 4, accounts: [])
     try persistence.save(legacy)
     let originalData = try persistence.loadData()
     let original = try #require(originalData)
@@ -14,9 +14,9 @@ import Testing
 
     let migrated = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
     #expect(migrated.access == .readWrite)
-    #expect(migrated.state.schemaVersion == 3)
+    #expect(migrated.state.schemaVersion == 4)
     #expect(migrated.state.revision == 5)
-    #expect(try Data(contentsOf: persistence.preV3BackupURL) == original)
+    #expect(try Data(contentsOf: persistence.preV4BackupURL) == original)
 
     let futureData = Data("{\"schemaVersion\":99,\"revision\":12,\"accounts\":[],\"claudeAccounts\":[],\"retiredCredentials\":[]}".utf8)
     try futureData.write(to: persistence.stateURL, options: .atomic)
@@ -228,7 +228,7 @@ import Testing
     defer { try? FileManager.default.removeItem(at: root) }
     let store = MemoryKeychainStore()
     let persistence = AccountsPersistence(baseURL: root)
-    try persistence.save(PersistedStateV3(revision: .max, accounts: []))
+    try persistence.save(PersistedStateV4(revision: .max, accounts: []))
     let repository = AccountsRepository(persistence: persistence, vault: KeychainAuthVault(store: store))
     _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
 
@@ -242,6 +242,103 @@ import Testing
     }
     #expect(try persistence.load().revision == .max)
     #expect(store.allAccounts.isEmpty)
+}
+
+@Test func repositoryMigratesV3LimitsIntoSQLiteBeforeSwitchingStateToV4() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let persistence = AccountsPersistence(baseURL: root)
+    try persistence.save(PersistedStateV4(accounts: []))
+    let legacyData = legacyV3StateData()
+    try legacyData.write(to: persistence.stateURL, options: .atomic)
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let repository = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: MemoryKeychainStore())
+    )
+
+    let opened = try await repository.open(currentCodexFingerprint: "legacy-fingerprint", currentClaudeFingerprint: nil)
+    let usageSnapshot = try await usage.snapshot()
+
+    #expect(opened.state.schemaVersion == 4)
+    #expect(opened.state.accounts.first?.accountId == "acct_legacy")
+    #expect(usageSnapshot.limitObservations["acct_legacy"]?.count == 2)
+    #expect(usageSnapshot.latestLimits["acct_legacy"]?.primary?.primary?.usedPercent == 31)
+    #expect(try Data(contentsOf: persistence.preV4BackupURL) == legacyData)
+    let persistedText = String(decoding: try Data(contentsOf: persistence.stateURL), as: UTF8.self)
+    #expect(!persistedText.contains("lastRateLimit"))
+}
+
+@Test func interruptedV3MigrationRetriesWithoutDuplicatingSQLiteObservations() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let persistence = AccountsPersistence(baseURL: root)
+    try persistence.save(PersistedStateV4(accounts: []))
+    let legacyData = legacyV3StateData()
+    try legacyData.write(to: persistence.stateURL, options: .atomic)
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let fault = RepositoryFault(.beforeStateWrite)
+    let interrupted = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: MemoryKeychainStore()),
+        faultInjector: { try fault.check($0) }
+    )
+
+    await #expect(throws: RepositoryInjectedFailure.self) {
+        try await interrupted.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    }
+    #expect(try JSONDecoder.limits.decode(PersistedStateV4.self, from: Data(contentsOf: persistence.stateURL)).schemaVersion == 3)
+    #expect(try await usage.snapshot().limitObservations["acct_legacy"]?.count == 2)
+
+    let retry = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: MemoryKeychainStore())
+    )
+    let opened = try await retry.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    #expect(opened.state.schemaVersion == 4)
+    #expect(try await usage.snapshot().limitObservations["acct_legacy"]?.count == 2)
+}
+
+@Test func deletingCodexAccountCascadesIntoUsageRepository() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let persistence = AccountsPersistence(baseURL: root)
+    let usage = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    let repository = AccountsRepository(
+        persistence: persistence,
+        usageRepository: usage,
+        vault: KeychainAuthVault(store: MemoryKeychainStore())
+    )
+    _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let account = repositoryAccount(fingerprint: "cascade")
+    _ = try await repository.saveCodexAccount(account, credential: Data("secret".utf8))
+    let accountID = try #require(account.accountId)
+    let event = CodexUsageEvent(
+        threadID: "thread",
+        turnID: "turn",
+        counterEpoch: 0,
+        occurredAt: .now,
+        accountID: accountID,
+        requestedModel: "gpt-5.6-sol",
+        billedModel: nil,
+        reasoningEffort: "high",
+        speed: nil,
+        usage: CodexTokenUsage(inputTokens: 100, outputTokens: 20, totalTokens: 120),
+        attribution: .confirmed,
+        source: .localRollout
+    )
+    _ = try await usage.recordUsageEvents([event])
+    try await usage.recordRateLimits(
+        CodexRateLimitsSnapshot(accountID: accountID, observedAt: .now, primary: nil, byLimitID: nil, errorMessage: nil)
+    )
+
+    _ = try await repository.deleteAccount(provider: .codex, accountID: account.id)
+    let snapshot = try await usage.snapshot()
+    #expect(!snapshot.dailyUsage.contains { $0.accountID == accountID })
+    #expect(snapshot.latestLimits[accountID] == nil)
 }
 
 private struct RepositoryInjectedFailure: Error {}
@@ -299,8 +396,7 @@ private func repositoryAccount(label: String = "Account", fingerprint: String) -
     StoredAccount(
         id: UUID(), label: label, email: "\(label.lowercased())@example.com", accountId: "acct_\(fingerprint)",
         planType: "pro", createdAt: .distantPast, updatedAt: .distantPast, lastValidatedAt: nil,
-        status: .ok, statusMessage: nil, lastRateLimit: nil, lastRateLimitsByLimitId: nil,
-        authFingerprint: fingerprint, keychainAccount: "legacy.\(fingerprint)"
+        status: .ok, statusMessage: nil, authFingerprint: fingerprint, keychainAccount: "legacy.\(fingerprint)"
     )
 }
 
@@ -320,5 +416,39 @@ private func repositoryClaudeAccount(label: String, fingerprint: String) -> Clau
         statusMessage: nil,
         authFingerprint: fingerprint,
         keychainAccount: "legacy.\(fingerprint)"
+    )
+}
+
+private func legacyV3StateData() -> Data {
+    Data(
+        """
+        {
+          "schemaVersion": 3,
+          "revision": 9,
+          "accounts": [{
+            "id": "E621E6F8-C36C-495A-93FC-2C07A5F7D319",
+            "label": "Legacy",
+            "email": "legacy@example.com",
+            "accountId": "acct_legacy",
+            "planType": "pro",
+            "createdAt": "2026-08-01T00:00:00Z",
+            "updatedAt": "2026-08-20T00:00:00Z",
+            "lastValidatedAt": "2026-08-20T00:00:00Z",
+            "status": "ok",
+            "authFingerprint": "legacy-fingerprint",
+            "keychainAccount": "legacy-keychain",
+            "lastRateLimitObservedAt": "2026-08-20T00:00:00Z",
+            "lastRateLimit": {
+              "limitId": "codex",
+              "planType": "pro",
+              "primary": {"usedPercent": 31, "resetsAt": 1787202000, "windowDurationMins": 300},
+              "secondary": {"usedPercent": 57, "resetsAt": 1787760000, "windowDurationMins": 10080}
+            },
+            "lastRateLimitsByLimitId": {}
+          }],
+          "claudeAccounts": [],
+          "retiredCredentials": []
+        }
+        """.utf8
     )
 }

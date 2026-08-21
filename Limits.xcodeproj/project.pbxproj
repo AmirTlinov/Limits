@@ -13,95 +13,115 @@
 		D00000000000000000000039 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001B /* Cocoa.framework */; };
 		D00000000000000000000042 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001B /* Cocoa.framework */; };
 		D0000000000000000000004B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000001B /* Cocoa.framework */; };
-		D0000000000000000000004D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004C /* AppModel.swift */; };
-		D0000000000000000000004F /* LimitsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004E /* LimitsApp.swift */; };
-		D00000000000000000000051 /* RuntimeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000050 /* RuntimeLog.swift */; };
-		D00000000000000000000053 /* TrayStatusIconAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000052 /* TrayStatusIconAsset.swift */; };
-		D00000000000000000000055 /* TrayStatusIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000054 /* TrayStatusIconRenderer.swift */; };
-		D00000000000000000000057 /* WindowActivationTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000056 /* WindowActivationTracker.swift */; };
-		D00000000000000000000059 /* AccountsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000058 /* AccountsWindowView.swift */; };
-		D0000000000000000000005B /* CLIStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005A /* CLIStateBadge.swift */; };
-		D0000000000000000000005D /* CompactLimitBarsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005C /* CompactLimitBarsView.swift */; };
-		D0000000000000000000005F /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005E /* MenuBarContentView.swift */; };
-		D00000000000000000000061 /* NativeMenuBarScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000060 /* NativeMenuBarScene.swift */; };
-		D00000000000000000000063 /* ProviderAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000062 /* ProviderAccent.swift */; };
-		D00000000000000000000065 /* ProviderFilterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000064 /* ProviderFilterPicker.swift */; };
-		D00000000000000000000067 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000066 /* SettingsView.swift */; };
-		D00000000000000000000069 /* WindowChromeConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000068 /* WindowChromeConfigurator.swift */; };
-		D0000000000000000000006B /* AccountsPresentationLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006A /* AccountsPresentationLogic.swift */; };
-		D0000000000000000000006D /* AppServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006C /* AppServerModels.swift */; };
-		D0000000000000000000006F /* ClaudeStoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006E /* ClaudeStoredAccount.swift */; };
-		D00000000000000000000071 /* ProviderPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000070 /* ProviderPresentation.swift */; };
-		D00000000000000000000073 /* RateLimitDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000072 /* RateLimitDisplay.swift */; };
-		D00000000000000000000075 /* StoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000074 /* StoredAccount.swift */; };
-		D00000000000000000000077 /* TrayStatusPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000076 /* TrayStatusPresentation.swift */; };
-		D00000000000000000000079 /* AccountsPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000078 /* AccountsPersistence.swift */; };
-		D0000000000000000000007B /* AsyncCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007A /* AsyncCommandRunner.swift */; };
-		D0000000000000000000007D /* ClaudeAuthStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007C /* ClaudeAuthStatusService.swift */; };
-		D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007E /* ClaudeCredentialSwitchTransaction.swift */; };
-		D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000080 /* ClaudeStatuslineBridgeService.swift */; };
-		D00000000000000000000083 /* CodexAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000082 /* CodexAccountService.swift */; };
-		D00000000000000000000085 /* CodexAppServerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000084 /* CodexAppServerTransport.swift */; };
-		D00000000000000000000087 /* CodexAuthBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000086 /* CodexAuthBlob.swift */; };
-		D00000000000000000000089 /* CodexAuthSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000088 /* CodexAuthSwitchTransaction.swift */; };
-		D0000000000000000000008B /* CodexExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008A /* CodexExecutableLocator.swift */; };
-		D0000000000000000000008D /* GlobalClaudeCredentialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008C /* GlobalClaudeCredentialService.swift */; };
-		D0000000000000000000008F /* GlobalCodexAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008E /* GlobalCodexAuthService.swift */; };
-		D00000000000000000000091 /* KeychainAuthVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000090 /* KeychainAuthVault.swift */; };
-		D00000000000000000000093 /* PersistedStateMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000092 /* PersistedStateMigrator.swift */; };
-		D00000000000000000000095 /* LimitsWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000094 /* LimitsWidgetSnapshot.swift */; };
-		D00000000000000000000097 /* LimitsWidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift */; };
-		D00000000000000000000099 /* LimitsCurrentLimitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000098 /* LimitsCurrentLimitsWidget.swift */; };
-		D0000000000000000000009B /* AccountsPresentationLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009A /* AccountsPresentationLogicTests.swift */; };
-		D0000000000000000000009D /* ApplicationSceneRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009C /* ApplicationSceneRouterTests.swift */; };
-		D0000000000000000000009F /* AsyncCommandRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009E /* AsyncCommandRunnerTests.swift */; };
-		D000000000000000000000A1 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A0 /* ClaudeCredentialSwitchTransactionTests.swift */; };
-		D000000000000000000000A3 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A2 /* ClaudeStatuslineBridgeServiceTests.swift */; };
-		D000000000000000000000A5 /* CodexAuthBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A4 /* CodexAuthBlobTests.swift */; };
-		D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A6 /* CodexAuthSwitchTransactionTests.swift */; };
-		D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift */; };
-		D000000000000000000000AB /* FirstLaunchPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AA /* FirstLaunchPolicyTests.swift */; };
-		D000000000000000000000AD /* KeychainAuthVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AC /* KeychainAuthVaultTests.swift */; };
-		D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift */; };
-		D000000000000000000000B1 /* PersistedStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B0 /* PersistedStateMigrationTests.swift */; };
-		D000000000000000000000B3 /* RateLimitDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B2 /* RateLimitDisplayTests.swift */; };
-		D000000000000000000000B5 /* ReauthenticationResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B4 /* ReauthenticationResolutionTests.swift */; };
-		D000000000000000000000B7 /* LimitsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B6 /* LimitsUITests.swift */; };
-		D000000000000000000000BF /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B9 /* Localizable.strings */; };
-		D000000000000000000000C3 /* claude.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C2 /* claude.svg */; };
-		D000000000000000000000C5 /* codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C4 /* codex.svg */; };
-		D000000000000000000000C7 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C6 /* AppIcon.icns */; };
-		D000000000000000000000DC /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000DD /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
-		D000000000000000000000DE /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000DF /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E0 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D0000000000000000000004E /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004D /* AppModel.swift */; };
+		D00000000000000000000050 /* LimitsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004F /* LimitsApp.swift */; };
+		D00000000000000000000052 /* RuntimeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000051 /* RuntimeLog.swift */; };
+		D00000000000000000000054 /* TrayStatusIconAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000053 /* TrayStatusIconAsset.swift */; };
+		D00000000000000000000056 /* TrayStatusIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000055 /* TrayStatusIconRenderer.swift */; };
+		D00000000000000000000058 /* WindowActivationTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000057 /* WindowActivationTracker.swift */; };
+		D0000000000000000000005A /* AccountsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000059 /* AccountsWindowView.swift */; };
+		D0000000000000000000005C /* CLIStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005B /* CLIStateBadge.swift */; };
+		D0000000000000000000005E /* CompactLimitBarsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005D /* CompactLimitBarsView.swift */; };
+		D00000000000000000000060 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000005F /* MenuBarContentView.swift */; };
+		D00000000000000000000062 /* NativeMenuBarScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000061 /* NativeMenuBarScene.swift */; };
+		D00000000000000000000064 /* ProviderAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000063 /* ProviderAccent.swift */; };
+		D00000000000000000000066 /* ProviderFilterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000065 /* ProviderFilterPicker.swift */; };
+		D00000000000000000000068 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000067 /* SettingsView.swift */; };
+		D0000000000000000000006A /* WindowChromeConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000069 /* WindowChromeConfigurator.swift */; };
+		D0000000000000000000006C /* AccountsPresentationLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006B /* AccountsPresentationLogic.swift */; };
+		D0000000000000000000006E /* AppServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006D /* AppServerModels.swift */; };
+		D00000000000000000000070 /* ClaudeStoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000006F /* ClaudeStoredAccount.swift */; };
+		D00000000000000000000072 /* ProviderPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000071 /* ProviderPresentation.swift */; };
+		D00000000000000000000074 /* RateLimitDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000073 /* RateLimitDisplay.swift */; };
+		D00000000000000000000076 /* StoredAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000075 /* StoredAccount.swift */; };
+		D00000000000000000000078 /* TrayStatusPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000077 /* TrayStatusPresentation.swift */; };
+		D0000000000000000000007A /* AccountsPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000079 /* AccountsPersistence.swift */; };
+		D0000000000000000000007C /* AsyncCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007B /* AsyncCommandRunner.swift */; };
+		D0000000000000000000007E /* ClaudeAuthStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007D /* ClaudeAuthStatusService.swift */; };
+		D00000000000000000000080 /* ClaudeCredentialSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift */; };
+		D00000000000000000000082 /* ClaudeStatuslineBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift */; };
+		D00000000000000000000084 /* CodexAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000083 /* CodexAccountService.swift */; };
+		D00000000000000000000086 /* CodexAppServerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000085 /* CodexAppServerTransport.swift */; };
+		D00000000000000000000088 /* CodexAuthBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000087 /* CodexAuthBlob.swift */; };
+		D0000000000000000000008A /* CodexAuthSwitchTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000089 /* CodexAuthSwitchTransaction.swift */; };
+		D0000000000000000000008C /* CodexExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008B /* CodexExecutableLocator.swift */; };
+		D0000000000000000000008E /* GlobalClaudeCredentialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008D /* GlobalClaudeCredentialService.swift */; };
+		D00000000000000000000090 /* GlobalCodexAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000008F /* GlobalCodexAuthService.swift */; };
+		D00000000000000000000092 /* KeychainAuthVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000091 /* KeychainAuthVault.swift */; };
+		D00000000000000000000094 /* PersistedStateMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000093 /* PersistedStateMigrator.swift */; };
+		D00000000000000000000096 /* LimitsWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000095 /* LimitsWidgetSnapshot.swift */; };
+		D00000000000000000000098 /* LimitsWidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000097 /* LimitsWidgetSnapshotStore.swift */; };
+		D0000000000000000000009A /* LimitsCurrentLimitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00000000000000000000099 /* LimitsCurrentLimitsWidget.swift */; };
+		D0000000000000000000009C /* AccountsPresentationLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009B /* AccountsPresentationLogicTests.swift */; };
+		D0000000000000000000009E /* ApplicationSceneRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009D /* ApplicationSceneRouterTests.swift */; };
+		D000000000000000000000A0 /* AsyncCommandRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0000000000000000000009F /* AsyncCommandRunnerTests.swift */; };
+		D000000000000000000000A2 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A1 /* ClaudeCredentialSwitchTransactionTests.swift */; };
+		D000000000000000000000A4 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A3 /* ClaudeStatuslineBridgeServiceTests.swift */; };
+		D000000000000000000000A6 /* CodexAuthBlobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A5 /* CodexAuthBlobTests.swift */; };
+		D000000000000000000000A8 /* CodexAuthSwitchTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift */; };
+		D000000000000000000000AA /* CodexRuntimeEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift */; };
+		D000000000000000000000AC /* FirstLaunchPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AB /* FirstLaunchPolicyTests.swift */; };
+		D000000000000000000000AE /* KeychainAuthVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AD /* KeychainAuthVaultTests.swift */; };
+		D000000000000000000000B0 /* LimitsWidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift */; };
+		D000000000000000000000B2 /* PersistedStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B1 /* PersistedStateMigrationTests.swift */; };
+		D000000000000000000000B4 /* RateLimitDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B3 /* RateLimitDisplayTests.swift */; };
+		D000000000000000000000B6 /* ReauthenticationResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B5 /* ReauthenticationResolutionTests.swift */; };
+		D000000000000000000000B8 /* LimitsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B7 /* LimitsUITests.swift */; };
+		D000000000000000000000C0 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000BA /* Localizable.strings */; };
+		D000000000000000000000C4 /* claude.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C3 /* claude.svg */; };
+		D000000000000000000000C6 /* codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C5 /* codex.svg */; };
+		D000000000000000000000C8 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C7 /* AppIcon.icns */; };
 		D000000000000000000000E1 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E3 /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000E4 /* LimitsCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000E6 /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000E9 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000E8 /* Sparkle */; };
+		D000000000000000000000E2 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000E3 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
+		D000000000000000000000E4 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004C /* libsqlite3.tbd */; };
+		D000000000000000000000E5 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
+		D000000000000000000000E6 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000E7 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
+		D000000000000000000000E8 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000E9 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
+		D000000000000000000000EB /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EC /* LimitsCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EE /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000F1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F0 /* Sparkle */; };
+		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
 		F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */; };
+		F1C250476E90A6D8A3DC070F /* CodexInsightsTextPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */; };
 		F2107FE4707598E821D33575 /* CodexAccountIssuePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */; };
 		F27190BBD6B6F7021B0C59C0 /* ClaudeSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */; };
+		F426EE6A956A2A70F2CF92C3 /* CodexAnalyticsSurfacePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29C7C56878A28677D77D3E0 /* CodexAnalyticsSurfacePresentation.swift */; };
 		F43E2142BE2C9BD8925155F0 /* InterprocessFileLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */; };
+		F448771D5EA6D06181F0491B /* OpenAIPricingCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */; };
+		F48C73A1084A98F2E166EE42 /* CodexUsageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1F31B6DC996A5FF0E5A99E /* CodexUsageModels.swift */; };
 		F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */; };
+		F4EC3DF283AB612F399BEF9B /* CodexRolloutUsageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD77063EE9CDABDE02F06288 /* CodexRolloutUsageImporter.swift */; };
 		F536992662C110B2E48A5440 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D540EE018553DD225DFD4D /* L10n.swift */; };
 		F54847F76A1B84ED288DAAE8 /* ClaudeLivePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C7D4E29A00235C2D96F3D2 /* ClaudeLivePresentation.swift */; };
 		F579457FDC2967D893AD44E9 /* FirstLaunchPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */; };
+		F5B64BD92969E2E937BFC0DD /* LimitBurnEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */; };
 		F5BD731F8400D7330ED35612 /* CodexSessionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */; };
 		F64363D69613C781D4E5BEB6 /* MinimalChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = F72539F2956FEBB17FC55B6E /* MinimalChrome.swift */; };
 		F65BB506CE8198529D67C7D3 /* ApplicationSceneRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */; };
+		F65F8E4DA6620C09E292FAD1 /* OpenAIPricingCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B0F6596F1E101C81F39792 /* OpenAIPricingCatalog.swift */; };
+		F69828C8577EC163C594E63D /* CodexRolloutUsageImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53AA2BE3CB7DC62730A089E /* CodexRolloutUsageImporterTests.swift */; };
+		F6E5FB23D64480BBBF453643 /* LimitBurnEstimatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4A8315955E917B742D2596 /* LimitBurnEstimatorTests.swift */; };
+		F735FFC984FFA146419E15A3 /* CodexAccountUsageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */; };
 		F7E909F7F9CF17918A4A4CAD /* LimitsRuntimeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */; };
 		F859B684E8B5BE7DFF31DBDF /* WidgetPresentationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9701B18B173BC111A054530 /* WidgetPresentationPolicy.swift */; };
 		F9351083F88241B95E0C4B91 /* SessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */; };
+		F9AB483AAE4DE322961C2172 /* CodexUsagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */; };
+		F9B22AF0BA2B8564021DE25F /* CodexUsageCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E345863F25F690211AE57E /* CodexUsageCoordinator.swift */; };
+		F9C05C474AA378CB65F8D0C0 /* CodexUsageCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */; };
 		FA45F942D3EAF5DC2CF5260E /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */; };
 		FAEA8F82DE397252DED93A5A /* CodexSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */; };
 		FB334C164A7B40F03F66B7DF /* ProviderCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */; };
 		FB51D48BAA1947F2639837E5 /* AccountsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */; };
+		FBAC5BC205E34455BB0A143B /* CodexUsageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */; };
 		FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */; };
+		FCC45F9A959BBDCC086717CB /* CodexUsagePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E086CEAB404D07225A0F00 /* CodexUsagePresentationTests.swift */; };
 		FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */; };
 		FD95438612D6ADB49C195CDD /* CodexAccountValidationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */; };
+		FDACE106DCE9446AFA8591C0 /* CodexAccountProbeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30E5F072E73A6242AD6FE09 /* CodexAccountProbeRequest.swift */; };
 		FDE359D874DA49732F3464C7 /* AccountResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23D09F2579B9EBEE91BB02E /* AccountResolution.swift */; };
 		FE001B7BA74548881B29F888 /* LimitsWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */; };
 		FE6D03510A0309BE1060A3D4 /* ProviderCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B13B6B151CD85E13F79E19 /* ProviderCatalog.swift */; };
@@ -111,84 +131,98 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		D000000000000000000000CC /* PBXContainerItemProxy */ = {
+		D000000000000000000000CD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000CE /* PBXContainerItemProxy */ = {
+		D000000000000000000000CF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D0000000000000000000001D;
 			remoteInfo = LimitsCore;
 		};
-		D000000000000000000000D0 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000031;
 			remoteInfo = LimitsWidgetExtension;
 		};
-		D000000000000000000000D2 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000D4 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000D6 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D0000000000000000000001D;
 			remoteInfo = LimitsCore;
 		};
-		D000000000000000000000D8 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000DA /* PBXContainerItemProxy */ = {
+		D000000000000000000000DB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000012;
 			remoteInfo = Limits;
 		};
+		D000000000000000000000DD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0000000000000000000001D;
+			remoteInfo = LimitsCore;
+		};
+		D000000000000000000000DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D00000000000000000000027;
+			remoteInfo = LimitsShared;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		D000000000000000000000E2 /* Embed Frameworks */ = {
+		D000000000000000000000EA /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				D000000000000000000000E4 /* LimitsCore.framework in Embed Frameworks */,
-				D000000000000000000000E3 /* LimitsShared.framework in Embed Frameworks */,
+				D000000000000000000000EC /* LimitsCore.framework in Embed Frameworks */,
+				D000000000000000000000EB /* LimitsShared.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D000000000000000000000E5 /* Embed App Extensions */ = {
+		D000000000000000000000ED /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				D000000000000000000000E6 /* LimitsWidgetExtension.appex in Embed App Extensions */,
+				D000000000000000000000EE /* LimitsWidgetExtension.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -203,81 +237,92 @@
 		D00000000000000000000035 /* LimitsWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LimitsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0000000000000000000003E /* LimitsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LimitsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D00000000000000000000047 /* LimitsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LimitsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D0000000000000000000004C /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppModel.swift; path = App/AppModel.swift; sourceTree = "<group>"; };
-		D0000000000000000000004E /* LimitsApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsApp.swift; path = App/LimitsApp.swift; sourceTree = "<group>"; };
-		D00000000000000000000050 /* RuntimeLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RuntimeLog.swift; path = App/RuntimeLog.swift; sourceTree = "<group>"; };
-		D00000000000000000000052 /* TrayStatusIconAsset.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconAsset.swift; path = App/TrayStatusIconAsset.swift; sourceTree = "<group>"; };
-		D00000000000000000000054 /* TrayStatusIconRenderer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconRenderer.swift; path = App/TrayStatusIconRenderer.swift; sourceTree = "<group>"; };
-		D00000000000000000000056 /* WindowActivationTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowActivationTracker.swift; path = App/WindowActivationTracker.swift; sourceTree = "<group>"; };
-		D00000000000000000000058 /* AccountsWindowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsWindowView.swift; path = Views/AccountsWindowView.swift; sourceTree = "<group>"; };
-		D0000000000000000000005A /* CLIStateBadge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CLIStateBadge.swift; path = Views/CLIStateBadge.swift; sourceTree = "<group>"; };
-		D0000000000000000000005C /* CompactLimitBarsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CompactLimitBarsView.swift; path = Views/CompactLimitBarsView.swift; sourceTree = "<group>"; };
-		D0000000000000000000005E /* MenuBarContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = Views/MenuBarContentView.swift; sourceTree = "<group>"; };
-		D00000000000000000000060 /* NativeMenuBarScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NativeMenuBarScene.swift; path = Views/NativeMenuBarScene.swift; sourceTree = "<group>"; };
-		D00000000000000000000062 /* ProviderAccent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderAccent.swift; path = Views/ProviderAccent.swift; sourceTree = "<group>"; };
-		D00000000000000000000064 /* ProviderFilterPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderFilterPicker.swift; path = Views/ProviderFilterPicker.swift; sourceTree = "<group>"; };
-		D00000000000000000000066 /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
-		D00000000000000000000068 /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowChromeConfigurator.swift; path = Views/WindowChromeConfigurator.swift; sourceTree = "<group>"; };
-		D0000000000000000000006A /* AccountsPresentationLogic.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPresentationLogic.swift; path = Models/AccountsPresentationLogic.swift; sourceTree = "<group>"; };
-		D0000000000000000000006C /* AppServerModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppServerModels.swift; path = Models/AppServerModels.swift; sourceTree = "<group>"; };
-		D0000000000000000000006E /* ClaudeStoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStoredAccount.swift; path = Models/ClaudeStoredAccount.swift; sourceTree = "<group>"; };
-		D00000000000000000000070 /* ProviderPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderPresentation.swift; path = Models/ProviderPresentation.swift; sourceTree = "<group>"; };
-		D00000000000000000000072 /* RateLimitDisplay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RateLimitDisplay.swift; path = Models/RateLimitDisplay.swift; sourceTree = "<group>"; };
-		D00000000000000000000074 /* StoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StoredAccount.swift; path = Models/StoredAccount.swift; sourceTree = "<group>"; };
-		D00000000000000000000076 /* TrayStatusPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusPresentation.swift; path = Models/TrayStatusPresentation.swift; sourceTree = "<group>"; };
-		D00000000000000000000078 /* AccountsPersistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPersistence.swift; path = Services/AccountsPersistence.swift; sourceTree = "<group>"; };
-		D0000000000000000000007A /* AsyncCommandRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AsyncCommandRunner.swift; path = Services/AsyncCommandRunner.swift; sourceTree = "<group>"; };
-		D0000000000000000000007C /* ClaudeAuthStatusService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeAuthStatusService.swift; path = Services/ClaudeAuthStatusService.swift; sourceTree = "<group>"; };
-		D0000000000000000000007E /* ClaudeCredentialSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeCredentialSwitchTransaction.swift; path = Services/ClaudeCredentialSwitchTransaction.swift; sourceTree = "<group>"; };
-		D00000000000000000000080 /* ClaudeStatuslineBridgeService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStatuslineBridgeService.swift; path = Services/ClaudeStatuslineBridgeService.swift; sourceTree = "<group>"; };
-		D00000000000000000000082 /* CodexAccountService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountService.swift; path = Services/CodexAccountService.swift; sourceTree = "<group>"; };
-		D00000000000000000000084 /* CodexAppServerTransport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAppServerTransport.swift; path = Services/CodexAppServerTransport.swift; sourceTree = "<group>"; };
-		D00000000000000000000086 /* CodexAuthBlob.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthBlob.swift; path = Services/CodexAuthBlob.swift; sourceTree = "<group>"; };
-		D00000000000000000000088 /* CodexAuthSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthSwitchTransaction.swift; path = Services/CodexAuthSwitchTransaction.swift; sourceTree = "<group>"; };
-		D0000000000000000000008A /* CodexExecutableLocator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexExecutableLocator.swift; path = Services/CodexExecutableLocator.swift; sourceTree = "<group>"; };
-		D0000000000000000000008C /* GlobalClaudeCredentialService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalClaudeCredentialService.swift; path = Services/GlobalClaudeCredentialService.swift; sourceTree = "<group>"; };
-		D0000000000000000000008E /* GlobalCodexAuthService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalCodexAuthService.swift; path = Services/GlobalCodexAuthService.swift; sourceTree = "<group>"; };
-		D00000000000000000000090 /* KeychainAuthVault.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainAuthVault.swift; path = Services/KeychainAuthVault.swift; sourceTree = "<group>"; };
-		D00000000000000000000092 /* PersistedStateMigrator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersistedStateMigrator.swift; path = Services/PersistedStateMigrator.swift; sourceTree = "<group>"; };
-		D00000000000000000000094 /* LimitsWidgetSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshot.swift; sourceTree = "<group>"; };
-		D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotStore.swift; sourceTree = "<group>"; };
-		D00000000000000000000098 /* LimitsCurrentLimitsWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsCurrentLimitsWidget.swift; sourceTree = "<group>"; };
-		D0000000000000000000009A /* AccountsPresentationLogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsPresentationLogicTests.swift; sourceTree = "<group>"; };
-		D0000000000000000000009C /* ApplicationSceneRouterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApplicationSceneRouterTests.swift; sourceTree = "<group>"; };
-		D0000000000000000000009E /* AsyncCommandRunnerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AsyncCommandRunnerTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000A0 /* ClaudeCredentialSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialSwitchTransactionTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000A2 /* ClaudeStatuslineBridgeServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeStatuslineBridgeServiceTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000A4 /* CodexAuthBlobTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthBlobTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000A6 /* CodexAuthSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthSwitchTransactionTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexRuntimeEnvironmentTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000AA /* FirstLaunchPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FirstLaunchPolicyTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000AC /* KeychainAuthVaultTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeychainAuthVaultTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000B0 /* PersistedStateMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PersistedStateMigrationTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000B2 /* RateLimitDisplayTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateLimitDisplayTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000B4 /* ReauthenticationResolutionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReauthenticationResolutionTests.swift; sourceTree = "<group>"; };
-		D000000000000000000000B6 /* LimitsUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsUITests.swift; sourceTree = "<group>"; };
-		D000000000000000000000BA /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
-		D000000000000000000000BB /* es */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
-		D000000000000000000000BC /* fr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
-		D000000000000000000000BD /* ru */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
-		D000000000000000000000BE /* zh-Hans */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-		D000000000000000000000C2 /* claude.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = claude.svg; sourceTree = "<group>"; };
-		D000000000000000000000C4 /* codex.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = codex.svg; sourceTree = "<group>"; };
-		D000000000000000000000C6 /* AppIcon.icns */ = {isa = PBXFileReference; includeInIndex = 1; path = AppIcon.icns; sourceTree = "<group>"; };
-		D000000000000000000000C8 /* Limits-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Limits-Info.plist"; sourceTree = "<group>"; };
-		D000000000000000000000C9 /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
-		D000000000000000000000CA /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
-		D000000000000000000000CB /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+		D0000000000000000000004C /* libsqlite3.tbd */ = {isa = PBXFileReference; includeInIndex = 1; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		D0000000000000000000004D /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppModel.swift; path = App/AppModel.swift; sourceTree = "<group>"; };
+		D0000000000000000000004F /* LimitsApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsApp.swift; path = App/LimitsApp.swift; sourceTree = "<group>"; };
+		D00000000000000000000051 /* RuntimeLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RuntimeLog.swift; path = App/RuntimeLog.swift; sourceTree = "<group>"; };
+		D00000000000000000000053 /* TrayStatusIconAsset.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconAsset.swift; path = App/TrayStatusIconAsset.swift; sourceTree = "<group>"; };
+		D00000000000000000000055 /* TrayStatusIconRenderer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusIconRenderer.swift; path = App/TrayStatusIconRenderer.swift; sourceTree = "<group>"; };
+		D00000000000000000000057 /* WindowActivationTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowActivationTracker.swift; path = App/WindowActivationTracker.swift; sourceTree = "<group>"; };
+		D00000000000000000000059 /* AccountsWindowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsWindowView.swift; path = Views/AccountsWindowView.swift; sourceTree = "<group>"; };
+		D0000000000000000000005B /* CLIStateBadge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CLIStateBadge.swift; path = Views/CLIStateBadge.swift; sourceTree = "<group>"; };
+		D0000000000000000000005D /* CompactLimitBarsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CompactLimitBarsView.swift; path = Views/CompactLimitBarsView.swift; sourceTree = "<group>"; };
+		D0000000000000000000005F /* MenuBarContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = Views/MenuBarContentView.swift; sourceTree = "<group>"; };
+		D00000000000000000000061 /* NativeMenuBarScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NativeMenuBarScene.swift; path = Views/NativeMenuBarScene.swift; sourceTree = "<group>"; };
+		D00000000000000000000063 /* ProviderAccent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderAccent.swift; path = Views/ProviderAccent.swift; sourceTree = "<group>"; };
+		D00000000000000000000065 /* ProviderFilterPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderFilterPicker.swift; path = Views/ProviderFilterPicker.swift; sourceTree = "<group>"; };
+		D00000000000000000000067 /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
+		D00000000000000000000069 /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WindowChromeConfigurator.swift; path = Views/WindowChromeConfigurator.swift; sourceTree = "<group>"; };
+		D0000000000000000000006B /* AccountsPresentationLogic.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPresentationLogic.swift; path = Models/AccountsPresentationLogic.swift; sourceTree = "<group>"; };
+		D0000000000000000000006D /* AppServerModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppServerModels.swift; path = Models/AppServerModels.swift; sourceTree = "<group>"; };
+		D0000000000000000000006F /* ClaudeStoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStoredAccount.swift; path = Models/ClaudeStoredAccount.swift; sourceTree = "<group>"; };
+		D00000000000000000000071 /* ProviderPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderPresentation.swift; path = Models/ProviderPresentation.swift; sourceTree = "<group>"; };
+		D00000000000000000000073 /* RateLimitDisplay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RateLimitDisplay.swift; path = Models/RateLimitDisplay.swift; sourceTree = "<group>"; };
+		D00000000000000000000075 /* StoredAccount.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StoredAccount.swift; path = Models/StoredAccount.swift; sourceTree = "<group>"; };
+		D00000000000000000000077 /* TrayStatusPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrayStatusPresentation.swift; path = Models/TrayStatusPresentation.swift; sourceTree = "<group>"; };
+		D00000000000000000000079 /* AccountsPersistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsPersistence.swift; path = Services/AccountsPersistence.swift; sourceTree = "<group>"; };
+		D0000000000000000000007B /* AsyncCommandRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AsyncCommandRunner.swift; path = Services/AsyncCommandRunner.swift; sourceTree = "<group>"; };
+		D0000000000000000000007D /* ClaudeAuthStatusService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeAuthStatusService.swift; path = Services/ClaudeAuthStatusService.swift; sourceTree = "<group>"; };
+		D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeCredentialSwitchTransaction.swift; path = Services/ClaudeCredentialSwitchTransaction.swift; sourceTree = "<group>"; };
+		D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeStatuslineBridgeService.swift; path = Services/ClaudeStatuslineBridgeService.swift; sourceTree = "<group>"; };
+		D00000000000000000000083 /* CodexAccountService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountService.swift; path = Services/CodexAccountService.swift; sourceTree = "<group>"; };
+		D00000000000000000000085 /* CodexAppServerTransport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAppServerTransport.swift; path = Services/CodexAppServerTransport.swift; sourceTree = "<group>"; };
+		D00000000000000000000087 /* CodexAuthBlob.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthBlob.swift; path = Services/CodexAuthBlob.swift; sourceTree = "<group>"; };
+		D00000000000000000000089 /* CodexAuthSwitchTransaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAuthSwitchTransaction.swift; path = Services/CodexAuthSwitchTransaction.swift; sourceTree = "<group>"; };
+		D0000000000000000000008B /* CodexExecutableLocator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexExecutableLocator.swift; path = Services/CodexExecutableLocator.swift; sourceTree = "<group>"; };
+		D0000000000000000000008D /* GlobalClaudeCredentialService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalClaudeCredentialService.swift; path = Services/GlobalClaudeCredentialService.swift; sourceTree = "<group>"; };
+		D0000000000000000000008F /* GlobalCodexAuthService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlobalCodexAuthService.swift; path = Services/GlobalCodexAuthService.swift; sourceTree = "<group>"; };
+		D00000000000000000000091 /* KeychainAuthVault.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainAuthVault.swift; path = Services/KeychainAuthVault.swift; sourceTree = "<group>"; };
+		D00000000000000000000093 /* PersistedStateMigrator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersistedStateMigrator.swift; path = Services/PersistedStateMigrator.swift; sourceTree = "<group>"; };
+		D00000000000000000000095 /* LimitsWidgetSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshot.swift; sourceTree = "<group>"; };
+		D00000000000000000000097 /* LimitsWidgetSnapshotStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotStore.swift; sourceTree = "<group>"; };
+		D00000000000000000000099 /* LimitsCurrentLimitsWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsCurrentLimitsWidget.swift; sourceTree = "<group>"; };
+		D0000000000000000000009B /* AccountsPresentationLogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsPresentationLogicTests.swift; sourceTree = "<group>"; };
+		D0000000000000000000009D /* ApplicationSceneRouterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApplicationSceneRouterTests.swift; sourceTree = "<group>"; };
+		D0000000000000000000009F /* AsyncCommandRunnerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AsyncCommandRunnerTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A1 /* ClaudeCredentialSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialSwitchTransactionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A3 /* ClaudeStatuslineBridgeServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeStatuslineBridgeServiceTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A5 /* CodexAuthBlobTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthBlobTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAuthSwitchTransactionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexRuntimeEnvironmentTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AB /* FirstLaunchPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FirstLaunchPolicyTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AD /* KeychainAuthVaultTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeychainAuthVaultTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsWidgetSnapshotTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B1 /* PersistedStateMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PersistedStateMigrationTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B3 /* RateLimitDisplayTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateLimitDisplayTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B5 /* ReauthenticationResolutionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReauthenticationResolutionTests.swift; sourceTree = "<group>"; };
+		D000000000000000000000B7 /* LimitsUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsUITests.swift; sourceTree = "<group>"; };
+		D000000000000000000000BB /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BC /* es */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BD /* fr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BE /* ru */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
+		D000000000000000000000BF /* zh-Hans */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		D000000000000000000000C3 /* claude.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = claude.svg; sourceTree = "<group>"; };
+		D000000000000000000000C5 /* codex.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = codex.svg; sourceTree = "<group>"; };
+		D000000000000000000000C7 /* AppIcon.icns */ = {isa = PBXFileReference; includeInIndex = 1; path = AppIcon.icns; sourceTree = "<group>"; };
+		D000000000000000000000C9 /* Limits-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Limits-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000CA /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000CB /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
+		D000000000000000000000CC /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+		F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitBurnEstimator.swift; path = Models/LimitBurnEstimator.swift; sourceTree = "<group>"; };
+		F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsageRepositoryTests.swift; sourceTree = "<group>"; };
 		F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InterprocessFileLock.swift; path = Services/InterprocessFileLock.swift; sourceTree = "<group>"; };
 		F1B13B6B151CD85E13F79E19 /* ProviderCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderCatalog.swift; path = Models/ProviderCatalog.swift; sourceTree = "<group>"; };
+		F1E086CEAB404D07225A0F00 /* CodexUsagePresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsagePresentationTests.swift; sourceTree = "<group>"; };
 		F23D09F2579B9EBEE91BB02E /* AccountResolution.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountResolution.swift; path = Models/AccountResolution.swift; sourceTree = "<group>"; };
 		F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LaunchAtLoginController.swift; path = AppSupport/LaunchAtLoginController.swift; sourceTree = "<group>"; };
+		F29C7C56878A28677D77D3E0 /* CodexAnalyticsSurfacePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAnalyticsSurfacePresentation.swift; path = Models/CodexAnalyticsSurfacePresentation.swift; sourceTree = "<group>"; };
 		F2C7D4E29A00235C2D96F3D2 /* ClaudeLivePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeLivePresentation.swift; path = Models/ClaudeLivePresentation.swift; sourceTree = "<group>"; };
+		F2E345863F25F690211AE57E /* CodexUsageCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageCoordinator.swift; path = Services/CodexUsageCoordinator.swift; sourceTree = "<group>"; };
 		F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsWidgetSnapshotPublisher.swift; path = AppSupport/LimitsWidgetSnapshotPublisher.swift; sourceTree = "<group>"; };
+		F30E5F072E73A6242AD6FE09 /* CodexAccountProbeRequest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountProbeRequest.swift; path = Models/CodexAccountProbeRequest.swift; sourceTree = "<group>"; };
+		F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexInsightsTextPresentation.swift; path = Models/CodexInsightsTextPresentation.swift; sourceTree = "<group>"; };
+		F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageRepository.swift; path = Services/CodexUsageRepository.swift; sourceTree = "<group>"; };
 		F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountIssuePresentation.swift; path = Models/CodexAccountIssuePresentation.swift; sourceTree = "<group>"; };
 		F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderOperationState.swift; path = Models/ProviderOperationState.swift; sourceTree = "<group>"; };
+		F4B0F6596F1E101C81F39792 /* OpenAIPricingCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OpenAIPricingCatalog.swift; path = Services/OpenAIPricingCatalog.swift; sourceTree = "<group>"; };
 		F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountsPresentationPolicy.swift; path = Models/CodexAccountsPresentationPolicy.swift; sourceTree = "<group>"; };
+		F53AA2BE3CB7DC62730A089E /* CodexRolloutUsageImporterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexRolloutUsageImporterTests.swift; sourceTree = "<group>"; };
 		F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProviderCatalogTests.swift; sourceTree = "<group>"; };
 		F72539F2956FEBB17FC55B6E /* MinimalChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MinimalChrome.swift; path = Views/MinimalChrome.swift; sourceTree = "<group>"; };
 		F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexRefreshPolicy.swift; path = Models/CodexRefreshPolicy.swift; sourceTree = "<group>"; };
@@ -288,13 +333,20 @@
 		F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SoftwareUpdateController.swift; path = App/SoftwareUpdateController.swift; sourceTree = "<group>"; };
 		F9701B18B173BC111A054530 /* WidgetPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WidgetPresentationPolicy.swift; path = Models/WidgetPresentationPolicy.swift; sourceTree = "<group>"; };
 		F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionCoordinatorTests.swift; sourceTree = "<group>"; };
+		F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsageCoordinatorTests.swift; sourceTree = "<group>"; };
 		FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionCoordinator.swift; path = Services/CodexSessionCoordinator.swift; sourceTree = "<group>"; };
 		FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountValidationPolicy.swift; path = Models/CodexAccountValidationPolicy.swift; sourceTree = "<group>"; };
+		FB1F31B6DC996A5FF0E5A99E /* CodexUsageModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageModels.swift; path = Models/CodexUsageModels.swift; sourceTree = "<group>"; };
+		FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAccountUsageTests.swift; sourceTree = "<group>"; };
+		FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsagePresentation.swift; path = Models/CodexUsagePresentation.swift; sourceTree = "<group>"; };
+		FC4A8315955E917B742D2596 /* LimitBurnEstimatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitBurnEstimatorTests.swift; sourceTree = "<group>"; };
 		FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeSessionCoordinator.swift; path = Services/ClaudeSessionCoordinator.swift; sourceTree = "<group>"; };
+		FD77063EE9CDABDE02F06288 /* CodexRolloutUsageImporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexRolloutUsageImporter.swift; path = Services/CodexRolloutUsageImporter.swift; sourceTree = "<group>"; };
 		FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionPresentation.swift; path = Models/CodexSessionPresentation.swift; sourceTree = "<group>"; };
 		FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatGPTSubscriptionPresentation.swift; path = Models/ChatGPTSubscriptionPresentation.swift; sourceTree = "<group>"; };
 		FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApplicationSceneRouter.swift; path = AppSupport/ApplicationSceneRouter.swift; sourceTree = "<group>"; };
 		FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsRepositoryTests.swift; sourceTree = "<group>"; };
+		FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenAIPricingCatalogTests.swift; sourceTree = "<group>"; };
 		FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FirstLaunchPolicy.swift; path = AppSupport/FirstLaunchPolicy.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -304,9 +356,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0000000000000000000001C /* Cocoa.framework in Frameworks */,
-				D000000000000000000000DD /* LimitsCore.framework in Frameworks */,
-				D000000000000000000000DC /* LimitsShared.framework in Frameworks */,
-				D000000000000000000000E9 /* Sparkle in Frameworks */,
+				D000000000000000000000E2 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E1 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000F1 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -315,7 +367,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000026 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000DE /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E4 /* libsqlite3.tbd in Frameworks */,
+				D000000000000000000000E3 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,7 +385,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000039 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000DF /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E5 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,8 +394,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000042 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E0 /* LimitsCore.framework in Frameworks */,
-				D000000000000000000000E1 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E6 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E7 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -351,6 +404,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0000000000000000000004B /* Cocoa.framework in Frameworks */,
+				D000000000000000000000E8 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E9 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +440,7 @@
 		D00000000000000000000007 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D0000000000000000000004C /* libsqlite3.tbd */,
 				D0000000000000000000001A /* OS X */,
 			);
 			name = Frameworks;
@@ -415,10 +471,10 @@
 		D0000000000000000000000A /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000CA /* Limits.entitlements */,
-				D000000000000000000000C8 /* Limits-Info.plist */,
-				D000000000000000000000CB /* LimitsWidgetExtension.entitlements */,
-				D000000000000000000000C9 /* LimitsWidgetExtension-Info.plist */,
+				D000000000000000000000CB /* Limits.entitlements */,
+				D000000000000000000000C9 /* Limits-Info.plist */,
+				D000000000000000000000CC /* LimitsWidgetExtension.entitlements */,
+				D000000000000000000000CA /* LimitsWidgetExtension-Info.plist */,
 			);
 			name = Config;
 			path = Config;
@@ -427,7 +483,7 @@
 		D0000000000000000000000B /* Assets */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000C6 /* AppIcon.icns */,
+				D000000000000000000000C7 /* AppIcon.icns */,
 			);
 			name = Assets;
 			path = Assets;
@@ -436,25 +492,25 @@
 		D0000000000000000000000C /* Limits */ = {
 			isa = PBXGroup;
 			children = (
-				D00000000000000000000058 /* AccountsWindowView.swift */,
-				D0000000000000000000004C /* AppModel.swift */,
-				D0000000000000000000005A /* CLIStateBadge.swift */,
-				D0000000000000000000005C /* CompactLimitBarsView.swift */,
-				D0000000000000000000004E /* LimitsApp.swift */,
+				D00000000000000000000059 /* AccountsWindowView.swift */,
+				D0000000000000000000004D /* AppModel.swift */,
+				D0000000000000000000005B /* CLIStateBadge.swift */,
+				D0000000000000000000005D /* CompactLimitBarsView.swift */,
+				D0000000000000000000004F /* LimitsApp.swift */,
 				F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */,
-				D0000000000000000000005E /* MenuBarContentView.swift */,
+				D0000000000000000000005F /* MenuBarContentView.swift */,
 				F72539F2956FEBB17FC55B6E /* MinimalChrome.swift */,
-				D00000000000000000000060 /* NativeMenuBarScene.swift */,
-				D00000000000000000000062 /* ProviderAccent.swift */,
-				D00000000000000000000064 /* ProviderFilterPicker.swift */,
-				D000000000000000000000C0 /* Resources */,
-				D00000000000000000000050 /* RuntimeLog.swift */,
-				D00000000000000000000066 /* SettingsView.swift */,
+				D00000000000000000000061 /* NativeMenuBarScene.swift */,
+				D00000000000000000000063 /* ProviderAccent.swift */,
+				D00000000000000000000065 /* ProviderFilterPicker.swift */,
+				D000000000000000000000C1 /* Resources */,
+				D00000000000000000000051 /* RuntimeLog.swift */,
+				D00000000000000000000067 /* SettingsView.swift */,
 				F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */,
-				D00000000000000000000052 /* TrayStatusIconAsset.swift */,
-				D00000000000000000000054 /* TrayStatusIconRenderer.swift */,
-				D00000000000000000000056 /* WindowActivationTracker.swift */,
-				D00000000000000000000068 /* WindowChromeConfigurator.swift */,
+				D00000000000000000000053 /* TrayStatusIconAsset.swift */,
+				D00000000000000000000055 /* TrayStatusIconRenderer.swift */,
+				D00000000000000000000057 /* WindowActivationTracker.swift */,
+				D00000000000000000000069 /* WindowChromeConfigurator.swift */,
 			);
 			name = Limits;
 			path = Limits;
@@ -464,44 +520,54 @@
 			isa = PBXGroup;
 			children = (
 				F23D09F2579B9EBEE91BB02E /* AccountResolution.swift */,
-				D00000000000000000000078 /* AccountsPersistence.swift */,
-				D0000000000000000000006A /* AccountsPresentationLogic.swift */,
+				D00000000000000000000079 /* AccountsPersistence.swift */,
+				D0000000000000000000006B /* AccountsPresentationLogic.swift */,
 				F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */,
 				FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */,
-				D0000000000000000000006C /* AppServerModels.swift */,
-				D0000000000000000000007A /* AsyncCommandRunner.swift */,
+				D0000000000000000000006D /* AppServerModels.swift */,
+				D0000000000000000000007B /* AsyncCommandRunner.swift */,
 				FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */,
-				D0000000000000000000007C /* ClaudeAuthStatusService.swift */,
-				D0000000000000000000007E /* ClaudeCredentialSwitchTransaction.swift */,
+				D0000000000000000000007D /* ClaudeAuthStatusService.swift */,
+				D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift */,
 				F2C7D4E29A00235C2D96F3D2 /* ClaudeLivePresentation.swift */,
 				FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */,
-				D00000000000000000000080 /* ClaudeStatuslineBridgeService.swift */,
-				D0000000000000000000006E /* ClaudeStoredAccount.swift */,
+				D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift */,
+				D0000000000000000000006F /* ClaudeStoredAccount.swift */,
 				F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */,
-				D00000000000000000000082 /* CodexAccountService.swift */,
+				F30E5F072E73A6242AD6FE09 /* CodexAccountProbeRequest.swift */,
+				D00000000000000000000083 /* CodexAccountService.swift */,
 				F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */,
 				FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */,
-				D00000000000000000000084 /* CodexAppServerTransport.swift */,
-				D00000000000000000000086 /* CodexAuthBlob.swift */,
-				D00000000000000000000088 /* CodexAuthSwitchTransaction.swift */,
-				D0000000000000000000008A /* CodexExecutableLocator.swift */,
+				F29C7C56878A28677D77D3E0 /* CodexAnalyticsSurfacePresentation.swift */,
+				D00000000000000000000085 /* CodexAppServerTransport.swift */,
+				D00000000000000000000087 /* CodexAuthBlob.swift */,
+				D00000000000000000000089 /* CodexAuthSwitchTransaction.swift */,
+				D0000000000000000000008B /* CodexExecutableLocator.swift */,
+				F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */,
 				F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */,
+				FD77063EE9CDABDE02F06288 /* CodexRolloutUsageImporter.swift */,
 				FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */,
 				FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */,
+				F2E345863F25F690211AE57E /* CodexUsageCoordinator.swift */,
+				FB1F31B6DC996A5FF0E5A99E /* CodexUsageModels.swift */,
+				FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */,
+				F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */,
 				FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */,
-				D0000000000000000000008C /* GlobalClaudeCredentialService.swift */,
-				D0000000000000000000008E /* GlobalCodexAuthService.swift */,
+				D0000000000000000000008D /* GlobalClaudeCredentialService.swift */,
+				D0000000000000000000008F /* GlobalCodexAuthService.swift */,
 				F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */,
-				D00000000000000000000090 /* KeychainAuthVault.swift */,
+				D00000000000000000000091 /* KeychainAuthVault.swift */,
 				F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */,
+				F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */,
 				F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */,
-				D00000000000000000000092 /* PersistedStateMigrator.swift */,
+				F4B0F6596F1E101C81F39792 /* OpenAIPricingCatalog.swift */,
+				D00000000000000000000093 /* PersistedStateMigrator.swift */,
 				F1B13B6B151CD85E13F79E19 /* ProviderCatalog.swift */,
 				F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */,
-				D00000000000000000000070 /* ProviderPresentation.swift */,
-				D00000000000000000000072 /* RateLimitDisplay.swift */,
-				D00000000000000000000074 /* StoredAccount.swift */,
-				D00000000000000000000076 /* TrayStatusPresentation.swift */,
+				D00000000000000000000071 /* ProviderPresentation.swift */,
+				D00000000000000000000073 /* RateLimitDisplay.swift */,
+				D00000000000000000000075 /* StoredAccount.swift */,
+				D00000000000000000000077 /* TrayStatusPresentation.swift */,
 				F9701B18B173BC111A054530 /* WidgetPresentationPolicy.swift */,
 			);
 			name = LimitsCore;
@@ -512,9 +578,9 @@
 			isa = PBXGroup;
 			children = (
 				F8D540EE018553DD225DFD4D /* L10n.swift */,
-				D00000000000000000000094 /* LimitsWidgetSnapshot.swift */,
-				D00000000000000000000096 /* LimitsWidgetSnapshotStore.swift */,
-				D000000000000000000000B8 /* Resources */,
+				D00000000000000000000095 /* LimitsWidgetSnapshot.swift */,
+				D00000000000000000000097 /* LimitsWidgetSnapshotStore.swift */,
+				D000000000000000000000B9 /* Resources */,
 			);
 			name = LimitsShared;
 			path = LimitsShared;
@@ -523,7 +589,7 @@
 		D0000000000000000000000F /* LimitsWidgetExtension */ = {
 			isa = PBXGroup;
 			children = (
-				D00000000000000000000098 /* LimitsCurrentLimitsWidget.swift */,
+				D00000000000000000000099 /* LimitsCurrentLimitsWidget.swift */,
 			);
 			name = LimitsWidgetExtension;
 			path = LimitsWidgetExtension;
@@ -532,23 +598,30 @@
 		D00000000000000000000010 /* LimitsTests */ = {
 			isa = PBXGroup;
 			children = (
-				D0000000000000000000009A /* AccountsPresentationLogicTests.swift */,
+				D0000000000000000000009B /* AccountsPresentationLogicTests.swift */,
 				FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */,
-				D0000000000000000000009C /* ApplicationSceneRouterTests.swift */,
-				D0000000000000000000009E /* AsyncCommandRunnerTests.swift */,
-				D000000000000000000000A0 /* ClaudeCredentialSwitchTransactionTests.swift */,
-				D000000000000000000000A2 /* ClaudeStatuslineBridgeServiceTests.swift */,
-				D000000000000000000000A4 /* CodexAuthBlobTests.swift */,
-				D000000000000000000000A6 /* CodexAuthSwitchTransactionTests.swift */,
-				D000000000000000000000A8 /* CodexRuntimeEnvironmentTests.swift */,
-				D000000000000000000000AA /* FirstLaunchPolicyTests.swift */,
-				D000000000000000000000AC /* KeychainAuthVaultTests.swift */,
+				D0000000000000000000009D /* ApplicationSceneRouterTests.swift */,
+				D0000000000000000000009F /* AsyncCommandRunnerTests.swift */,
+				D000000000000000000000A1 /* ClaudeCredentialSwitchTransactionTests.swift */,
+				D000000000000000000000A3 /* ClaudeStatuslineBridgeServiceTests.swift */,
+				FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */,
+				D000000000000000000000A5 /* CodexAuthBlobTests.swift */,
+				D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift */,
+				F53AA2BE3CB7DC62730A089E /* CodexRolloutUsageImporterTests.swift */,
+				D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift */,
+				F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */,
+				F1E086CEAB404D07225A0F00 /* CodexUsagePresentationTests.swift */,
+				F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */,
+				D000000000000000000000AB /* FirstLaunchPolicyTests.swift */,
+				D000000000000000000000AD /* KeychainAuthVaultTests.swift */,
 				F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */,
-				D000000000000000000000AE /* LimitsWidgetSnapshotTests.swift */,
-				D000000000000000000000B0 /* PersistedStateMigrationTests.swift */,
+				FC4A8315955E917B742D2596 /* LimitBurnEstimatorTests.swift */,
+				D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift */,
+				FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */,
+				D000000000000000000000B1 /* PersistedStateMigrationTests.swift */,
 				F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */,
-				D000000000000000000000B2 /* RateLimitDisplayTests.swift */,
-				D000000000000000000000B4 /* ReauthenticationResolutionTests.swift */,
+				D000000000000000000000B3 /* RateLimitDisplayTests.swift */,
+				D000000000000000000000B5 /* ReauthenticationResolutionTests.swift */,
 				F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */,
 			);
 			name = LimitsTests;
@@ -558,7 +631,7 @@
 		D00000000000000000000011 /* LimitsUITests */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000B6 /* LimitsUITests.swift */,
+				D000000000000000000000B7 /* LimitsUITests.swift */,
 			);
 			name = LimitsUITests;
 			path = LimitsUITests;
@@ -572,29 +645,29 @@
 			name = "OS X";
 			sourceTree = "<group>";
 		};
-		D000000000000000000000B8 /* Resources */ = {
+		D000000000000000000000B9 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000B9 /* Localizable.strings */,
+				D000000000000000000000BA /* Localizable.strings */,
 			);
 			name = Resources;
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		D000000000000000000000C0 /* Resources */ = {
+		D000000000000000000000C1 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000C1 /* TrayIcons */,
+				D000000000000000000000C2 /* TrayIcons */,
 			);
 			name = Resources;
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		D000000000000000000000C1 /* TrayIcons */ = {
+		D000000000000000000000C2 /* TrayIcons */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000C2 /* claude.svg */,
-				D000000000000000000000C4 /* codex.svg */,
+				D000000000000000000000C3 /* claude.svg */,
+				D000000000000000000000C5 /* codex.svg */,
 			);
 			name = TrayIcons;
 			path = TrayIcons;
@@ -627,19 +700,19 @@
 				D00000000000000000000017 /* Sources */,
 				D00000000000000000000018 /* Frameworks */,
 				D00000000000000000000019 /* Resources */,
-				D000000000000000000000E2 /* Embed Frameworks */,
-				D000000000000000000000E5 /* Embed App Extensions */,
+				D000000000000000000000EA /* Embed Frameworks */,
+				D000000000000000000000ED /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000CF /* PBXTargetDependency */,
-				D000000000000000000000CD /* PBXTargetDependency */,
-				D000000000000000000000D1 /* PBXTargetDependency */,
+				D000000000000000000000D0 /* PBXTargetDependency */,
+				D000000000000000000000CE /* PBXTargetDependency */,
+				D000000000000000000000D2 /* PBXTargetDependency */,
 			);
 			name = Limits;
 			packageProductDependencies = (
-				D000000000000000000000E8 /* Sparkle */,
+				D000000000000000000000F0 /* Sparkle */,
 			);
 			productName = Limits;
 			productReference = D00000000000000000000016 /* Limits.app */;
@@ -657,7 +730,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D3 /* PBXTargetDependency */,
+				D000000000000000000000D4 /* PBXTargetDependency */,
 			);
 			name = LimitsCore;
 			productName = LimitsCore;
@@ -693,7 +766,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D5 /* PBXTargetDependency */,
+				D000000000000000000000D6 /* PBXTargetDependency */,
 			);
 			name = LimitsWidgetExtension;
 			productName = LimitsWidgetExtension;
@@ -711,8 +784,8 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D7 /* PBXTargetDependency */,
-				D000000000000000000000D9 /* PBXTargetDependency */,
+				D000000000000000000000D8 /* PBXTargetDependency */,
+				D000000000000000000000DA /* PBXTargetDependency */,
 			);
 			name = LimitsTests;
 			productName = LimitsTests;
@@ -730,7 +803,9 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000DB /* PBXTargetDependency */,
+				D000000000000000000000DC /* PBXTargetDependency */,
+				D000000000000000000000DE /* PBXTargetDependency */,
+				D000000000000000000000E0 /* PBXTargetDependency */,
 			);
 			name = LimitsUITests;
 			productName = LimitsUITests;
@@ -789,7 +864,7 @@
 			mainGroup = D00000000000000000000002;
 			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
-				D000000000000000000000E7 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00000000000000000000003 /* Products */;
@@ -811,9 +886,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D000000000000000000000C7 /* AppIcon.icns in Resources */,
-				D000000000000000000000C3 /* claude.svg in Resources */,
-				D000000000000000000000C5 /* codex.svg in Resources */,
+				D000000000000000000000C8 /* AppIcon.icns in Resources */,
+				D000000000000000000000C4 /* claude.svg in Resources */,
+				D000000000000000000000C6 /* codex.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -828,7 +903,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D000000000000000000000BF /* Localizable.strings in Resources */,
+				D000000000000000000000C0 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -860,24 +935,24 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D00000000000000000000059 /* AccountsWindowView.swift in Sources */,
-				D0000000000000000000004D /* AppModel.swift in Sources */,
-				D0000000000000000000005B /* CLIStateBadge.swift in Sources */,
-				D0000000000000000000005D /* CompactLimitBarsView.swift in Sources */,
-				D0000000000000000000004F /* LimitsApp.swift in Sources */,
+				D0000000000000000000005A /* AccountsWindowView.swift in Sources */,
+				D0000000000000000000004E /* AppModel.swift in Sources */,
+				D0000000000000000000005C /* CLIStateBadge.swift in Sources */,
+				D0000000000000000000005E /* CompactLimitBarsView.swift in Sources */,
+				D00000000000000000000050 /* LimitsApp.swift in Sources */,
 				F7E909F7F9CF17918A4A4CAD /* LimitsRuntimeEnvironment.swift in Sources */,
-				D0000000000000000000005F /* MenuBarContentView.swift in Sources */,
+				D00000000000000000000060 /* MenuBarContentView.swift in Sources */,
 				F64363D69613C781D4E5BEB6 /* MinimalChrome.swift in Sources */,
-				D00000000000000000000061 /* NativeMenuBarScene.swift in Sources */,
-				D00000000000000000000063 /* ProviderAccent.swift in Sources */,
-				D00000000000000000000065 /* ProviderFilterPicker.swift in Sources */,
-				D00000000000000000000051 /* RuntimeLog.swift in Sources */,
-				D00000000000000000000067 /* SettingsView.swift in Sources */,
+				D00000000000000000000062 /* NativeMenuBarScene.swift in Sources */,
+				D00000000000000000000064 /* ProviderAccent.swift in Sources */,
+				D00000000000000000000066 /* ProviderFilterPicker.swift in Sources */,
+				D00000000000000000000052 /* RuntimeLog.swift in Sources */,
+				D00000000000000000000068 /* SettingsView.swift in Sources */,
 				F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */,
-				D00000000000000000000053 /* TrayStatusIconAsset.swift in Sources */,
-				D00000000000000000000055 /* TrayStatusIconRenderer.swift in Sources */,
-				D00000000000000000000057 /* WindowActivationTracker.swift in Sources */,
-				D00000000000000000000069 /* WindowChromeConfigurator.swift in Sources */,
+				D00000000000000000000054 /* TrayStatusIconAsset.swift in Sources */,
+				D00000000000000000000056 /* TrayStatusIconRenderer.swift in Sources */,
+				D00000000000000000000058 /* WindowActivationTracker.swift in Sources */,
+				D0000000000000000000006A /* WindowChromeConfigurator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -886,44 +961,54 @@
 			buildActionMask = 2147483647;
 			files = (
 				FDE359D874DA49732F3464C7 /* AccountResolution.swift in Sources */,
-				D00000000000000000000079 /* AccountsPersistence.swift in Sources */,
-				D0000000000000000000006B /* AccountsPresentationLogic.swift in Sources */,
+				D0000000000000000000007A /* AccountsPersistence.swift in Sources */,
+				D0000000000000000000006C /* AccountsPresentationLogic.swift in Sources */,
 				F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */,
 				F65BB506CE8198529D67C7D3 /* ApplicationSceneRouter.swift in Sources */,
-				D0000000000000000000006D /* AppServerModels.swift in Sources */,
-				D0000000000000000000007B /* AsyncCommandRunner.swift in Sources */,
+				D0000000000000000000006E /* AppServerModels.swift in Sources */,
+				D0000000000000000000007C /* AsyncCommandRunner.swift in Sources */,
 				FFDD9FE854C6F017247A7898 /* ChatGPTSubscriptionPresentation.swift in Sources */,
-				D0000000000000000000007D /* ClaudeAuthStatusService.swift in Sources */,
-				D0000000000000000000007F /* ClaudeCredentialSwitchTransaction.swift in Sources */,
+				D0000000000000000000007E /* ClaudeAuthStatusService.swift in Sources */,
+				D00000000000000000000080 /* ClaudeCredentialSwitchTransaction.swift in Sources */,
 				F54847F76A1B84ED288DAAE8 /* ClaudeLivePresentation.swift in Sources */,
 				F27190BBD6B6F7021B0C59C0 /* ClaudeSessionCoordinator.swift in Sources */,
-				D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift in Sources */,
-				D0000000000000000000006F /* ClaudeStoredAccount.swift in Sources */,
+				D00000000000000000000082 /* ClaudeStatuslineBridgeService.swift in Sources */,
+				D00000000000000000000070 /* ClaudeStoredAccount.swift in Sources */,
 				F2107FE4707598E821D33575 /* CodexAccountIssuePresentation.swift in Sources */,
-				D00000000000000000000083 /* CodexAccountService.swift in Sources */,
+				FDACE106DCE9446AFA8591C0 /* CodexAccountProbeRequest.swift in Sources */,
+				D00000000000000000000084 /* CodexAccountService.swift in Sources */,
 				FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */,
 				FD95438612D6ADB49C195CDD /* CodexAccountValidationPolicy.swift in Sources */,
-				D00000000000000000000085 /* CodexAppServerTransport.swift in Sources */,
-				D00000000000000000000087 /* CodexAuthBlob.swift in Sources */,
-				D00000000000000000000089 /* CodexAuthSwitchTransaction.swift in Sources */,
-				D0000000000000000000008B /* CodexExecutableLocator.swift in Sources */,
+				F426EE6A956A2A70F2CF92C3 /* CodexAnalyticsSurfacePresentation.swift in Sources */,
+				D00000000000000000000086 /* CodexAppServerTransport.swift in Sources */,
+				D00000000000000000000088 /* CodexAuthBlob.swift in Sources */,
+				D0000000000000000000008A /* CodexAuthSwitchTransaction.swift in Sources */,
+				D0000000000000000000008C /* CodexExecutableLocator.swift in Sources */,
+				F1C250476E90A6D8A3DC070F /* CodexInsightsTextPresentation.swift in Sources */,
 				FEB03F7BECF6767C713B7B79 /* CodexRefreshPolicy.swift in Sources */,
+				F4EC3DF283AB612F399BEF9B /* CodexRolloutUsageImporter.swift in Sources */,
 				FAEA8F82DE397252DED93A5A /* CodexSessionCoordinator.swift in Sources */,
 				F5BD731F8400D7330ED35612 /* CodexSessionPresentation.swift in Sources */,
+				F9B22AF0BA2B8564021DE25F /* CodexUsageCoordinator.swift in Sources */,
+				F48C73A1084A98F2E166EE42 /* CodexUsageModels.swift in Sources */,
+				F9AB483AAE4DE322961C2172 /* CodexUsagePresentation.swift in Sources */,
+				FBAC5BC205E34455BB0A143B /* CodexUsageRepository.swift in Sources */,
 				F579457FDC2967D893AD44E9 /* FirstLaunchPolicy.swift in Sources */,
-				D0000000000000000000008D /* GlobalClaudeCredentialService.swift in Sources */,
-				D0000000000000000000008F /* GlobalCodexAuthService.swift in Sources */,
+				D0000000000000000000008E /* GlobalClaudeCredentialService.swift in Sources */,
+				D00000000000000000000090 /* GlobalCodexAuthService.swift in Sources */,
 				F43E2142BE2C9BD8925155F0 /* InterprocessFileLock.swift in Sources */,
-				D00000000000000000000091 /* KeychainAuthVault.swift in Sources */,
+				D00000000000000000000092 /* KeychainAuthVault.swift in Sources */,
 				FA45F942D3EAF5DC2CF5260E /* LaunchAtLoginController.swift in Sources */,
+				F5B64BD92969E2E937BFC0DD /* LimitBurnEstimator.swift in Sources */,
 				FE001B7BA74548881B29F888 /* LimitsWidgetSnapshotPublisher.swift in Sources */,
-				D00000000000000000000093 /* PersistedStateMigrator.swift in Sources */,
+				F65F8E4DA6620C09E292FAD1 /* OpenAIPricingCatalog.swift in Sources */,
+				D00000000000000000000094 /* PersistedStateMigrator.swift in Sources */,
 				FE6D03510A0309BE1060A3D4 /* ProviderCatalog.swift in Sources */,
 				FEC2D0CE07837A62454427F9 /* ProviderOperationState.swift in Sources */,
-				D00000000000000000000071 /* ProviderPresentation.swift in Sources */,
-				D00000000000000000000073 /* RateLimitDisplay.swift in Sources */,
-				D00000000000000000000075 /* StoredAccount.swift in Sources */,
-				D00000000000000000000077 /* TrayStatusPresentation.swift in Sources */,
+				D00000000000000000000072 /* ProviderPresentation.swift in Sources */,
+				D00000000000000000000074 /* RateLimitDisplay.swift in Sources */,
+				D00000000000000000000076 /* StoredAccount.swift in Sources */,
+				D00000000000000000000078 /* TrayStatusPresentation.swift in Sources */,
 				F859B684E8B5BE7DFF31DBDF /* WidgetPresentationPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -933,8 +1018,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F536992662C110B2E48A5440 /* L10n.swift in Sources */,
-				D00000000000000000000095 /* LimitsWidgetSnapshot.swift in Sources */,
-				D00000000000000000000097 /* LimitsWidgetSnapshotStore.swift in Sources */,
+				D00000000000000000000096 /* LimitsWidgetSnapshot.swift in Sources */,
+				D00000000000000000000098 /* LimitsWidgetSnapshotStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -942,7 +1027,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D00000000000000000000099 /* LimitsCurrentLimitsWidget.swift in Sources */,
+				D0000000000000000000009A /* LimitsCurrentLimitsWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -950,23 +1035,30 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D0000000000000000000009B /* AccountsPresentationLogicTests.swift in Sources */,
+				D0000000000000000000009C /* AccountsPresentationLogicTests.swift in Sources */,
 				FB51D48BAA1947F2639837E5 /* AccountsRepositoryTests.swift in Sources */,
-				D0000000000000000000009D /* ApplicationSceneRouterTests.swift in Sources */,
-				D0000000000000000000009F /* AsyncCommandRunnerTests.swift in Sources */,
-				D000000000000000000000A1 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */,
-				D000000000000000000000A3 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */,
-				D000000000000000000000A5 /* CodexAuthBlobTests.swift in Sources */,
-				D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift in Sources */,
-				D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift in Sources */,
-				D000000000000000000000AB /* FirstLaunchPolicyTests.swift in Sources */,
-				D000000000000000000000AD /* KeychainAuthVaultTests.swift in Sources */,
+				D0000000000000000000009E /* ApplicationSceneRouterTests.swift in Sources */,
+				D000000000000000000000A0 /* AsyncCommandRunnerTests.swift in Sources */,
+				D000000000000000000000A2 /* ClaudeCredentialSwitchTransactionTests.swift in Sources */,
+				D000000000000000000000A4 /* ClaudeStatuslineBridgeServiceTests.swift in Sources */,
+				F735FFC984FFA146419E15A3 /* CodexAccountUsageTests.swift in Sources */,
+				D000000000000000000000A6 /* CodexAuthBlobTests.swift in Sources */,
+				D000000000000000000000A8 /* CodexAuthSwitchTransactionTests.swift in Sources */,
+				F69828C8577EC163C594E63D /* CodexRolloutUsageImporterTests.swift in Sources */,
+				D000000000000000000000AA /* CodexRuntimeEnvironmentTests.swift in Sources */,
+				F9C05C474AA378CB65F8D0C0 /* CodexUsageCoordinatorTests.swift in Sources */,
+				FCC45F9A959BBDCC086717CB /* CodexUsagePresentationTests.swift in Sources */,
+				F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */,
+				D000000000000000000000AC /* FirstLaunchPolicyTests.swift in Sources */,
+				D000000000000000000000AE /* KeychainAuthVaultTests.swift in Sources */,
 				FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */,
-				D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift in Sources */,
-				D000000000000000000000B1 /* PersistedStateMigrationTests.swift in Sources */,
+				F6E5FB23D64480BBBF453643 /* LimitBurnEstimatorTests.swift in Sources */,
+				D000000000000000000000B0 /* LimitsWidgetSnapshotTests.swift in Sources */,
+				F448771D5EA6D06181F0491B /* OpenAIPricingCatalogTests.swift in Sources */,
+				D000000000000000000000B2 /* PersistedStateMigrationTests.swift in Sources */,
 				FB334C164A7B40F03F66B7DF /* ProviderCatalogTests.swift in Sources */,
-				D000000000000000000000B3 /* RateLimitDisplayTests.swift in Sources */,
-				D000000000000000000000B5 /* ReauthenticationResolutionTests.swift in Sources */,
+				D000000000000000000000B4 /* RateLimitDisplayTests.swift in Sources */,
+				D000000000000000000000B6 /* ReauthenticationResolutionTests.swift in Sources */,
 				F9351083F88241B95E0C4B91 /* SessionCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -975,72 +1067,84 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D000000000000000000000B7 /* LimitsUITests.swift in Sources */,
+				D000000000000000000000B8 /* LimitsUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		D000000000000000000000CD /* PBXTargetDependency */ = {
+		D000000000000000000000CE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000CC /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000CD /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000CF /* PBXTargetDependency */ = {
+		D000000000000000000000D0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsCore;
 			target = D0000000000000000000001D /* LimitsCore */;
-			targetProxy = D000000000000000000000CE /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000CF /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000D1 /* PBXTargetDependency */ = {
+		D000000000000000000000D2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsWidgetExtension;
 			target = D00000000000000000000031 /* LimitsWidgetExtension */;
-			targetProxy = D000000000000000000000D0 /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000D1 /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000D3 /* PBXTargetDependency */ = {
+		D000000000000000000000D4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000D2 /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000D3 /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000D5 /* PBXTargetDependency */ = {
+		D000000000000000000000D6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000D4 /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000D5 /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000D7 /* PBXTargetDependency */ = {
+		D000000000000000000000D8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsCore;
 			target = D0000000000000000000001D /* LimitsCore */;
-			targetProxy = D000000000000000000000D6 /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000D7 /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000D9 /* PBXTargetDependency */ = {
+		D000000000000000000000DA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000D8 /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000D9 /* PBXContainerItemProxy */;
 		};
-		D000000000000000000000DB /* PBXTargetDependency */ = {
+		D000000000000000000000DC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Limits;
 			target = D00000000000000000000012 /* Limits */;
-			targetProxy = D000000000000000000000DA /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000DB /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsCore;
+			target = D0000000000000000000001D /* LimitsCore */;
+			targetProxy = D000000000000000000000DD /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000E0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LimitsShared;
+			target = D00000000000000000000027 /* LimitsShared */;
+			targetProxy = D000000000000000000000DF /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
-		D000000000000000000000B9 /* Localizable.strings */ = {
+		D000000000000000000000BA /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
-				D000000000000000000000BA /* en */,
-				D000000000000000000000BB /* es */,
-				D000000000000000000000BC /* fr */,
-				D000000000000000000000BD /* ru */,
-				D000000000000000000000BE /* zh-Hans */,
+				D000000000000000000000BB /* en */,
+				D000000000000000000000BC /* es */,
+				D000000000000000000000BD /* fr */,
+				D000000000000000000000BE /* ru */,
+				D000000000000000000000BF /* zh-Hans */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1540,7 +1644,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		D000000000000000000000E7 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+		D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
@@ -1551,9 +1655,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		D000000000000000000000E8 /* Sparkle */ = {
+		D000000000000000000000F0 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D000000000000000000000E7 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			package = D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */

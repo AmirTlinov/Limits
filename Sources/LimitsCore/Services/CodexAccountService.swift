@@ -5,6 +5,7 @@ public enum CodexAccountServiceError: LocalizedError {
     case missingAuthFile
     case unsupportedLoginFlow
     case malformedAccountPayload
+    case malformedUsagePayload
 
     public var errorDescription: String? {
         switch self {
@@ -14,6 +15,8 @@ public enum CodexAccountServiceError: LocalizedError {
             return L10n.tr("codex.account.login_unsupported")
         case .malformedAccountPayload:
             return L10n.tr("codex.account.payload_malformed")
+        case .malformedUsagePayload:
+            return L10n.tr("codex.account.usage_malformed")
         }
     }
 }
@@ -63,10 +66,14 @@ public struct CodexAccountService: @unchecked Sendable {
             if Task.isCancelled { throw CancellationError() }
             throw error
         }
-        return try await captureValidationResult(from: tempHome, transport: transport)
+        return try await captureValidationResult(from: tempHome, transport: transport, request: .all)
     }
 
     public func validate(authData: Data) async throws -> AccountValidationResult {
+        try await validate(authData: authData, request: .all)
+    }
+
+    public func validate(authData: Data, request: CodexAccountProbeRequest) async throws -> AccountValidationResult {
         let executable = try CodexExecutableLocator.locate()
         let tempHome = try makeTemporaryCodexHome()
         defer { try? fileManager.removeItem(at: tempHome) }
@@ -81,19 +88,46 @@ public struct CodexAccountService: @unchecked Sendable {
         defer { transport.close() }
 
         try await transport.initialize()
-        return try await captureValidationResult(from: tempHome, transport: transport)
+        return try await captureValidationResult(from: tempHome, transport: transport, request: request)
     }
 
-    private func captureValidationResult(from codexHome: URL, transport: CodexAppServerTransport) async throws -> AccountValidationResult {
+    private func captureValidationResult(
+        from codexHome: URL,
+        transport: CodexAppServerTransport,
+        request: CodexAccountProbeRequest
+    ) async throws -> AccountValidationResult {
         let accountResponse = try await transport.readAccount(refreshToken: true)
         let rateLimitsResponse: AppServerRateLimitsResponse?
         let rateLimitError: String?
-        do {
-            rateLimitsResponse = try await transport.readRateLimits()
+        let usageResponse: AppServerAccountUsageResponse?
+        let usageError: String?
+        async let rateLimitsAttempt: Result<AppServerRateLimitsResponse, Error>? = request.rateLimits
+            ? Self.captureRateLimits(transport) : nil
+        async let usageAttempt: Result<AppServerAccountUsageResponse, Error>? = request.accountUsage
+            ? Self.captureUsage(transport) : nil
+        let rateLimitsResult = await rateLimitsAttempt
+        let usageResult = await usageAttempt
+        switch rateLimitsResult {
+        case .success(let response):
+            rateLimitsResponse = response
             rateLimitError = nil
-        } catch {
+        case .failure(let error):
             rateLimitsResponse = nil
             rateLimitError = error.localizedDescription
+        case nil:
+            rateLimitsResponse = nil
+            rateLimitError = nil
+        }
+        switch usageResult {
+        case .success(let response):
+            usageResponse = response
+            usageError = nil
+        case .failure(let error):
+            usageResponse = nil
+            usageError = error.localizedDescription
+        case nil:
+            usageResponse = nil
+            usageError = nil
         }
         let authURL = codexHome.appending(path: "auth.json")
         guard fileManager.fileExists(atPath: authURL.path) else {
@@ -110,6 +144,23 @@ public struct CodexAccountService: @unchecked Sendable {
             authPlanType: authMetadata.planType,
             rateLimitsResponse: rateLimitsResponse
         )
+        let accountUsage: CodexAccountUsageSnapshot?
+        var resolvedUsageError = usageError
+        if let usageResponse, let accountID = identity.accountId {
+            do {
+                accountUsage = try Self.makeUsageSnapshot(usageResponse, accountID: accountID, observedAt: .now)
+            } catch {
+                accountUsage = nil
+                resolvedUsageError = error.localizedDescription
+            }
+        } else {
+            accountUsage = nil
+        }
+        let threadUsageEvidence = identity.accountId.flatMap { accountID in
+            usageResponse?.threadUsage.map {
+                Self.makeThreadUsageEvidence($0, accountID: accountID, observedAt: .now)
+            }
+        }
 
         return AccountValidationResult(
             authData: authData,
@@ -120,8 +171,92 @@ public struct CodexAccountService: @unchecked Sendable {
             rateLimit: rateLimitsResponse?.preferredSnapshot,
             rateLimitsByLimitId: rateLimitsResponse?.rateLimitsByLimitId,
             rateLimitError: rateLimitError,
+            didRequestRateLimits: request.rateLimits,
+            accountUsage: accountUsage,
+            accountUsageError: resolvedUsageError,
+            didRequestAccountUsage: request.accountUsage,
+            threadUsageEvidence: threadUsageEvidence,
             subscriptionPeriod: authMetadata.subscriptionPeriod
         )
+    }
+
+    private static func captureRateLimits(
+        _ transport: CodexAppServerTransport
+    ) async -> Result<AppServerRateLimitsResponse, Error> {
+        do { return .success(try await transport.readRateLimits()) }
+        catch { return .failure(error) }
+    }
+
+    private static func captureUsage(
+        _ transport: CodexAppServerTransport
+    ) async -> Result<AppServerAccountUsageResponse, Error> {
+        do { return .success(try await transport.readAccountUsage()) }
+        catch { return .failure(error) }
+    }
+
+    static func makeUsageSnapshot(
+        _ response: AppServerAccountUsageResponse,
+        accountID: String,
+        observedAt: Date
+    ) throws -> CodexAccountUsageSnapshot {
+        let daily = (response.dailyUsageBuckets ?? []).compactMap { bucket -> CodexDailyTokenActivity? in
+            guard let date = parseUTCDay(bucket.startDate) else { return nil }
+            return CodexDailyTokenActivity(date: date, tokens: bucket.tokens)
+        }
+        guard response.dailyUsageBuckets == nil || daily.count == response.dailyUsageBuckets?.count else {
+            throw CodexAccountServiceError.malformedUsagePayload
+        }
+        return CodexAccountUsageSnapshot(
+            accountID: accountID,
+            observedAt: observedAt,
+            summary: CodexAccountUsageSummary(
+                lifetimeTokens: response.summary.lifetimeTokens,
+                peakDailyTokens: response.summary.peakDailyTokens,
+                longestRunningTurnSeconds: response.summary.longestRunningTurnSec,
+                currentStreakDays: response.summary.currentStreakDays,
+                longestStreakDays: response.summary.longestStreakDays
+            ),
+            dailyActivity: daily
+        )
+    }
+
+    static func makeThreadUsageEvidence(
+        _ response: AppServerAccountUsageResponse.ThreadUsage,
+        accountID: String,
+        observedAt: Date
+    ) -> CodexThreadUsageEvidence {
+        CodexThreadUsageEvidence(
+            threadID: response.threadId,
+            accountID: accountID,
+            observedAt: observedAt,
+            estimatedCreditsMicros: response.estimatedUsageCreditsMicros,
+            estimatedUSDMicros: response.estimatedUsageUsdMicros,
+            groups: response.groups.map { group in
+                CodexThreadUsageEvidence.Group(
+                    model: group.model,
+                    reasoningEffort: group.reasoningEffort,
+                    speed: group.speed,
+                    usage: CodexTokenUsage(
+                        inputTokens: group.inputTokens ?? 0,
+                        cachedInputTokens: group.cachedInputTokens ?? 0,
+                        cacheWriteInputTokens: 0,
+                        outputTokens: group.outputTokens ?? 0,
+                        reasoningOutputTokens: 0,
+                        totalTokens: group.totalTokens ?? 0
+                    ),
+                    estimatedCreditsMicros: group.estimatedUsageCreditsMicros
+                )
+            }
+        )
+    }
+
+    private static func parseUTCDay(_ value: String) -> Date? {
+        let parts = value.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3,
+              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
     }
 
     static func resolveValidatedIdentity(

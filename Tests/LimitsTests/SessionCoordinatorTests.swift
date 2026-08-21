@@ -112,7 +112,6 @@ import Testing
 
 @Test func claudeDiscoveryDoesNotTreatInstallationOrBridgeAsAnAccount() async throws {
     let fixture = try await ClaudeCoordinatorFixture()
-    defer { fixture.remove() }
     try fixture.bridge.installBridge()
     try Data("{\"five_hour\":{\"used_percentage\":10}}".utf8).write(to: fixture.bridge.snapshotURL)
     fixture.reader.set(statuses: [loggedOutClaudeStatus])
@@ -128,21 +127,21 @@ import Testing
     #expect(result.evidence == nil)
     #expect(catalog.providers == [.codex])
     #expect(!FileManager.default.fileExists(atPath: fixture.bridge.snapshotURL.path))
+    await fixture.remove()
 }
 
 @Test func missingClaudeCLIWithoutSavedAccountsKeepsCatalogCodexOnly() async throws {
     let fixture = try await ClaudeCoordinatorFixture()
-    defer { fixture.remove() }
     fixture.reader.setInstalled(false)
 
     let result = try await fixture.coordinator.probe()
     #expect(result.source == .notInstalled)
     #expect(ProviderCatalogSnapshot(savedClaudeCount: 0, claudeSource: result.source).providers == [.codex])
+    await fixture.remove()
 }
 
 @Test func liveClaudeIdentityAppearsWhileSavedLoggedOutIdentityRemainsRecoverable() async throws {
     let fixture = try await ClaudeCoordinatorFixture()
-    defer { fixture.remove() }
     let live = loggedInClaudeStatus(email: "user@example.com", orgID: "org-live")
     fixture.reader.set(statuses: [live])
 
@@ -159,11 +158,11 @@ import Testing
     #expect(loggedOut.source == .loggedOut)
     #expect(loggedOut.repositorySnapshot.state.claudeAccounts.count == 1)
     #expect(ProviderCatalogSnapshot(savedClaudeCount: 1, claudeSource: loggedOut.source).providers == [.codex, .claude])
+    await fixture.remove()
 }
 
 @Test func claudeEvidenceRequiresOneIdentityOnBothSidesAndClearsOnLogout() async throws {
     let fixture = try await ClaudeCoordinatorFixture()
-    defer { fixture.remove() }
     try fixture.bridge.installBridge()
     let firstIdentity = loggedInClaudeStatus(email: "user@example.com", orgID: "org-a")
     let secondIdentity = loggedInClaudeStatus(email: "user@example.com", orgID: "org-b")
@@ -190,17 +189,18 @@ import Testing
     #expect(loggedOut.source == .loggedOut)
     #expect(loggedOut.evidence == nil)
     #expect(!FileManager.default.fileExists(atPath: fixture.bridge.snapshotURL.path))
+    await fixture.remove()
 }
 
 @Test func unreadableClaudeProbeWithoutSavedAccountsCannotCreatePresence() async throws {
     let fixture = try await ClaudeCoordinatorFixture()
-    defer { fixture.remove() }
     fixture.reader.failNextRead()
 
     await #expect(throws: CoordinatorStatusFailure.self) {
         try await fixture.coordinator.probe()
     }
     #expect(ProviderCatalogSnapshot(savedClaudeCount: 0, claudeSource: .unreadable).providers == [.codex])
+    await fixture.remove()
 }
 
 private final class CoordinatorCodexGlobalStore: GlobalCodexAuthStoring, @unchecked Sendable {
@@ -368,7 +368,8 @@ private final class ClaudeCoordinatorFixture: @unchecked Sendable {
         _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
     }
 
-    func remove() {
+    func remove() async {
+        await repository.close()
         try? FileManager.default.removeItem(at: root)
     }
 }
@@ -405,7 +406,7 @@ private final class CoordinatorMemoryKeychain: KeychainAuthDataStore, @unchecked
             return value
         }
     }
-    func delete(account: String) { lock.withLock { values.removeValue(forKey: account) } }
+    func delete(account: String) { lock.withLock { _ = values.removeValue(forKey: account) } }
 }
 
 private func codexAuthData(accountID: String) -> Data {
@@ -416,8 +417,7 @@ private func coordinatorStoredAccount(accountID: String, authData: Data) -> Stor
     StoredAccount(
         id: UUID(), label: accountID, email: "\(accountID)@example.com", accountId: accountID,
         planType: "pro", createdAt: .distantPast, updatedAt: .distantPast, lastValidatedAt: nil,
-        status: .ok, statusMessage: nil, lastRateLimit: nil, lastRateLimitsByLimitId: nil,
-        authFingerprint: CodexAuthBlob.fingerprint(for: authData), keychainAccount: "unused"
+        status: .ok, statusMessage: nil, authFingerprint: CodexAuthBlob.fingerprint(for: authData), keychainAccount: "unused"
     )
 }
 

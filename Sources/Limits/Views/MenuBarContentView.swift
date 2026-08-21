@@ -186,6 +186,7 @@ struct MenuBarContentView: View {
                     badgeText: codexBadge.text,
                     badgeColor: codexBadge.tone.color,
                     style: .current,
+                    detailAccessibilityIdentifier: "codex.tray.forecast",
                     action: nil
                 )
 
@@ -202,7 +203,8 @@ struct MenuBarContentView: View {
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
                         badgeText: nil,
                         badgeColor: .secondary,
-                        style: .stored
+                        style: .stored,
+                        detailAccessibilityIdentifier: nil
                     ) {
                         Task { await model.activateAccount(account) }
                     }
@@ -234,6 +236,7 @@ struct MenuBarContentView: View {
                         badgeText: claudeBadge.text,
                         badgeColor: claudeBadge.tone.color,
                         style: .current,
+                        detailAccessibilityIdentifier: nil,
                         action: nil
                     )
                 }
@@ -251,7 +254,8 @@ struct MenuBarContentView: View {
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .claude).color,
                         badgeText: nil,
                         badgeColor: .secondary,
-                        style: .stored
+                        style: .stored,
+                        detailAccessibilityIdentifier: nil
                     ) {
                         Task { await model.activateClaudeAccount(account) }
                     }
@@ -361,6 +365,13 @@ struct MenuBarContentView: View {
     }
 
     private var codexCurrentDetailText: String? {
+        if let account = model.currentCLIReferenceAccount(),
+           let issue = model.codexAccountIssue(for: account) {
+            return issue.title
+        }
+        if let forecast = model.currentCodexForecastText(now: model.presentationNow) {
+            return forecast
+        }
         if currentCodexRows.isEmpty, let limits = codexOverview.limits {
             return limits
         }
@@ -560,7 +571,6 @@ private struct TrayProviderSection<Content: View>: View {
                     Text(title)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
 
                     Spacer(minLength: 8)
 
@@ -639,6 +649,7 @@ private struct TrayAccountRow: View {
     let badgeText: String?
     let badgeColor: Color
     let style: TrayAccountRowStyle
+    let detailAccessibilityIdentifier: String?
     let action: (() -> Void)?
 
     var body: some View {
@@ -710,10 +721,18 @@ private struct TrayAccountRow: View {
             }
 
             if let detailText, !detailText.isEmpty {
-                Text(detailText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                if let detailAccessibilityIdentifier {
+                    Text(detailText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .accessibilityIdentifier(detailAccessibilityIdentifier)
+                } else {
+                    Text(detailText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
 
             if !compactRows.isEmpty {

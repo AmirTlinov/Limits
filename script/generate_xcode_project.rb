@@ -75,6 +75,9 @@ raise "Cocoa.framework reference is missing" unless cocoa_framework
 cocoa_framework.source_tree = "SDKROOT"
 cocoa_framework.path = "System/Library/Frameworks/Cocoa.framework"
 
+sqlite_library = project.frameworks_group.new_file("usr/lib/libsqlite3.tbd")
+sqlite_library.source_tree = "SDKROOT"
+
 def enqueue_uuid(project, key)
   uuid = "F#{Digest::SHA256.hexdigest(key).upcase[0, 23]}"
   project.generated_uuids << uuid unless project.generated_uuids.include?(uuid)
@@ -144,13 +147,18 @@ widget.add_dependency(shared)
 unit_tests.add_dependency(core)
 unit_tests.add_dependency(shared)
 ui_tests.add_dependency(app)
+ui_tests.add_dependency(core)
+ui_tests.add_dependency(shared)
 
 app.frameworks_build_phase.add_file_reference(shared.product_reference)
 app.frameworks_build_phase.add_file_reference(core.product_reference)
 core.frameworks_build_phase.add_file_reference(shared.product_reference)
+core.frameworks_build_phase.add_file_reference(sqlite_library)
 widget.frameworks_build_phase.add_file_reference(shared.product_reference)
 unit_tests.frameworks_build_phase.add_file_reference(core.product_reference)
 unit_tests.frameworks_build_phase.add_file_reference(shared.product_reference)
+ui_tests.frameworks_build_phase.add_file_reference(core.product_reference)
+ui_tests.frameworks_build_phase.add_file_reference(shared.product_reference)
 
 embed_frameworks = app.new_copy_files_build_phase("Embed Frameworks")
 embed_frameworks.dst_subfolder_spec = "10"
