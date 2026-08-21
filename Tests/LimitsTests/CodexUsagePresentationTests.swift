@@ -223,6 +223,14 @@ import Testing
     }
 }
 
+@Test func calendarYearsNeverUseNumberGrouping() {
+    for language in L10n.supportedLocalizations {
+        L10n.withLanguage(language) {
+            #expect(L10n.localizedYear(2026) == "2026")
+        }
+    }
+}
+
 private func insightsAccount(now: Date) -> StoredAccount {
     StoredAccount(
         id: UUID(),

@@ -288,7 +288,7 @@ struct TokenActivityCalendar: View {
                         .tag(PeriodSelection.rollingYear)
                     Divider()
                     ForEach(availableYears, id: \.self) { year in
-                        Text(L10n.localizedInteger(Int64(year)))
+                        Text(L10n.localizedYear(year))
                             .tag(PeriodSelection.calendarYear(year))
                     }
                 }
