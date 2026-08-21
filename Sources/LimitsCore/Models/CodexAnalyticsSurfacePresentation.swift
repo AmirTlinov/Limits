@@ -3,18 +3,16 @@ import LimitsShared
 
 public enum CodexAnalyticsSurfacePresentation {
     public static func widgetSummary(from snapshot: CodexInsightsSnapshot) -> CodexAnalyticsSummary {
-        let risk = snapshot.nearestRiskAccountID.flatMap { id in snapshot.accounts.first { $0.id == id } }
-            ?? snapshot.accounts.min {
-                ($0.forecast.remainingPercent ?? 101) < ($1.forecast.remainingPercent ?? 101)
-            }
+        let risk = CodexAnalyticsSelection.quota(in: snapshot)
         return CodexAnalyticsSummary(
-            accountLabel: risk?.label,
-            planTitle: risk?.planTitle,
-            forecastState: widgetState(risk?.forecast.state),
-            predictedExhaustionAt: risk?.forecast.predictedExhaustionAt,
-            resetAt: risk?.forecast.resetAt,
-            remainingPercent: risk?.forecast.remainingPercent,
-            forecastObservedAt: risk?.forecast.latestObservationAt,
+            accountLabel: risk?.account.label,
+            planTitle: risk?.account.planTitle,
+            quotaTitle: risk?.quota.title,
+            forecastState: widgetState(risk?.quota.forecast.state),
+            predictedExhaustionAt: risk?.quota.forecast.predictedExhaustionAt,
+            resetAt: risk?.quota.forecast.resetAt,
+            remainingPercent: risk?.quota.forecast.remainingPercent,
+            forecastObservedAt: risk?.quota.forecast.latestObservationAt,
             weeklyTokens: snapshot.totals.usage.totalTokens,
             weeklyCredits: snapshot.totals.credits
         )
@@ -26,8 +24,9 @@ public enum CodexAnalyticsSurfacePresentation {
         now: Date = .now
     ) -> String? {
         guard let currentAccountID,
-              let account = snapshot.accounts.first(where: { $0.id == currentAccountID }) else { return nil }
-        return CodexInsightsTextPresentation.forecast(account.forecast, now: now)
+              let account = snapshot.accounts.first(where: { $0.id == currentAccountID }),
+              let quota = account.riskiestQuotaForecast else { return nil }
+        return "\(quota.title) · \(CodexInsightsTextPresentation.forecast(quota.forecast, now: now))"
     }
 
     private static func widgetState(_ state: LimitBurnForecastState?) -> LimitsWidgetForecastState {

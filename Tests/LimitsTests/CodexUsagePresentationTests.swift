@@ -38,13 +38,12 @@ import Testing
         rateCardRevisions: []
     )
 
-    let snapshot = CodexUsagePresentation.makeSnapshot(
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
         accounts: [account],
         repository: repository,
-        period: .currentWeek,
         rateCard: OpenAIPricingCatalog.bundledRevision,
         now: now
-    )
+    ).currentWeek
     let accountSnapshot = try #require(snapshot.accounts.first)
 
     #expect(snapshot.totals == accountSnapshot.totals)
@@ -52,7 +51,7 @@ import Testing
     #expect(snapshot.daily == accountSnapshot.daily)
     #expect(snapshot.totals.usage.totalTokens == 120_000)
     #expect(snapshot.coverage == UsageCoverage(observedTokens: 110_000, serverTokens: 120_000))
-    #expect(snapshot.nearestRiskAccountID == "acct_insights")
+    #expect(snapshot.nearestRisk?.accountID == "acct_insights")
     #expect(snapshot.totalMonthlySubscriptionUSD == 200)
     let widget = CodexAnalyticsSurfacePresentation.widgetSummary(from: snapshot)
     let tray = CodexAnalyticsSurfacePresentation.trayForecast(
@@ -62,8 +61,8 @@ import Testing
     )
     #expect(widget.weeklyTokens == snapshot.totals.usage.totalTokens)
     #expect(widget.weeklyCredits == snapshot.totals.credits)
-    #expect(widget.remainingPercent == accountSnapshot.forecast.remainingPercent)
-    #expect(tray == CodexInsightsTextPresentation.forecast(accountSnapshot.forecast, now: now))
+    #expect(widget.remainingPercent == accountSnapshot.riskiestQuotaForecast?.forecast.remainingPercent)
+    #expect(tray == "Codex · \(CodexInsightsTextPresentation.forecast(try #require(accountSnapshot.riskiestQuotaForecast).forecast, now: now))")
 }
 
 @Test func unknownModelsKeepTokensVisibleAndMarkMoneyAsUnavailable() {
@@ -86,13 +85,12 @@ import Testing
         rateCardRevisions: []
     )
 
-    let snapshot = CodexUsagePresentation.makeSnapshot(
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
         accounts: [account],
         repository: repository,
-        period: .last30Days,
         rateCard: OpenAIPricingCatalog.bundledRevision,
         now: now
-    )
+    ).last30Days
 
     #expect(snapshot.totals.usage.totalTokens == 15)
     #expect(snapshot.totals.credits == nil)
@@ -102,7 +100,7 @@ import Testing
 
 @Test func accountWithoutObservedTokensDoesNotPretendThatCostIsZero() {
     let now = Date(timeIntervalSince1970: 2_000_000)
-    let snapshot = CodexUsagePresentation.makeSnapshot(
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
         accounts: [insightsAccount(now: now)],
         repository: CodexUsageRepositorySnapshot(
             accountUsage: [:],
@@ -111,10 +109,9 @@ import Testing
             latestLimits: [:],
             rateCardRevisions: []
         ),
-        period: .currentWeek,
         rateCard: OpenAIPricingCatalog.bundledRevision,
         now: now
-    )
+    ).currentWeek
 
     #expect(snapshot.totals.usage == .zero)
     #expect(snapshot.totals.credits == nil)
@@ -154,13 +151,12 @@ import Testing
         rateCardRevisions: [oldRevision, currentRevision]
     )
 
-    let snapshot = CodexUsagePresentation.makeSnapshot(
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
         accounts: [insightsAccount(now: now)],
         repository: repository,
-        period: .all,
         rateCard: currentRevision,
         now: now
-    )
+    ).all
 
     #expect(snapshot.totals.credits == 300)
     #expect(snapshot.totals.apiEquivalentUSD == 8)
@@ -241,5 +237,248 @@ private func insightsRateRevision(
         checkedAt: observedAt,
         sourceHashes: ["fixture": id],
         rates: [rate.modelID: rate]
+    )
+}
+
+@Test func quotaForecastsAreIndependentAndDictionaryOrderCannotChangeRisk() throws {
+    let now = Date(timeIntervalSince1970: 4_000_000)
+    let reset = now.addingTimeInterval(8 * 60 * 60)
+    let base = [(0, 10), (30, 11), (60, 12)].map { minutes, used in
+        CodexLimitObservation(
+            accountID: "acct_insights",
+            limitID: "codex",
+            window: .secondary,
+            observedAt: now.addingTimeInterval(TimeInterval((minutes - 60) * 60)),
+            usedPercent: used,
+            resetsAt: reset,
+            windowDurationMinutes: 10_080
+        )
+    }
+    let spark = [(0, 40), (30, 60), (60, 80)].map { minutes, used in
+        CodexLimitObservation(
+            accountID: "acct_insights",
+            limitID: "codex_bengalfox",
+            window: .secondary,
+            observedAt: now.addingTimeInterval(TimeInterval((minutes - 60) * 60)),
+            usedPercent: used,
+            resetsAt: reset,
+            windowDurationMinutes: 10_080
+        )
+    }
+    let codex = quotaRateLimit(id: "codex", name: nil, used: 12, reset: reset)
+    let sparkLimit = quotaRateLimit(id: "codex_bengalfox", name: "GPT-5.3-Codex-Spark", used: 80, reset: reset)
+    let forward = CodexRateLimitsSnapshot(
+        accountID: "acct_insights",
+        observedAt: now,
+        primary: codex,
+        byLimitID: ["codex": codex, "codex_bengalfox": sparkLimit],
+        errorMessage: nil
+    )
+    let reverse = CodexRateLimitsSnapshot(
+        accountID: "acct_insights",
+        observedAt: now,
+        primary: codex,
+        byLimitID: ["codex_bengalfox": sparkLimit, "codex": codex],
+        errorMessage: nil
+    )
+
+    let first = CodexQuotaAnalytics.forecasts(
+        observations: base + spark,
+        latestLimits: forward,
+        now: now
+    )
+    let second = CodexQuotaAnalytics.forecasts(
+        observations: Array((base + spark).reversed()),
+        latestLimits: reverse,
+        now: now
+    )
+
+    #expect(first == second)
+    #expect(first.count == 2)
+    #expect(first.first(where: { $0.key.limitID == "codex" })?.forecast.state == .lastsUntilReset)
+    let risky = try #require(first.first(where: { $0.key.limitID == "codex_bengalfox" }))
+    #expect(risky.title == "GPT-5.3-Codex-Spark")
+    #expect(risky.forecast.state == .exhaustsBeforeReset)
+}
+
+@Test func currentWeekUsesEachAccountsOwnBaseQuotaWindow() throws {
+    let calendar = CodexUsageWindow.utcCalendar
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 12)))
+    let accountA = insightsAccount(id: "account-a", label: "A", now: now)
+    let accountB = insightsAccount(id: "account-b", label: "B", now: now)
+    let day16 = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 16)))
+    let day18 = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 18)))
+    let resetA = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 22)))
+    let resetB = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 24)))
+    let observations: [String: [CodexLimitObservation]] = [
+        "account-a": [weeklyBaseObservation(accountID: "account-a", at: now, reset: resetA)],
+        "account-b": [weeklyBaseObservation(accountID: "account-b", at: now, reset: resetB)],
+    ]
+    let serverA = accountUsageSnapshot(accountID: "account-a", now: now, daily: [(day16, 1_000), (day18, 2_000)])
+    let serverB = accountUsageSnapshot(accountID: "account-b", now: now, daily: [(day16, 3_000), (day18, 4_000)])
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [accountA, accountB],
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: ["account-a": serverA, "account-b": serverB],
+            dailyUsage: [],
+            limitObservations: observations,
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).currentWeek
+
+    #expect(snapshot.accounts.first(where: { $0.id == "account-a" })?.totals.usage.totalTokens == 3_000)
+    #expect(snapshot.accounts.first(where: { $0.id == "account-b" })?.totals.usage.totalTokens == 4_000)
+    #expect(snapshot.totals.usage.totalTokens == 7_000)
+}
+
+@Test func unattributedHistoryStaysVisibleWithoutChangingSavedAccountHeadline() throws {
+    let now = Date(timeIntervalSince1970: 5_000_000)
+    let day = CodexUsageRepository.startOfUTCDay(now)
+    let account = insightsAccount(now: now)
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [account],
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: [:],
+            dailyUsage: [
+                storedDaily(accountID: "acct_insights", day: day, model: "gpt-5.6-sol", tokens: 100),
+                storedDaily(accountID: nil, day: day, model: "gpt-5.6-terra", tokens: 900),
+            ],
+            limitObservations: [:],
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).all
+
+    #expect(snapshot.totals.usage.totalTokens == 100)
+    #expect(snapshot.models.map(\.modelID) == ["gpt-5.6-sol"])
+    #expect(snapshot.unattributed?.totals.usage.totalTokens == 900)
+    #expect(snapshot.unattributed?.models.map(\.modelID) == ["gpt-5.6-terra"])
+}
+
+@Test func aggregateTotalsAreExactlyTheSumOfSavedAccounts() {
+    let now = Date(timeIntervalSince1970: 6_000_000)
+    let day = CodexUsageRepository.startOfUTCDay(now)
+    let accounts = [
+        insightsAccount(id: "account-a", label: "A", now: now),
+        insightsAccount(id: "account-b", label: "B", now: now),
+    ]
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: accounts,
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: [:],
+            dailyUsage: [
+                storedDaily(accountID: "account-a", day: day, model: "gpt-5.6-sol", tokens: 123),
+                storedDaily(accountID: "account-b", day: day, model: "gpt-5.6-sol", tokens: 456),
+                storedDaily(accountID: "removed-account", day: day, model: "gpt-5.6-sol", tokens: 10_000),
+            ],
+            limitObservations: [:],
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).all
+
+    let sum = snapshot.accounts.reduce(CodexTokenUsage.zero) { $0 + $1.totals.usage }
+    #expect(snapshot.totals.usage == sum)
+    #expect(snapshot.totals.usage.totalTokens == 579)
+    #expect(snapshot.unattributed?.totals.usage.totalTokens == 10_000)
+}
+
+@Test func coveragePreservesOverOneHundredPercentAsInconsistentEvidence() throws {
+    let now = Date(timeIntervalSince1970: 7_000_000)
+    let day = CodexUsageRepository.startOfUTCDay(now)
+    let server = accountUsageSnapshot(accountID: "acct_insights", now: now, daily: [(day, 100)])
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [insightsAccount(now: now)],
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: ["acct_insights": server],
+            dailyUsage: [storedDaily(accountID: "acct_insights", day: day, model: "gpt-5.6-sol", tokens: 120)],
+            limitObservations: [:],
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).all
+    let coverage = try #require(snapshot.coverage)
+
+    #expect(coverage.observedTokens == 120)
+    #expect(coverage.serverTokens == 100)
+    #expect(coverage.fraction == 1.2)
+    #expect(coverage.hasInconsistentTotals)
+}
+
+private func insightsAccount(id: String, label: String, now: Date) -> StoredAccount {
+    var account = insightsAccount(now: now)
+    account.accountId = id
+    account.label = label
+    return account
+}
+
+private func weeklyBaseObservation(accountID: String, at date: Date, reset: Date) -> CodexLimitObservation {
+    CodexLimitObservation(
+        accountID: accountID,
+        limitID: "codex",
+        window: .secondary,
+        observedAt: date,
+        usedPercent: 20,
+        resetsAt: reset,
+        windowDurationMinutes: 10_080
+    )
+}
+
+private func accountUsageSnapshot(
+    accountID: String,
+    now: Date,
+    daily: [(Date, Int64)]
+) -> CodexAccountUsageSnapshot {
+    CodexAccountUsageSnapshot(
+        accountID: accountID,
+        observedAt: now,
+        summary: CodexAccountUsageSummary(
+            lifetimeTokens: daily.reduce(0) { $0 + $1.1 },
+            peakDailyTokens: daily.map(\.1).max(),
+            longestRunningTurnSeconds: nil,
+            currentStreakDays: nil,
+            longestStreakDays: nil
+        ),
+        dailyActivity: daily.map { CodexDailyTokenActivity(date: $0.0, tokens: $0.1) }
+    )
+}
+
+private func storedDaily(
+    accountID: String?,
+    day: Date,
+    model: String,
+    tokens: Int64
+) -> CodexStoredDailyUsage {
+    CodexStoredDailyUsage(
+        date: day,
+        accountID: accountID,
+        modelID: model,
+        attribution: accountID == nil ? .unattributed : .confirmed,
+        usage: CodexTokenUsage(inputTokens: tokens, totalTokens: tokens)
+    )
+}
+
+private func quotaRateLimit(id: String, name: String?, used: Int, reset: Date) -> RateLimitSnapshotModel {
+    RateLimitSnapshotModel(
+        credits: nil,
+        limitId: id,
+        limitName: name,
+        planType: "pro",
+        primary: nil,
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(
+            resetsAt: Int64(reset.timeIntervalSince1970),
+            usedPercent: used,
+            windowDurationMins: 10_080
+        )
     )
 }

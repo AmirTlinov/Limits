@@ -1,15 +1,50 @@
 import Foundation
 
+/// Builds the complete immutable analytics view used by every presentation surface.
 public enum CodexUsagePresentation {
-    public static func makeSnapshot(
+    public static func makeSnapshotSet(
+        accounts: [StoredAccount],
+        repository: CodexUsageRepositorySnapshot,
+        rateCard: OpenAIRateCardRevision,
+        priceChange: OpenAIPriceChange? = nil,
+        now: Date = .now
+    ) -> CodexAnalyticsSnapshotSet {
+        CodexAnalyticsSnapshotSet(
+            currentWeek: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .currentWeek,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                now: now
+            ),
+            last30Days: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .last30Days,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                now: now
+            ),
+            all: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .all,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                now: now
+            )
+        )
+    }
+
+    private static func makeSnapshot(
         accounts: [StoredAccount],
         repository: CodexUsageRepositorySnapshot,
         period: CodexUsagePeriod,
         rateCard: OpenAIRateCardRevision,
-        priceChange: OpenAIPriceChange? = nil,
-        now: Date = .now
+        priceChange: OpenAIPriceChange?,
+        now: Date
     ) -> CodexInsightsSnapshot {
-        let interval = usageInterval(period: period, repository: repository, now: now)
         var accountInsights: [CodexAccountInsights] = []
         var billingPeriodTokens: Int64 = 0
         var knownSubscriptionTotal = Decimal.zero
@@ -17,11 +52,13 @@ public enum CodexUsagePresentation {
 
         for account in accounts {
             let accountID = account.accountId
+            let observations = accountID.flatMap { repository.limitObservations[$0] } ?? []
+            let window = usageWindow(period: period, observations: observations, now: now)
             let localRows = repository.dailyUsage.filter {
-                $0.accountID == accountID && interval.contains($0.date)
+                $0.accountID == accountID && window.containsUTCDay($0.date)
             }
             let server = accountID.flatMap { repository.accountUsage[$0] }
-            let serverTokens = serverTokens(in: interval, snapshot: server, period: period)
+            let serverTokenCount = serverTokens(in: window, snapshot: server, period: period)
             let localTokens = localRows.reduce(Int64.zero) { $0 + $1.usage.totalTokens }
             let models = modelUsage(
                 from: localRows,
@@ -34,12 +71,14 @@ public enum CodexUsagePresentation {
                 historicalRateCards: repository.rateCardRevisions
             )
             var totals = sum(models.map(\.totals))
-            if serverTokens > 0 {
-                totals = replacingTotalTokens(totals, with: serverTokens)
+            if let serverTokenCount {
+                totals = replacingTotalTokens(totals, with: serverTokenCount)
             }
-            let forecast = accountID.flatMap { repository.limitObservations[$0] }.map {
-                LimitBurnEstimator.forecast(observations: $0, now: now)
-            } ?? LimitBurnEstimator.forecast(observations: [], now: now)
+            let quotaForecasts = CodexQuotaAnalytics.forecasts(
+                observations: observations,
+                latestLimits: accountID.flatMap { repository.latestLimits[$0] },
+                now: now
+            )
             let monthlyPrice = ChatGPTSubscriptionPresentationPolicy.monthlyPriceUSD(for: account.planType)
             if let monthlyPrice {
                 knownSubscriptionTotal += monthlyPrice
@@ -50,14 +89,15 @@ public enum CodexUsagePresentation {
             } ?? 0
             if monthlyPrice != nil { billingPeriodTokens += tokensInBillingPeriod }
             let effective = effectivePrice(subscriptionUSD: monthlyPrice, tokens: tokensInBillingPeriod)
-            let coverage = serverTokens > 0
-                ? UsageCoverage(observedTokens: localTokens, serverTokens: serverTokens)
-                : nil
+            let coverage = serverTokenCount.flatMap { serverTokens in
+                serverTokens > 0
+                    ? UsageCoverage(observedTokens: localTokens, serverTokens: serverTokens)
+                    : nil
+            }
             let plan = ChatGPTSubscriptionPresentationPolicy.plan(for: account.planType)
-            let observedAt = [
-                server?.observedAt,
-                forecast.latestObservationAt,
-            ].compactMap { $0 }.max()
+            let observedAt = ([server?.observedAt] + quotaForecasts.map(\.forecast.latestObservationAt))
+                .compactMap { $0 }
+                .max()
 
             accountInsights.append(
                 CodexAccountInsights(
@@ -67,7 +107,7 @@ public enum CodexUsagePresentation {
                     email: account.email,
                     planTitle: plan.title,
                     monthlyPriceUSD: monthlyPrice,
-                    forecast: forecast,
+                    quotaForecasts: quotaForecasts,
                     totals: totals,
                     effectiveSubscriptionUSDPerMillionTokens: effective,
                     models: models,
@@ -79,32 +119,31 @@ public enum CodexUsagePresentation {
         }
 
         accountInsights.sort(by: riskOrder)
-        let allLocalRows = repository.dailyUsage.filter { interval.contains($0.date) }
-        let allModels = modelUsage(
-            from: allLocalRows,
-            currentRateCard: rateCard,
-            historicalRateCards: repository.rateCardRevisions
+        let totals = sum(accountInsights.map(\.totals))
+        let allModels = aggregateModels(from: accountInsights)
+        let allDaily = aggregateDaily(from: accountInsights)
+        let coverageValues = accountInsights.compactMap(\.coverage)
+        let coverage = coverageValues.isEmpty ? nil : UsageCoverage(
+            observedTokens: coverageValues.reduce(0) { $0 + $1.observedTokens },
+            serverTokens: coverageValues.reduce(0) { $0 + $1.serverTokens }
         )
-        let allDaily = dailyUsage(
-            from: allLocalRows,
-            currentRateCard: rateCard,
-            historicalRateCards: repository.rateCardRevisions
-        )
-        var totals = sum(allModels.map(\.totals))
-        let serverTotal = accounts.reduce(Int64.zero) { partial, account in
-            guard let accountID = account.accountId else { return partial }
-            return partial + serverTokens(in: interval, snapshot: repository.accountUsage[accountID], period: period)
-        }
-        if serverTotal > 0 { totals = replacingTotalTokens(totals, with: serverTotal) }
-        let localTotal = allLocalRows.reduce(Int64.zero) { $0 + $1.usage.totalTokens }
-        let coverage = serverTotal > 0
-            ? UsageCoverage(observedTokens: localTotal, serverTokens: serverTotal)
-            : nil
         let aggregateEffective = effectivePrice(
             subscriptionUSD: hasKnownSubscription ? knownSubscriptionTotal : nil,
             tokens: billingPeriodTokens
         )
-        let nearestRisk = accountInsights.first { $0.forecast.state == .exhaustsBeforeReset }
+        let nearestRisk = nearestQuotaRisk(in: accountInsights)
+        let savedAccountIDs = Set(accounts.compactMap(\.accountId))
+        let unattributedWindow = usageWindow(period: period, observations: [], now: now)
+        let unattributedRows = repository.dailyUsage.filter { row in
+            let belongsToSavedAccount = row.accountID.map(savedAccountIDs.contains) ?? false
+            return !belongsToSavedAccount && unattributedWindow.containsUTCDay(row.date)
+        }
+        let unattributed = makeUnattributedInsights(
+            rows: unattributedRows,
+            window: unattributedWindow,
+            rateCard: rateCard,
+            historicalRateCards: repository.rateCardRevisions
+        )
 
         return CodexInsightsSnapshot(
             period: period,
@@ -113,34 +152,30 @@ public enum CodexUsagePresentation {
             totals: totals,
             models: allModels,
             daily: allDaily,
-            nearestRiskAccountID: nearestRisk?.id,
+            nearestRisk: nearestRisk,
             totalMonthlySubscriptionUSD: hasKnownSubscription ? knownSubscriptionTotal : nil,
             effectiveSubscriptionUSDPerMillionTokens: aggregateEffective,
             coverage: coverage,
+            unattributed: unattributed,
             priceChange: priceChange
         )
     }
 
-    private static func usageInterval(
+    private static func usageWindow(
         period: CodexUsagePeriod,
-        repository: CodexUsageRepositorySnapshot,
+        observations: [CodexLimitObservation],
         now: Date
-    ) -> DateInterval {
+    ) -> CodexUsageWindow {
         switch period {
         case .last30Days:
-            return DateInterval(start: now.addingTimeInterval(-30 * 24 * 60 * 60), end: now.addingTimeInterval(1))
+            return CodexUsageWindow(
+                start: now.addingTimeInterval(-30 * 24 * 60 * 60),
+                end: now.addingTimeInterval(1)
+            )
         case .all:
-            return DateInterval(start: .distantPast, end: now.addingTimeInterval(1))
+            return CodexUsageWindow(start: .distantPast, end: now.addingTimeInterval(1))
         case .currentWeek:
-            let weekly = repository.limitObservations.values
-                .compactMap { LimitBurnEstimator.weeklySeries(from: $0)?.last }
-                .filter { ($0.resetsAt ?? .distantPast) > now }
-                .sorted { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }
-                .first
-            if let weekly, let reset = weekly.resetsAt, let minutes = weekly.windowDurationMinutes {
-                return DateInterval(start: reset.addingTimeInterval(-TimeInterval(minutes * 60)), end: reset)
-            }
-            return DateInterval(start: now.addingTimeInterval(-7 * 24 * 60 * 60), end: now.addingTimeInterval(1))
+            return CodexQuotaAnalytics.baseUsageWindow(observations: observations, now: now)
         }
     }
 
@@ -160,12 +195,7 @@ public enum CodexUsagePresentation {
                 }
                 return CodexModelUsage(modelID: model, totals: sum(priced))
             }
-            .sorted {
-                let left = $0.totals.credits ?? -1
-                let right = $1.totals.credits ?? -1
-                if left != right { return left > right }
-                return $0.modelID < $1.modelID
-            }
+            .sorted(by: modelOrder)
     }
 
     private static func dailyUsage(
@@ -185,6 +215,46 @@ public enum CodexUsagePresentation {
                 return CodexDailyUsage(date: date, totals: sum(priced))
             }
             .sorted { $0.date < $1.date }
+    }
+
+    private static func aggregateModels(from accounts: [CodexAccountInsights]) -> [CodexModelUsage] {
+        Dictionary(grouping: accounts.flatMap(\.models), by: \.modelID)
+            .map { modelID, values in
+                CodexModelUsage(modelID: modelID, totals: sum(values.map(\.totals)))
+            }
+            .sorted(by: modelOrder)
+    }
+
+    private static func aggregateDaily(from accounts: [CodexAccountInsights]) -> [CodexDailyUsage] {
+        Dictionary(grouping: accounts.flatMap(\.daily), by: \.date)
+            .map { date, values in
+                CodexDailyUsage(date: date, totals: sum(values.map(\.totals)))
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    private static func makeUnattributedInsights(
+        rows: [CodexStoredDailyUsage],
+        window: CodexUsageWindow,
+        rateCard: OpenAIRateCardRevision,
+        historicalRateCards: [OpenAIRateCardRevision]
+    ) -> CodexUnattributedInsights? {
+        guard !rows.isEmpty else { return nil }
+        let models = modelUsage(
+            from: rows,
+            currentRateCard: rateCard,
+            historicalRateCards: historicalRateCards
+        )
+        return CodexUnattributedInsights(
+            window: window,
+            totals: sum(models.map(\.totals)),
+            models: models,
+            daily: dailyUsage(
+                from: rows,
+                currentRateCard: rateCard,
+                historicalRateCards: historicalRateCards
+            )
+        )
     }
 
     private static func pricedTotals(
@@ -251,14 +321,14 @@ public enum CodexUsagePresentation {
     }
 
     private static func serverTokens(
-        in interval: DateInterval,
+        in window: CodexUsageWindow,
         snapshot: CodexAccountUsageSnapshot?,
         period: CodexUsagePeriod
-    ) -> Int64 {
-        guard let snapshot else { return 0 }
+    ) -> Int64? {
+        guard let snapshot else { return nil }
         if period == .all, let lifetime = snapshot.summary.lifetimeTokens { return lifetime }
         return snapshot.dailyActivity
-            .filter { interval.contains($0.date) }
+            .filter { window.containsUTCDay($0.date) }
             .reduce(Int64.zero) { $0 + $1.tokens }
     }
 
@@ -270,8 +340,8 @@ public enum CodexUsagePresentation {
               let end = account.subscriptionPeriod?.activeUntil,
               end > start,
               let server else { return 0 }
-        let interval = DateInterval(start: start, end: end)
-        return server.dailyActivity.filter { interval.contains($0.date) }.reduce(0) { $0 + $1.tokens }
+        let window = CodexUsageWindow(start: start, end: end)
+        return server.dailyActivity.filter { window.containsUTCDay($0.date) }.reduce(0) { $0 + $1.tokens }
     }
 
     private static func effectivePrice(subscriptionUSD: Decimal?, tokens: Int64) -> Decimal? {
@@ -279,27 +349,36 @@ public enum CodexUsagePresentation {
         return subscriptionUSD / (Decimal(tokens) / Decimal(1_000_000))
     }
 
-    private static func riskOrder(_ lhs: CodexAccountInsights, _ rhs: CodexAccountInsights) -> Bool {
-        let leftRank = riskRank(lhs.forecast.state)
-        let rightRank = riskRank(rhs.forecast.state)
-        if leftRank != rightRank { return leftRank < rightRank }
-        if lhs.forecast.predictedExhaustionAt != rhs.forecast.predictedExhaustionAt {
-            return (lhs.forecast.predictedExhaustionAt ?? .distantFuture)
-                < (rhs.forecast.predictedExhaustionAt ?? .distantFuture)
+    private static func nearestQuotaRisk(in accounts: [CodexAccountInsights]) -> CodexQuotaRisk? {
+        let candidates = accounts.flatMap { account in
+            account.quotaForecasts
+                .filter { $0.forecast.state == .exhaustsBeforeReset }
+                .map { (account.id, $0) }
         }
-        if lhs.forecast.remainingPercent != rhs.forecast.remainingPercent {
-            return (lhs.forecast.remainingPercent ?? 101) < (rhs.forecast.remainingPercent ?? 101)
+        guard let nearest = candidates.min(by: { lhs, rhs in
+            if CodexQuotaForecast.riskOrder(lhs.1, rhs.1) { return true }
+            if CodexQuotaForecast.riskOrder(rhs.1, lhs.1) { return false }
+            return lhs.0 < rhs.0
+        }) else { return nil }
+        return CodexQuotaRisk(accountID: nearest.0, quotaKey: nearest.1.key)
+    }
+
+    private static func riskOrder(_ lhs: CodexAccountInsights, _ rhs: CodexAccountInsights) -> Bool {
+        switch (lhs.riskiestQuotaForecast, rhs.riskiestQuotaForecast) {
+        case let (left?, right?):
+            if CodexQuotaForecast.riskOrder(left, right) { return true }
+            if CodexQuotaForecast.riskOrder(right, left) { return false }
+        case (.some, .none): return true
+        case (.none, .some): return false
+        case (.none, .none): break
         }
         return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
     }
 
-    private static func riskRank(_ state: LimitBurnForecastState) -> Int {
-        switch state {
-        case .exhaustsBeforeReset: 0
-        case .stable: 1
-        case .collecting: 2
-        case .stale: 3
-        case .lastsUntilReset: 4
-        }
+    private static func modelOrder(_ lhs: CodexModelUsage, _ rhs: CodexModelUsage) -> Bool {
+        let left = lhs.totals.credits ?? -1
+        let right = rhs.totals.credits ?? -1
+        if left != right { return left > right }
+        return lhs.modelID < rhs.modelID
     }
 }

@@ -138,3 +138,37 @@ private func weeklyObservation(at date: Date, used: Int, reset: Date) -> CodexLi
         windowDurationMinutes: 10_080
     )
 }
+
+@Test func resetChangeAndUsageDropStartNewQuotaCyclesDeterministically() throws {
+    let start = Date(timeIntervalSince1970: 8_000_000)
+    let firstReset = start.addingTimeInterval(2 * 60 * 60)
+    let secondReset = start.addingTimeInterval(9 * 24 * 60 * 60)
+    let observations = [
+        weeklyObservation(at: start, used: 70, reset: firstReset),
+        weeklyObservation(at: start.addingTimeInterval(30 * 60), used: 80, reset: firstReset),
+        weeklyObservation(at: start.addingTimeInterval(60 * 60), used: 5, reset: secondReset),
+        weeklyObservation(at: start.addingTimeInterval(90 * 60), used: 6, reset: secondReset),
+    ]
+
+    let forward = try #require(LimitBurnEstimator.currentCycle(from: observations))
+    let reverse = try #require(LimitBurnEstimator.currentCycle(from: Array(observations.reversed())))
+
+    #expect(forward == reverse)
+    #expect(forward.map(\.usedPercent) == [5, 6])
+}
+
+@Test func equalTimestampsCannotMakeForecastDependOnInputOrder() {
+    let start = Date(timeIntervalSince1970: 9_000_000)
+    let reset = start.addingTimeInterval(10 * 60 * 60)
+    let observations = [
+        weeklyObservation(at: start, used: 10, reset: reset),
+        weeklyObservation(at: start.addingTimeInterval(30 * 60), used: 20, reset: reset),
+        weeklyObservation(at: start.addingTimeInterval(30 * 60), used: 19, reset: reset),
+        weeklyObservation(at: start.addingTimeInterval(60 * 60), used: 30, reset: reset),
+    ]
+
+    #expect(
+        LimitBurnEstimator.forecast(observations: observations, now: start.addingTimeInterval(60 * 60))
+            == LimitBurnEstimator.forecast(observations: Array(observations.reversed()), now: start.addingTimeInterval(60 * 60))
+    )
+}

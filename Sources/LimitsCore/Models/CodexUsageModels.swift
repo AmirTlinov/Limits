@@ -387,8 +387,10 @@ public struct UsageCoverage: Codable, Hashable, Sendable {
 
     public var fraction: Double? {
         guard serverTokens > 0 else { return nil }
-        return min(1, Double(observedTokens) / Double(serverTokens))
+        return Double(observedTokens) / Double(serverTokens)
     }
+
+    public var hasInconsistentTotals: Bool { observedTokens > serverTokens && serverTokens > 0 }
 }
 
 @frozen public enum CodexUsageEndpointKind: String, Codable, Hashable, Sendable {
@@ -590,6 +592,73 @@ public struct LimitBurnForecast: Codable, Hashable, Sendable {
     }
 }
 
+/// Stable identity of one server quota window. A model quota and the base
+/// Codex quota are different even when their resets happen at the same time.
+public struct CodexQuotaKey: Codable, Hashable, Sendable {
+    public let limitID: String
+    public let windowKind: CodexLimitWindowKind
+
+    public init(limitID: String, windowKind: CodexLimitWindowKind) {
+        self.limitID = limitID
+        self.windowKind = windowKind
+    }
+}
+
+/// The exact period used by both local daily rows and server daily rows.
+public struct CodexUsageWindow: Codable, Hashable, Sendable {
+    public let start: Date
+    public let end: Date
+
+    public init(start: Date, end: Date) {
+        precondition(end >= start, "A usage window must end after it starts")
+        self.start = start
+        self.end = end
+    }
+
+    public func containsUTCDay(_ date: Date, calendar: Calendar = Self.utcCalendar) -> Bool {
+        let dayStart = calendar.startOfDay(for: date)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        return dayStart < end && dayEnd > start
+    }
+
+    public static var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+}
+
+public struct CodexQuotaForecast: Codable, Hashable, Identifiable, Sendable {
+    public let key: CodexQuotaKey
+    public let title: String
+    public let isBaseQuota: Bool
+    public let forecast: LimitBurnForecast
+
+    public init(
+        key: CodexQuotaKey,
+        title: String,
+        isBaseQuota: Bool,
+        forecast: LimitBurnForecast
+    ) {
+        self.key = key
+        self.title = title
+        self.isBaseQuota = isBaseQuota
+        self.forecast = forecast
+    }
+
+    public var id: String { "\(key.limitID)|\(key.windowKind.rawValue)" }
+}
+
+public struct CodexQuotaRisk: Codable, Hashable, Sendable {
+    public let accountID: String
+    public let quotaKey: CodexQuotaKey
+
+    public init(accountID: String, quotaKey: CodexQuotaKey) {
+        self.accountID = accountID
+        self.quotaKey = quotaKey
+    }
+}
+
 public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
     public let id: String
     public let localAccountID: UUID?
@@ -597,7 +666,7 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
     public let email: String
     public let planTitle: String
     public let monthlyPriceUSD: Decimal?
-    public let forecast: LimitBurnForecast
+    public let quotaForecasts: [CodexQuotaForecast]
     public let totals: CodexUsageTotals
     public let effectiveSubscriptionUSDPerMillionTokens: Decimal?
     public let models: [CodexModelUsage]
@@ -612,7 +681,7 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
         email: String,
         planTitle: String,
         monthlyPriceUSD: Decimal?,
-        forecast: LimitBurnForecast,
+        quotaForecasts: [CodexQuotaForecast],
         totals: CodexUsageTotals,
         effectiveSubscriptionUSDPerMillionTokens: Decimal?,
         models: [CodexModelUsage],
@@ -626,13 +695,21 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
         self.email = email
         self.planTitle = planTitle
         self.monthlyPriceUSD = monthlyPriceUSD
-        self.forecast = forecast
+        self.quotaForecasts = quotaForecasts
         self.totals = totals
         self.effectiveSubscriptionUSDPerMillionTokens = effectiveSubscriptionUSDPerMillionTokens
         self.models = models
         self.daily = daily
         self.coverage = coverage
         self.observedAt = observedAt
+    }
+
+    public var baseQuotaForecast: CodexQuotaForecast? {
+        quotaForecasts.first(where: \.isBaseQuota)
+    }
+
+    public var riskiestQuotaForecast: CodexQuotaForecast? {
+        quotaForecasts.min(by: CodexQuotaForecast.riskOrder)
     }
 }
 
@@ -710,10 +787,11 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
     public let totals: CodexUsageTotals
     public let models: [CodexModelUsage]
     public let daily: [CodexDailyUsage]
-    public let nearestRiskAccountID: String?
+    public let nearestRisk: CodexQuotaRisk?
     public let totalMonthlySubscriptionUSD: Decimal?
     public let effectiveSubscriptionUSDPerMillionTokens: Decimal?
     public let coverage: UsageCoverage?
+    public let unattributed: CodexUnattributedInsights?
     public let priceChange: OpenAIPriceChange?
 
     public init(
@@ -723,10 +801,11 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         totals: CodexUsageTotals,
         models: [CodexModelUsage],
         daily: [CodexDailyUsage],
-        nearestRiskAccountID: String?,
+        nearestRisk: CodexQuotaRisk?,
         totalMonthlySubscriptionUSD: Decimal?,
         effectiveSubscriptionUSDPerMillionTokens: Decimal?,
         coverage: UsageCoverage?,
+        unattributed: CodexUnattributedInsights?,
         priceChange: OpenAIPriceChange?
     ) {
         self.period = period
@@ -735,10 +814,11 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         self.totals = totals
         self.models = models
         self.daily = daily
-        self.nearestRiskAccountID = nearestRiskAccountID
+        self.nearestRisk = nearestRisk
         self.totalMonthlySubscriptionUSD = totalMonthlySubscriptionUSD
         self.effectiveSubscriptionUSDPerMillionTokens = effectiveSubscriptionUSDPerMillionTokens
         self.coverage = coverage
+        self.unattributed = unattributed
         self.priceChange = priceChange
     }
 
@@ -750,12 +830,111 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
             totals: CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil),
             models: [],
             daily: [],
-            nearestRiskAccountID: nil,
+            nearestRisk: nil,
             totalMonthlySubscriptionUSD: nil,
             effectiveSubscriptionUSDPerMillionTokens: nil,
             coverage: nil,
+            unattributed: nil,
             priceChange: nil
         )
+    }
+}
+
+public struct CodexUnattributedInsights: Codable, Hashable, Sendable {
+    public let window: CodexUsageWindow
+    public let totals: CodexUsageTotals
+    public let models: [CodexModelUsage]
+    public let daily: [CodexDailyUsage]
+
+    public init(
+        window: CodexUsageWindow,
+        totals: CodexUsageTotals,
+        models: [CodexModelUsage],
+        daily: [CodexDailyUsage]
+    ) {
+        self.window = window
+        self.totals = totals
+        self.models = models
+        self.daily = daily
+    }
+}
+
+public struct CodexAnalyticsSnapshotSet: Codable, Hashable, Sendable {
+    public let currentWeek: CodexInsightsSnapshot
+    public let last30Days: CodexInsightsSnapshot
+    public let all: CodexInsightsSnapshot
+
+    public init(
+        currentWeek: CodexInsightsSnapshot,
+        last30Days: CodexInsightsSnapshot,
+        all: CodexInsightsSnapshot
+    ) {
+        self.currentWeek = currentWeek
+        self.last30Days = last30Days
+        self.all = all
+    }
+
+    public subscript(period: CodexUsagePeriod) -> CodexInsightsSnapshot {
+        switch period {
+        case .currentWeek: currentWeek
+        case .last30Days: last30Days
+        case .all: all
+        }
+    }
+
+    public static func empty(now: Date = .now) -> Self {
+        Self(
+            currentWeek: .empty(period: .currentWeek, now: now),
+            last30Days: .empty(period: .last30Days, now: now),
+            all: .empty(period: .all, now: now)
+        )
+    }
+}
+
+public enum CodexAnalyticsSelection {
+    public static func quota(
+        in snapshot: CodexInsightsSnapshot
+    ) -> (account: CodexAccountInsights, quota: CodexQuotaForecast)? {
+        if let risk = snapshot.nearestRisk,
+           let account = snapshot.accounts.first(where: { $0.id == risk.accountID }),
+           let quota = account.quotaForecasts.first(where: { $0.key == risk.quotaKey }) {
+            return (account, quota)
+        }
+        return snapshot.accounts
+            .flatMap { account in account.quotaForecasts.map { (account, $0) } }
+            .min { lhs, rhs in
+                if CodexQuotaForecast.riskOrder(lhs.1, rhs.1) { return true }
+                if CodexQuotaForecast.riskOrder(rhs.1, lhs.1) { return false }
+                return lhs.0.id < rhs.0.id
+            }
+    }
+}
+
+extension CodexQuotaForecast {
+    static func riskOrder(_ lhs: CodexQuotaForecast, _ rhs: CodexQuotaForecast) -> Bool {
+        let leftRank = riskRank(lhs.forecast.state)
+        let rightRank = riskRank(rhs.forecast.state)
+        if leftRank != rightRank { return leftRank < rightRank }
+        if lhs.forecast.predictedExhaustionAt != rhs.forecast.predictedExhaustionAt {
+            return (lhs.forecast.predictedExhaustionAt ?? .distantFuture)
+                < (rhs.forecast.predictedExhaustionAt ?? .distantFuture)
+        }
+        if lhs.forecast.remainingPercent != rhs.forecast.remainingPercent {
+            return (lhs.forecast.remainingPercent ?? 101) < (rhs.forecast.remainingPercent ?? 101)
+        }
+        if lhs.title != rhs.title { return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending }
+        if lhs.key.limitID != rhs.key.limitID { return lhs.key.limitID < rhs.key.limitID }
+        return lhs.key.windowKind.rawValue < rhs.key.windowKind.rawValue
+    }
+
+    static func riskRank(_ state: LimitBurnForecastState) -> Int {
+        switch state {
+        case .exhaustsBeforeReset: 0
+        case .stable: 1
+        case .collecting: 2
+        case .stale: 3
+        case .lastsUntilReset: 4
+        }
     }
 }
 

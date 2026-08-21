@@ -129,6 +129,7 @@ import Testing
         codexAnalytics: CodexAnalyticsSummary(
             accountLabel: "Primary",
             planTitle: "ChatGPT Pro",
+            quotaTitle: "Codex",
             forecastState: .lastsUntilReset,
             predictedExhaustionAt: nil,
             resetAt: nil,
@@ -142,6 +143,7 @@ import Testing
     let json = String(decoding: try JSONEncoder.limitsWidget.encode(snapshot), as: UTF8.self).lowercased()
 
     #expect(json.contains("weeklytokens"))
+    #expect(json.contains("quotatitle"))
     #expect(!json.contains("authfingerprint"))
     #expect(!json.contains("keychain"))
     #expect(!json.contains("credential"))
@@ -221,4 +223,16 @@ import Testing
 private func posixPermissions(at url: URL) -> Int {
     let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
     return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
+}
+
+@Test func widgetStoreTreatsOlderSchemaAsUnavailableUntilApplicationPublishesSchemaFour() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "limits-widget-old-schema-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = LimitsWidgetSnapshotStore(baseURL: root)
+    try store.writeSnapshot(
+        LimitsWidgetSnapshot(schemaVersion: 3, generatedAt: .now, providers: [])
+    )
+
+    #expect(try store.readSnapshot() == nil)
 }

@@ -361,9 +361,9 @@ struct AccountsWindowView: View {
     }
 
     private var overviewRiskSubtitle: String? {
-        guard let riskID = model.codexInsights.nearestRiskAccountID,
-              let account = model.codexInsights.accounts.first(where: { $0.id == riskID }) else {
-            let forecasts = model.codexInsights.accounts.map(\.forecast.state)
+        guard let risk = CodexAnalyticsSelection.quota(in: model.codexInsights),
+              model.codexInsights.nearestRisk != nil else {
+            let forecasts = model.codexInsights.accounts.flatMap(\.quotaForecasts).map(\.forecast.state)
             guard !forecasts.isEmpty else { return nil }
             if forecasts.allSatisfy({ [.lastsUntilReset, .stable].contains($0) }) {
                 return L10n.tr("insights.risk.all_safe")
@@ -371,7 +371,7 @@ struct AccountsWindowView: View {
             if forecasts.contains(.stale) { return L10n.tr("insights.forecast.stale") }
             return L10n.tr("insights.forecast.collecting")
         }
-        return account.label
+        return "\(risk.account.label) · \(risk.quota.title)"
     }
 
     private var overviewCreditsText: String? {
@@ -601,6 +601,10 @@ private struct CodexOverviewPane: View {
                     .frame(height: 118)
                 InsightsAccountList(accounts: snapshot.accounts, openAccount: openAccount)
             }
+
+            if let unattributed = snapshot.unattributed {
+                UnattributedInsightsCard(insights: unattributed, period: snapshot.period)
+            }
         }
     }
 }
@@ -646,42 +650,39 @@ private struct WeeklyRiskCard: View {
     let snapshot: CodexInsightsSnapshot
     let now: Date
 
-    private var account: CodexAccountInsights? {
-        if let id = snapshot.nearestRiskAccountID {
-            return snapshot.accounts.first { $0.id == id }
-        }
-        return snapshot.accounts.min {
-            ($0.forecast.remainingPercent ?? 101) < ($1.forecast.remainingPercent ?? 101)
-        }
+    private var selection: (account: CodexAccountInsights, quota: CodexQuotaForecast)? {
+        CodexAnalyticsSelection.quota(in: snapshot)
     }
 
     private var allSafe: Bool {
-        snapshot.nearestRiskAccountID == nil
-            && snapshot.accounts.allSatisfy { [.lastsUntilReset, .stable].contains($0.forecast.state) }
+        snapshot.nearestRisk == nil
+            && snapshot.accounts.flatMap(\.quotaForecasts).allSatisfy {
+                [.lastsUntilReset, .stable].contains($0.forecast.state)
+            }
     }
 
     var body: some View {
-        if let account {
+        if let selection {
             VStack(alignment: .leading, spacing: 9) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(riskHeading(for: account))
+                    Text(riskHeading(for: selection.quota))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    if let reset = CodexInsightsTextPresentation.reset(account.forecast, now: now) {
+                    if let reset = CodexInsightsTextPresentation.reset(selection.quota.forecast, now: now) {
                         Text(reset).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(account.label).font(.title2.weight(.semibold)).lineLimit(1)
-                    Text(account.planTitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(selection.account.label).font(.title2.weight(.semibold)).lineLimit(1)
+                    Text(selection.quota.title).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 8)
-                    Text(CodexInsightsTextPresentation.forecast(account.forecast, now: now))
+                    Text(CodexInsightsTextPresentation.forecast(selection.quota.forecast, now: now))
                         .font(.headline)
-                        .foregroundStyle(forecastColor(account.forecast.state))
+                        .foregroundStyle(forecastColor(selection.quota.forecast.state))
                         .lineLimit(1)
                 }
-                ForecastProgressBar(forecast: account.forecast)
+                ForecastProgressBar(forecast: selection.quota.forecast)
             }
             .padding(14)
             .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -690,9 +691,9 @@ private struct WeeklyRiskCard: View {
         }
     }
 
-    private func riskHeading(for account: CodexAccountInsights) -> String {
+    private func riskHeading(for quota: CodexQuotaForecast) -> String {
         if allSafe { return L10n.tr("insights.risk.all_safe") }
-        if account.forecast.state == .exhaustsBeforeReset { return L10n.tr("insights.risk.nearest") }
+        if quota.forecast.state == .exhaustsBeforeReset { return L10n.tr("insights.risk.nearest") }
         return L10n.tr("insights.limit.weekly")
     }
 }
@@ -752,7 +753,15 @@ private struct InsightsMetricsGrid: View {
     }
 
     private var coverageText: String {
-        guard let percent = snapshot.coverage?.fraction else { return L10n.tr("insights.coverage.unavailable") }
+        guard let coverage = snapshot.coverage,
+              let percent = coverage.fraction else { return L10n.tr("insights.coverage.unavailable") }
+        if coverage.hasInconsistentTotals {
+            return L10n.tr(
+                "insights.coverage.inconsistent",
+                CodexInsightsTextPresentation.compactTokens(coverage.observedTokens),
+                CodexInsightsTextPresentation.compactTokens(coverage.serverTokens)
+            )
+        }
         return L10n.tr("insights.coverage.percent", Int((percent * 100).rounded()))
     }
 }
@@ -961,10 +970,12 @@ private struct InsightsAccountList: View {
                                 Text(account.planTitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 8)
-                            Text(CodexInsightsTextPresentation.forecast(account.forecast))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(forecastColor(account.forecast.state))
-                                .lineLimit(1)
+                            if let quota = account.riskiestQuotaForecast {
+                                Text("\(quota.title) · \(CodexInsightsTextPresentation.forecast(quota.forecast))")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(forecastColor(quota.forecast.state))
+                                    .lineLimit(1)
+                            }
                             Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                         }
                         .contentShape(Rectangle())
@@ -974,6 +985,70 @@ private struct InsightsAccountList: View {
                     .accessibilityIdentifier("codex.insights.account.\(localID.uuidString)")
                 }
             }
+        }
+    }
+}
+
+private struct UnattributedInsightsCard: View {
+    let insights: CodexUnattributedInsights
+    let period: CodexUsagePeriod
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.tr("insights.unattributed.title"))
+                        .font(.headline)
+                    Text(L10n.tr("insights.unattributed.subtitle"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                Text(L10n.tr("insights.unattributed.period", periodTitle))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 18) {
+                Label(
+                    CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
+                    systemImage: "text.word.spacing"
+                )
+                Label(
+                    insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
+                    systemImage: "sparkles"
+                )
+                Label(
+                    insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
+                    systemImage: "dollarsign.circle"
+                )
+            }
+            .font(.callout.weight(.semibold))
+            .monospacedDigit()
+
+            Text(
+                L10n.tr(
+                    "insights.unattributed.models",
+                    insights.models.prefix(4)
+                        .map { CodexInsightsTextPresentation.modelTitle($0.modelID) }
+                        .joined(separator: ", ")
+                )
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+        .padding(14)
+        .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("codex.insights.unattributed")
+    }
+
+    private var periodTitle: String {
+        switch period {
+        case .currentWeek: L10n.tr("insights.period.week")
+        case .last30Days: L10n.tr("insights.period.30_days")
+        case .all: L10n.tr("insights.period.all")
         }
     }
 }
@@ -1514,30 +1589,30 @@ private struct AccountAnalyticsPanel: View {
                 .font(.title2.weight(.semibold))
                 .accessibilityIdentifier("codex.insights.account-detail")
 
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
-                    Text(L10n.tr("insights.limit.weekly")).font(.headline)
-                    Spacer()
-                    Text(CodexInsightsTextPresentation.forecast(insights.forecast, now: now))
-                        .font(.headline)
-                        .foregroundStyle(forecastColor(insights.forecast.state))
+            if let quota = insights.riskiestQuotaForecast {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        Text(quota.title).font(.headline)
+                        Spacer()
+                        Text(CodexInsightsTextPresentation.forecast(quota.forecast, now: now))
+                            .font(.headline)
+                            .foregroundStyle(forecastColor(quota.forecast.state))
+                    }
+                    ForecastProgressBar(forecast: quota.forecast)
+                    if let reset = CodexInsightsTextPresentation.reset(quota.forecast, now: now) {
+                        Text(reset).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
-                ForecastProgressBar(forecast: insights.forecast)
-                if let reset = CodexInsightsTextPresentation.reset(insights.forecast, now: now) {
-                    Text(reset).font(.caption).foregroundStyle(.secondary)
-                }
+                .padding(12)
+                .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .padding(12)
-            .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             HStack(spacing: 8) {
                 InsightsMetric(
                     identifier: "codex.insights.account.metric.tokens",
                     title: L10n.tr("insights.metric.tokens"),
                     value: CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
-                    subtitle: insights.coverage?.fraction.map {
-                        L10n.tr("insights.coverage.percent", Int(($0 * 100).rounded()))
-                    } ?? L10n.tr("insights.coverage.unavailable")
+                    subtitle: accountCoverageText
                 )
                 InsightsMetric(
                     identifier: "codex.insights.account.metric.credits",
@@ -1558,6 +1633,20 @@ private struct AccountAnalyticsPanel: View {
             ModelUsageStrip(models: insights.models)
             UsageTrendChart(daily: insights.daily).frame(height: 130)
         }
+    }
+
+    private var accountCoverageText: String {
+        guard let coverage = insights.coverage, let fraction = coverage.fraction else {
+            return L10n.tr("insights.coverage.unavailable")
+        }
+        if coverage.hasInconsistentTotals {
+            return L10n.tr(
+                "insights.coverage.inconsistent",
+                CodexInsightsTextPresentation.compactTokens(coverage.observedTokens),
+                CodexInsightsTextPresentation.compactTokens(coverage.serverTokens)
+            )
+        }
+        return L10n.tr("insights.coverage.percent", Int((fraction * 100).rounded()))
     }
 }
 

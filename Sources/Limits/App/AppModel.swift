@@ -65,10 +65,8 @@ final class AppModel: ObservableObject {
         latestLimits: [:],
         rateCardRevisions: []
     )
-    @Published private(set) var codexInsights = CodexInsightsSnapshot.empty()
-    @Published var codexUsagePeriod: CodexUsagePeriod = .currentWeek {
-        didSet { rebuildCodexInsights() }
-    }
+    @Published private(set) var codexAnalyticsSnapshots = CodexAnalyticsSnapshotSet.empty()
+    @Published var codexUsagePeriod: CodexUsagePeriod = .currentWeek
     @Published private(set) var codexPriceChange: OpenAIPriceChange?
     @Published private(set) var claudeAccounts: [ClaudeStoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
@@ -106,6 +104,10 @@ final class AppModel: ObservableObject {
     private var codexRateCard = OpenAIPricingCatalog.bundledRevision
     private var selectedCodexAccountID: UUID?
     private var codexPresentationRefreshDepth = 0
+
+    var codexInsights: CodexInsightsSnapshot {
+        codexAnalyticsSnapshots[codexUsagePeriod]
+    }
 
     var isBusy: Bool {
         providerOperationStates.values.contains { $0.phase == .running }
@@ -221,10 +223,9 @@ final class AppModel: ObservableObject {
     }
 
     private func rebuildCodexInsights() {
-        codexInsights = CodexUsagePresentation.makeSnapshot(
+        codexAnalyticsSnapshots = CodexUsagePresentation.makeSnapshotSet(
             accounts: accounts,
             repository: codexUsageData,
-            period: codexUsagePeriod,
             rateCard: codexRateCard,
             priceChange: codexPriceChange,
             now: presentationNow
@@ -895,17 +896,12 @@ final class AppModel: ObservableObject {
             .claude: claudeProvider,
         ]
         let providers = providerCatalog.widgetProviderIDs.compactMap { byID[$0] }
-        let weekly = CodexUsagePresentation.makeSnapshot(
-            accounts: accounts,
-            repository: codexUsageData,
-            period: .currentWeek,
-            rateCard: codexRateCard,
-            now: now
-        )
         return LimitsWidgetSnapshot(
             generatedAt: now,
             providers: providers,
-            codexAnalytics: CodexAnalyticsSurfacePresentation.widgetSummary(from: weekly)
+            codexAnalytics: CodexAnalyticsSurfacePresentation.widgetSummary(
+                from: codexAnalyticsSnapshots.currentWeek
+            )
         )
     }
 

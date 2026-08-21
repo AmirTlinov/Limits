@@ -311,3 +311,8 @@
 "usage.repository.statement_failed" = "Falló la operación del almacenamiento de uso: %@.";
 "usage.repository.read_only" = "El esquema de uso %d es más reciente y se abrió en modo de solo lectura.";
 "codex.account.usage_malformed" = "Codex devolvió datos de uso de cuenta no válidos.";
+"insights.coverage.inconsistent" = "Local %@ supera al servidor %@; hay que conciliar los datos";
+"insights.unattributed.title" = "Historial local sin atribuir";
+"insights.unattributed.subtitle" = "Estos eventos se muestran aparte de los totales de cuentas guardadas.";
+"insights.unattributed.period" = "Periodo: %@";
+"insights.unattributed.models" = "Modelos: %@";

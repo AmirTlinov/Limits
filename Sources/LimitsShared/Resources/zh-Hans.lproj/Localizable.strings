@@ -311,3 +311,8 @@
 "usage.repository.statement_failed" = "用量存储操作失败：%@。";
 "usage.repository.read_only" = "用量架构 %d 比当前应用更新，已以只读方式打开。";
 "codex.account.usage_malformed" = "Codex 返回了无效的账户用量数据。";
+"insights.coverage.inconsistent" = "本地 %@ 超过服务器 %@；数据需要核对";
+"insights.unattributed.title" = "未归属的本地历史";
+"insights.unattributed.subtitle" = "这些事件与已保存账户的汇总分开显示。";
+"insights.unattributed.period" = "周期：%@";
+"insights.unattributed.models" = "模型：%@";

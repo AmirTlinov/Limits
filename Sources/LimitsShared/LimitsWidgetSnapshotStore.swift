@@ -52,7 +52,11 @@ public struct LimitsWidgetSnapshotStore {
         }
 
         let data = try Data(contentsOf: url)
-        return try JSONDecoder.limitsWidget.decode(LimitsWidgetSnapshot.self, from: data)
+        let snapshot = try JSONDecoder.limitsWidget.decode(LimitsWidgetSnapshot.self, from: data)
+        guard snapshot.schemaVersion == LimitsWidgetSnapshot.currentSchemaVersion else {
+            return nil
+        }
+        return snapshot
     }
 
     public func writeSnapshot(_ snapshot: LimitsWidgetSnapshot) throws {

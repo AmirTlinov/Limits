@@ -235,8 +235,9 @@ private struct WidgetCodexAnalyticsCard: View {
                     Text(summary.accountLabel ?? L10n.tr("insights.overview.title"))
                         .font(.headline)
                         .lineLimit(1)
-                    if let plan = summary.planTitle {
-                        Text(plan).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    let detail = [summary.quotaTitle, summary.planTitle].compactMap { $0 }.joined(separator: " · ")
+                    if !detail.isEmpty {
+                        Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 8)
@@ -494,6 +495,7 @@ private extension LimitsWidgetSnapshot {
             codexAnalytics: CodexAnalyticsSummary(
                 accountLabel: "Demo account",
                 planTitle: "ChatGPT Pro 20×",
+                quotaTitle: "GPT-5.3-Codex-Spark",
                 forecastState: .lastsUntilReset,
                 predictedExhaustionAt: nil,
                 resetAt: generatedAt.addingTimeInterval(86_400),

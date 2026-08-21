@@ -311,3 +311,8 @@
 "usage.repository.statement_failed" = "Операция хранилища статистики не выполнена: %@.";
 "usage.repository.read_only" = "Схема статистики %d новее приложения и открыта только для чтения.";
 "codex.account.usage_malformed" = "Codex вернул некорректные данные статистики аккаунта.";
+"insights.coverage.inconsistent" = "Локально %@, на сервере %@ — данные требуют сверки";
+"insights.unattributed.title" = "Локальная история без аккаунта";
+"insights.unattributed.subtitle" = "Эти события показаны отдельно от итогов сохранённых аккаунтов.";
+"insights.unattributed.period" = "Период: %@";
+"insights.unattributed.models" = "Модели: %@";

@@ -22,6 +22,7 @@ public enum LimitsWidgetForecastState: String, Codable, Hashable, Sendable {
 public struct CodexAnalyticsSummary: Codable, Hashable, Sendable {
     public let accountLabel: String?
     public let planTitle: String?
+    public let quotaTitle: String?
     public let forecastState: LimitsWidgetForecastState
     public let predictedExhaustionAt: Date?
     public let resetAt: Date?
@@ -33,6 +34,7 @@ public struct CodexAnalyticsSummary: Codable, Hashable, Sendable {
     public init(
         accountLabel: String?,
         planTitle: String?,
+        quotaTitle: String?,
         forecastState: LimitsWidgetForecastState,
         predictedExhaustionAt: Date?,
         resetAt: Date?,
@@ -43,6 +45,7 @@ public struct CodexAnalyticsSummary: Codable, Hashable, Sendable {
     ) {
         self.accountLabel = accountLabel
         self.planTitle = planTitle
+        self.quotaTitle = quotaTitle
         self.forecastState = forecastState
         self.predictedExhaustionAt = predictedExhaustionAt
         self.resetAt = resetAt
@@ -153,7 +156,7 @@ public struct LimitsWidgetProviderSnapshot: Codable, Hashable, Sendable, Identif
 }
 
 public struct LimitsWidgetSnapshot: Codable, Hashable, Sendable {
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 4
 
     public let schemaVersion: Int
     public let generatedAt: Date
