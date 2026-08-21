@@ -1524,7 +1524,7 @@ private struct StoredAccountSummary: View {
     let now: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             if let issue {
                 MinimalSeparator()
                 CodexAccountIssueCard(issue: issue)
@@ -1539,10 +1539,8 @@ private struct StoredAccountSummary: View {
                     )
                 }
             } else {
-                ForEach(sections) { section in
-                    MinimalSeparator()
-                    LimitSectionCard(section: section, tint: ProviderAccent.codex)
-                }
+                MinimalSeparator()
+                StoredAccountLimitsGrid(sections: sections, tint: ProviderAccent.codex)
             }
 
             if let insights {
@@ -1814,13 +1812,13 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(plan.title)
-                    .font(.title2.weight(.semibold))
+                    .font(.headline)
 
                 Spacer(minLength: 12)
 
                 if let monthlyPrice = plan.monthlyPrice {
                     Text(monthlyPrice)
-                        .font(.title3.weight(.semibold))
+                        .font(.headline)
                         .monospacedDigit()
                 }
             }
@@ -1834,7 +1832,7 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                     GridRow(alignment: .center) {
                         Text(L10n.tr("subscription.payment_in"))
-                            .font(.headline)
+                            .font(.callout.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(width: 160, alignment: .leading)
 
@@ -1849,7 +1847,7 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
 
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(cycle.countdownText)
-                                .font(.title3.weight(.semibold))
+                                .font(.headline)
                                 .monospacedDigit()
 
                             Text(cycle.paymentDateText)
@@ -1942,6 +1940,55 @@ private struct LimitSectionCard: View {
     }
 }
 
+private struct StoredAccountLimitsGrid: View {
+    let sections: [RateLimitDisplaySection]
+    let tint: Color
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
+            ForEach(sections) { section in
+                ForEach(Array(section.rows.enumerated()), id: \.element.id) { index, row in
+                    GridRow(alignment: .center) {
+                        Text(index == 0 ? section.title : "")
+                            .font(.callout.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(width: 160, alignment: .leading)
+                            .help(section.title)
+                            .accessibilityHidden(index != 0)
+
+                        Text(row.title)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(width: 118, alignment: .leading)
+
+                        LimitProgressBar(progress: row.remainingProgressValue, tint: resolvedTint(for: row))
+                            .frame(maxWidth: .infinity)
+
+                        LimitRemainingValue(row: row, valueFont: .callout.weight(.semibold))
+                            .frame(width: 174, alignment: .trailing)
+                    }
+                    .padding(.top, index == 0 && section.id != sections.first?.id ? 4 : 0)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(accessibilityLabel(section: section, row: row))
+                }
+            }
+        }
+    }
+
+    private func resolvedTint(for row: RateLimitDisplayRow) -> Color {
+        row.remainingPercent <= 9 ? .red : tint
+    }
+
+    private func accessibilityLabel(section: RateLimitDisplaySection, row: RateLimitDisplayRow) -> String {
+        [section.title, row.title, L10n.percentRemaining(row.remainingPercent), row.resetText]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+    }
+}
+
 private struct LimitProgressRowView: View {
     let row: RateLimitDisplayRow
     let tint: Color
@@ -1957,17 +2004,7 @@ private struct LimitProgressRowView: View {
                 LimitProgressBar(progress: row.remainingProgressValue, tint: resolvedTint)
                     .frame(maxWidth: .infinity)
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(L10n.percentRemaining(row.remainingPercent))
-                        .font(.headline)
-                        .monospacedDigit()
-
-                    if let resetText = row.resetText {
-                        Text(resetText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                LimitRemainingValue(row: row)
                 .frame(width: 190, alignment: .trailing)
             }
         }
@@ -1975,6 +2012,30 @@ private struct LimitProgressRowView: View {
 
     private var resolvedTint: Color {
         row.remainingPercent <= 9 ? .red : tint
+    }
+}
+
+private struct LimitRemainingValue: View {
+    let row: RateLimitDisplayRow
+    let valueFont: Font
+
+    init(row: RateLimitDisplayRow, valueFont: Font = .headline) {
+        self.row = row
+        self.valueFont = valueFont
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(L10n.percentRemaining(row.remainingPercent))
+                .font(valueFont)
+                .monospacedDigit()
+
+            if let resetText = row.resetText {
+                Text(resetText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
