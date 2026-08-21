@@ -47,9 +47,9 @@
 "settings.language.title" = "Idioma";
 "settings.language.system" = "Usar idioma del sistema";
 "settings.tray_legend.title" = "Icono de la barra de menús";
-"settings.tray_legend.description" = "Los porcentajes compactos muestran el límite actual y cuántas cuentas visibles tienen datos de límites utilizables.";
-"settings.tray_legend.codex.title" = "Porcentaje de Codex";
-"settings.tray_legend.claude.title" = "Porcentaje de Claude";
+"settings.tray_legend.description" = "El primer número es el límite restante más próximo; el segundo, las cuentas con datos recientes.";
+"settings.tray_legend.codex.title" = "Codex";
+"settings.tray_legend.claude.title" = "Claude";
 "busy.connecting_claude_live" = "Conectando límites en vivo de Claude…";
 "busy.deleting" = "Eliminando %@…";
 "busy.disconnecting_claude_bridge" = "Desconectando puente de Claude…";
@@ -308,9 +308,10 @@
 "insights.tokens.millions_suffix" = " M";
 "insights.tokens.billions_suffix" = " mil M";
 "insights.settings.title" = "Estadísticas de Codex";
-"insights.settings.description" = "Borrar crea un punto cero duradero: el uso local y del servidor anterior queda fuera del análisis. Importar de nuevo elimina ese límite, relee los JSONL locales y actualiza los totales del servidor; los pronósticos vuelven a recopilarse.";
 "insights.settings.reimport" = "Importar de nuevo el historial";
+"insights.settings.reimport.detail" = "Elimina el punto cero, relee los JSONL locales y actualiza el total del servidor.";
 "insights.settings.clear" = "Borrar estadísticas";
+"insights.settings.clear.detail" = "Inicia estadísticas nuevas ahora y conserva las cuentas y los datos de inicio de sesión.";
 "insights.settings.clear.confirm_title" = "¿Borrar todas las estadísticas de Codex?";
 "insights.settings.clear.confirm_message" = "Ahora será el nuevo punto cero. El uso local y del servidor anterior quedará fuera del análisis; se conservarán cuentas, credenciales, historial de autenticación, tarifas y posiciones de importación. La actividad nueva contará desde este momento.";
 "insights.settings.clearing" = "Borrando estadísticas de Codex…";
@@ -333,3 +334,4 @@
 "insights.unattributed.context" = "No se incluye en los totales de las cuentas · %@";
 "insights.unattributed.tokens" = "%@ tokens";
 "insights.unattributed.estimates" = "%@ cr · API ≈ %@";
+"insights.account.empty" = "No se registró uso durante este periodo.";

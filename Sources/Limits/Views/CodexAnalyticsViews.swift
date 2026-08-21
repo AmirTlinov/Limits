@@ -211,6 +211,7 @@ struct TokenActivityCalendar: View {
         TokenActivityIntensityScale(tokens: visibleDays.map(\.tokens))
     }
     private var usesDayStrip: Bool { visibleDayCount <= 42 }
+    private var showsInlineLegend: Bool { visibleDayCount <= 14 }
 
     private func cellSize(for weekCount: Int) -> CGFloat {
         guard gridViewportWidth > 0, weekCount > 0 else { return minimumCellSize }
@@ -272,11 +273,20 @@ struct TokenActivityCalendar: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 12)
-                intensityLegend
+                if !showsInlineLegend {
+                    intensityLegend
+                }
             }
 
             if usesDayStrip {
-                dayStrip
+                HStack(alignment: .bottom, spacing: 10) {
+                    dayStrip
+                    if showsInlineLegend {
+                        intensityLegend
+                            .padding(.bottom, 1)
+                    }
+                    Spacer(minLength: 0)
+                }
             } else {
                 weeklyGrid
             }
@@ -321,7 +331,7 @@ struct TokenActivityCalendar: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var weeklyGrid: some View {

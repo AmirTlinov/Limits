@@ -154,9 +154,9 @@ final class LimitsUITests: XCTestCase {
 
         let title = app.staticTexts["account.identity.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 8))
-        let delete = app.buttons["Delete"]
-        XCTAssertTrue(delete.waitForExistence(timeout: 3))
-        XCTAssertFalse(delete.isEnabled)
+        let accountActions = app.buttons["account.actions.more"]
+        XCTAssertTrue(accountActions.waitForExistence(timeout: 3))
+        XCTAssertFalse(accountActions.isEnabled)
         title.doubleClick()
         XCTAssertFalse(app.textFields["account.identity.name-field"].waitForExistence(timeout: 1))
         app.terminate()
@@ -284,6 +284,7 @@ final class LimitsUITests: XCTestCase {
         XCTAssertEqual(issue.label, "Sign-in expired. Sign in again to restore limits for this account.")
         XCTAssertEqual(app.otherElements.matching(identifier: "codex.account.issue").count, 1)
         XCTAssertTrue(app.buttons["Sign in again"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Make Current"].exists)
         XCTAssertFalse(app.buttons["Refresh"].exists)
         XCTAssertFalse(app.buttons["Refresh values"].exists)
         XCTAssertFalse(app.buttons["Refresh current values"].exists)

@@ -46,6 +46,7 @@ import Testing
     ).currentWeek
     let accountSnapshot = try #require(snapshot.accounts.first)
 
+    #expect(accountSnapshot.hasDisplayableUsage)
     #expect(snapshot.totals == accountSnapshot.totals)
     #expect(snapshot.models == accountSnapshot.models)
     #expect(snapshot.daily == accountSnapshot.daily)
@@ -66,6 +67,24 @@ import Testing
     #expect(widget.weeklyCredits == snapshot.totals.credits)
     #expect(widget.remainingPercent == accountSnapshot.riskiestQuotaForecast?.forecast.remainingPercent)
     #expect(tray == "Codex · \(CodexInsightsTextPresentation.forecast(try #require(accountSnapshot.riskiestQuotaForecast).forecast, now: now))")
+}
+
+@Test func accountWithoutObservedUsageOwnsACompactEmptyState() throws {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [insightsAccount(now: now)],
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: [:],
+            dailyUsage: [],
+            limitObservations: [:],
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).currentWeek
+
+    #expect(try #require(snapshot.accounts.first).hasDisplayableUsage == false)
 }
 
 @Test func workBreakdownUsesOnlySavedAccountRowsAndKeepsRealProjectAndTaskNames() throws {

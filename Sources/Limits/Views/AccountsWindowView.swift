@@ -557,6 +557,9 @@ private struct CodexOverviewPane: View {
     private var today: Date {
         CodexUsageWindow.utcCalendar.startOfDay(for: model.presentationNow)
     }
+    private var hasModelUsage: Bool {
+        snapshot.models.contains { $0.totals.usage.totalTokens > 0 }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -619,8 +622,10 @@ private struct CodexOverviewPane: View {
                     window: snapshot.window,
                     now: model.presentationNow
                 )
-                InsightsMetricsGrid(snapshot: snapshot)
-                ModelUsageStrip(models: snapshot.models)
+                OverviewMetricStrip(snapshot: snapshot)
+                if hasModelUsage {
+                    ModelUsageStrip(models: snapshot.models)
+                }
                 UsageTrendChart(daily: snapshot.daily, window: snapshot.window, now: model.presentationNow)
                     .frame(height: 176)
                 if let work = snapshot.work {
@@ -729,40 +734,40 @@ private struct PriceChangeNotice: View {
     }
 }
 
-private struct InsightsMetricsGrid: View {
+private struct OverviewMetricStrip: View {
     let snapshot: CodexInsightsSnapshot
 
     var body: some View {
-        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
-            GridRow {
-                InsightsMetric(
+        AnalyticsMetricStrip(
+            metrics: [
+                AnalyticsMetric(
                     identifier: "codex.insights.metric.tokens",
                     title: L10n.tr("insights.metric.tokens"),
                     value: CodexInsightsTextPresentation.compactTokens(snapshot.totals.usage.totalTokens),
-                    subtitle: coverageText
-                )
-                InsightsMetric(
+                    detail: coverageText
+                ),
+                AnalyticsMetric(
                     identifier: "codex.insights.metric.credits",
                     title: L10n.tr("insights.metric.credits"),
                     value: snapshot.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    subtitle: nil
-                )
-                InsightsMetric(
+                    detail: nil
+                ),
+                AnalyticsMetric(
                     identifier: "codex.insights.metric.api-equivalent",
                     title: L10n.tr("insights.metric.api_equivalent"),
                     value: snapshot.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
-                    subtitle: nil
-                )
-                InsightsMetric(
+                    detail: nil
+                ),
+                AnalyticsMetric(
                     identifier: "codex.insights.metric.subscriptions",
                     title: L10n.tr("insights.metric.subscriptions"),
                     value: snapshot.totalMonthlySubscriptionUSD.map { L10n.localizedCurrencyUSD($0, maximumFractionDigits: 0) } ?? "—",
-                    subtitle: snapshot.effectiveSubscriptionUSDPerMillionTokens.map {
+                    detail: snapshot.effectiveSubscriptionUSDPerMillionTokens.map {
                         L10n.tr("insights.metric.effective_per_million", L10n.localizedCurrencyUSD($0))
                     } ?? L10n.tr("insights.metric.effective.collecting")
-                )
-            }
-        }
+                ),
+            ]
+        )
     }
 
     private var coverageText: String {
@@ -779,26 +784,58 @@ private struct InsightsMetricsGrid: View {
     }
 }
 
-private struct InsightsMetric: View {
+private struct AnalyticsMetric: Identifiable {
     let identifier: String
     let title: String
     let value: String
-    let subtitle: String?
+    let detail: String?
+
+    var id: String { identifier }
+}
+
+private struct AnalyticsMetricStrip: View {
+    let metrics: [AnalyticsMetric]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ForEach(metrics) { metric in
+                AnalyticsMetricColumn(metric: metric)
+                    .overlay(alignment: .trailing) {
+                        Divider()
+                            .frame(height: 50)
+                            .offset(x: 7)
+                            .opacity(metric.id == metrics.last?.id ? 0 : 1)
+                    }
+            }
+        }
+    }
+}
+
+private struct AnalyticsMetricColumn: View {
+    let metric: AnalyticsMetric
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            Text(value).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
-            if let subtitle {
-                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+            Text(metric.title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(metric.value)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            if let detail = metric.detail {
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(identifier)
+        .accessibilityIdentifier(metric.identifier)
     }
 }
 
@@ -993,26 +1030,59 @@ private struct CurrentCLIDetailPane: View {
         model.currentChatGPTSubscriptionCycle(now: model.presentationNow)
     }
 
+    private var identity: AccountIdentityPresentation {
+        AccountIdentityPresentation(
+            label: overview.title,
+            email: model.currentCLIProbe?.email ?? model.currentCLIReferenceAccount()?.email
+        )
+    }
+
+    private var showsPrimaryAction: Bool {
+        model.hasCurrentCLIAuthToImport() || model.shouldOfferAddAccountAsPrimaryAction()
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            DetailHeroCard(
-                title: overview.title,
-                subtitle: model.currentCLIProbe?.email ?? model.currentCLIReferenceAccount()?.email,
-                note: overview.note,
-                metaLine: nil,
-                renameTitle: model.canMutateDomain ? model.currentCLIReferenceAccount().map { account in
-                    { title in Task { await model.renameAccount(account, to: title) } }
-                } : nil,
-                subtitleIsCopyable: true,
-                stateBadge: {
-                    CLIStateBadge(source: model.currentCLIState.source)
-                },
-                details: {
-                    if let plan {
-                        ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle)
+        AccountDetailLayout(
+            title: identity.title,
+            subtitle: identity.subtitle,
+            note: overview.note,
+            metaLine: nil,
+            renameTitle: model.canMutateDomain ? model.currentCLIReferenceAccount().map { account in
+                { title in Task { await model.renameAccount(account, to: title) } }
+            } : nil,
+            subtitleIsCopyable: identity.subtitle != nil,
+            showsActions: showsPrimaryAction,
+            headerAccessory: {
+                ProviderStatusBadge(
+                    presentation: ProviderPresentation.codexBadge(source: model.currentCLIState.source)
+                )
+            },
+            details: {
+                if let plan {
+                    ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle) {
+                        MinimalSeparator()
+                        CurrentCodexAccountSummary(
+                            errorMessage: model.providerErrorMessage(.codex) ?? model.errorMessage,
+                            warningText: probeWarningText,
+                            sections: sections,
+                            emptySummary: model.currentLastKnownRateLimitSummary()
+                                ?? overview.note
+                                ?? L10n.tr("limits.empty.subtitle")
+                        )
                     }
-                },
-                actions: {
+                } else {
+                    CurrentCodexAccountSummary(
+                        errorMessage: model.providerErrorMessage(.codex) ?? model.errorMessage,
+                        warningText: probeWarningText,
+                        sections: sections,
+                        emptySummary: model.currentLastKnownRateLimitSummary()
+                            ?? overview.note
+                            ?? L10n.tr("limits.empty.subtitle")
+                    )
+                }
+            },
+            actions: {
+                if showsPrimaryAction {
                     if model.hasCurrentCLIAuthToImport() {
                         Button(L10n.tr("action.import_current_auth")) {
                             Task { await model.importCurrentCLIAuth() }
@@ -1026,37 +1096,37 @@ private struct CurrentCLIDetailPane: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                     }
-
                 }
-            )
+            }
+        )
+    }
+}
 
-            if let errorMessage = model.providerErrorMessage(.codex) ?? model.errorMessage {
+private struct CurrentCodexAccountSummary: View {
+    let errorMessage: String?
+    let warningText: String?
+    let sections: [RateLimitDisplaySection]
+    let emptySummary: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let errorMessage {
+                InlineStatusMessage(text: errorMessage, color: .red)
                 MinimalSeparator()
-                InlineWarningCard(text: errorMessage)
             }
 
-            if let probeWarningText {
+            if let warningText {
+                InlineStatusMessage(text: warningText, color: .orange)
                 MinimalSeparator()
-                InlineWarningCard(text: probeWarningText)
             }
 
             if sections.isEmpty {
-                MinimalSeparator()
-                EmptyLimitsCard(
+                EmptyLimitsSummary(
                     title: L10n.tr("limits.empty.title"),
-                    subtitle: model.currentLastKnownRateLimitSummary()
-                        ?? overview.note
-                        ?? L10n.tr("limits.empty.subtitle")
+                    subtitle: emptySummary
                 )
             } else {
-                MinimalSeparator()
-                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section, tint: ProviderAccent.codex)
-
-                    if index < sections.count - 1 {
-                        MinimalSeparator()
-                    }
-                }
+                AccountLimitsGrid(sections: sections, tint: ProviderAccent.codex)
             }
         }
     }
@@ -1081,19 +1151,32 @@ private struct CurrentClaudeDetailPane: View {
         model.currentClaudeLiveRateLimitSections()
     }
 
+    private var identity: AccountIdentityPresentation {
+        AccountIdentityPresentation(label: overview.title, email: email)
+    }
+
+    private var showsPrimaryAction: Bool {
+        model.hasCurrentClaudeAuthToImport()
+            || model.claudeLiveBridgeInstalled()
+            || model.currentClaudeStatus?.loggedIn == true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            DetailHeroCard(
-                title: overview.title,
-                subtitle: email,
+            AccountDetailLayout(
+                title: identity.title,
+                subtitle: identity.subtitle,
                 note: overview.note,
                 metaLine: metaLine,
                 renameTitle: model.canMutateDomain ? referenceAccount.map { account in
                     { title in Task { await model.renameAccount(account, to: title) } }
                 } : nil,
-                subtitleIsCopyable: email != nil,
-                stateBadge: {
-                    ClaudeStateBadge(model: model)
+                subtitleIsCopyable: identity.subtitle != nil,
+                showsActions: showsPrimaryAction,
+                headerAccessory: {
+                    ProviderStatusBadge(
+                        presentation: ProviderPresentation.claudeBadge(source: model.currentClaudeState.source)
+                    )
                 },
                 details: {
                     EmptyView()
@@ -1124,32 +1207,15 @@ private struct CurrentClaudeDetailPane: View {
             )
 
             MinimalSeparator()
-
-            if let providerError = model.providerErrorMessage(.claude),
-               providerError != model.currentClaudeBridgeError {
-                InlineWarningCard(text: providerError)
-                MinimalSeparator()
-            }
-
-            if let bridgeError = model.currentClaudeBridgeError {
-                InlineWarningCard(text: bridgeError)
-                MinimalSeparator()
-            }
-
-            if liveSections.isEmpty {
-                EmptyLimitsCard(
-                    title: bridgeCardTitle,
-                    subtitle: bridgeCardSubtitle
-                )
-            } else {
-                ForEach(Array(liveSections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section, tint: ProviderAccent.claude)
-
-                    if index < liveSections.count - 1 {
-                        MinimalSeparator()
-                    }
-                }
-            }
+            ClaudeLimitsSummary(
+                providerError: model.providerErrorMessage(.claude) == model.currentClaudeBridgeError
+                    ? nil
+                    : model.providerErrorMessage(.claude),
+                bridgeError: model.currentClaudeBridgeError,
+                sections: liveSections,
+                emptyTitle: bridgeCardTitle,
+                emptySubtitle: bridgeCardSubtitle
+            )
         }
     }
 
@@ -1222,19 +1288,37 @@ private struct StoredClaudeDetailPane: View {
         return model.currentClaudeLiveRateLimitSections()
     }
 
+    private var identity: AccountIdentityPresentation {
+        AccountIdentityPresentation(label: account.label, email: account.email)
+    }
+
+    private var showsPrimaryAction: Bool {
+        if !isCurrent { return true }
+        return model.claudeLiveBridgeInstalled() || model.currentClaudeStatus?.loggedIn == true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            DetailHeroCard(
-                title: account.label,
-                subtitle: account.email,
+            AccountDetailLayout(
+                title: identity.title,
+                subtitle: identity.subtitle,
                 note: accountNote,
                 metaLine: accountMetaLine,
                 renameTitle: model.canMutateDomain ? { title in
                     Task { await model.renameAccount(account, to: title) }
                 } : nil,
-                subtitleIsCopyable: true,
-                stateBadge: {
-                    AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)
+                subtitleIsCopyable: identity.subtitle != nil,
+                showsActions: showsPrimaryAction,
+                headerAccessory: {
+                    AccountHeaderAccessory(
+                        presentation: ProviderPresentation.accountBadge(
+                            status: account.status,
+                            isCurrent: isCurrent,
+                            provider: .claude
+                        ),
+                        canDelete: model.canMutateDomain && !model.isProviderBusy(.claude),
+                        delete: { model.requestDeleteClaudeAccount(account) }
+                    )
                 },
                 details: {
                     EmptyView()
@@ -1262,41 +1346,19 @@ private struct StoredClaudeDetailPane: View {
                         }
                     }
 
-                    Button(L10n.tr("action.delete"), role: .destructive) {
-                        model.requestDeleteClaudeAccount(account)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
                 }
             )
 
             MinimalSeparator()
-
-            if let providerError = model.providerErrorMessage(.claude),
-               providerError != model.currentClaudeBridgeError {
-                InlineWarningCard(text: providerError)
-                MinimalSeparator()
-            }
-
-            if isCurrent, let bridgeError = model.currentClaudeBridgeError {
-                InlineWarningCard(text: bridgeError)
-                MinimalSeparator()
-            }
-
-            if liveSections.isEmpty {
-                EmptyLimitsCard(
-                    title: emptyStateTitle,
-                    subtitle: emptyStateSubtitle
-                )
-            } else {
-                ForEach(Array(liveSections.enumerated()), id: \.element.id) { index, section in
-                    LimitSectionCard(section: section, tint: ProviderAccent.claude)
-
-                    if index < liveSections.count - 1 {
-                        MinimalSeparator()
-                    }
-                }
-            }
+            ClaudeLimitsSummary(
+                providerError: model.providerErrorMessage(.claude) == model.currentClaudeBridgeError
+                    ? nil
+                    : model.providerErrorMessage(.claude),
+                bridgeError: isCurrent ? model.currentClaudeBridgeError : nil,
+                sections: liveSections,
+                emptyTitle: emptyStateTitle,
+                emptySubtitle: emptyStateSubtitle
+            )
         }
     }
 
@@ -1380,6 +1442,40 @@ private struct StoredClaudeDetailPane: View {
     }
 }
 
+private struct ClaudeLimitsSummary: View {
+    let providerError: String?
+    let bridgeError: String?
+    let sections: [RateLimitDisplaySection]
+    let emptyTitle: String
+    let emptySubtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let providerError {
+                InlineStatusMessage(text: providerError)
+                MinimalSeparator()
+            }
+
+            if let bridgeError {
+                InlineStatusMessage(text: bridgeError)
+                MinimalSeparator()
+            }
+
+            if sections.isEmpty {
+                EmptyLimitsSummary(title: emptyTitle, subtitle: emptySubtitle)
+            } else {
+                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                    LimitSection(section: section, tint: ProviderAccent.claude)
+
+                    if index < sections.count - 1 {
+                        MinimalSeparator()
+                    }
+                }
+            }
+        }
+    }
+}
+
 private struct StoredAccountDetailPane: View {
     @ObservedObject var model: AppModel
     let account: StoredAccount
@@ -1408,18 +1504,35 @@ private struct StoredAccountDetailPane: View {
         model.codexInsights(for: account)
     }
 
+    private var identity: AccountIdentityPresentation {
+        AccountIdentityPresentation(label: account.label, email: account.email)
+    }
+
+    private var canMakeCurrent: Bool {
+        !isCurrent && accountIssue?.recommendedAction != .reauthenticate
+    }
+
     var body: some View {
-        DetailHeroCard(
-            title: account.label,
-            subtitle: account.email,
+        AccountDetailLayout(
+            title: identity.title,
+            subtitle: identity.subtitle,
             note: nil,
             metaLine: nil,
             renameTitle: model.canMutateDomain ? { title in
                 Task { await model.renameAccount(account, to: title) }
             } : nil,
-            subtitleIsCopyable: true,
-            stateBadge: {
-                AccountStatusBadge(status: account.status, isCurrent: isCurrent)
+            subtitleIsCopyable: identity.subtitle != nil,
+            showsActions: canMakeCurrent,
+            headerAccessory: {
+                AccountHeaderAccessory(
+                    presentation: ProviderPresentation.accountBadge(
+                        status: account.status,
+                        isCurrent: isCurrent,
+                        provider: .codex
+                    ),
+                    canDelete: model.canMutateDomain && !model.isProviderBusy(.codex),
+                    delete: { model.requestDeleteAccount(account) }
+                )
             },
             details: {
                 ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle) {
@@ -1431,12 +1544,16 @@ private struct StoredAccountDetailPane: View {
                             : nil,
                         issue: accountIssue,
                         insights: insights,
-                        now: model.presentationNow
+                        now: model.presentationNow,
+                        reauthenticate: accountIssue?.recommendedAction == .reauthenticate
+                            ? { Task { await model.reauthenticateAccount(account) } }
+                            : nil,
+                        canReauthenticate: model.canMutateDomain && !model.isProviderBusy(.codex)
                     )
                 }
             },
             actions: {
-                if !isCurrent {
+                if canMakeCurrent {
                     Button(L10n.tr("action.make_current")) {
                         Task { await model.activateAccount(account) }
                     }
@@ -1444,19 +1561,6 @@ private struct StoredAccountDetailPane: View {
                     .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
 
-                if accountIssue?.recommendedAction == .reauthenticate {
-                    Button(L10n.tr("action.reauthenticate")) {
-                        Task { await model.reauthenticateAccount(account) }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
-                }
-
-                Button(L10n.tr("action.delete"), role: .destructive) {
-                    model.requestDeleteAccount(account)
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
             }
         )
     }
@@ -1468,25 +1572,31 @@ private struct StoredAccountSummary: View {
     let issue: CodexAccountIssuePresentation?
     let insights: CodexAccountInsights?
     let now: Date
+    let reauthenticate: (() -> Void)?
+    let canReauthenticate: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let issue {
                 MinimalSeparator()
-                CodexAccountIssueCard(issue: issue)
+                CodexAccountIssueSummary(
+                    issue: issue,
+                    reauthenticate: reauthenticate,
+                    canReauthenticate: canReauthenticate
+                )
             }
 
             if sections.isEmpty {
                 if let emptyLimitsSummary {
                     MinimalSeparator()
-                    EmptyLimitsCard(
+                    EmptyLimitsSummary(
                         title: L10n.tr("limits.empty.title"),
                         subtitle: emptyLimitsSummary
                     )
                 }
             } else {
                 MinimalSeparator()
-                StoredAccountLimitsGrid(sections: sections, tint: ProviderAccent.codex)
+                AccountLimitsGrid(sections: sections, tint: ProviderAccent.codex)
             }
 
             if let insights {
@@ -1507,33 +1617,57 @@ private struct AccountUsageSummary: View {
                 .font(.title3.weight(.semibold))
                 .accessibilityIdentifier("codex.insights.account-detail")
 
-            HStack(alignment: .top, spacing: 14) {
-                AccountSummaryMetric(
-                    identifier: "codex.insights.account.metric.tokens",
-                    title: L10n.tr("insights.metric.tokens"),
-                    value: CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
-                    subtitle: accountCoverageText
+            if insights.hasDisplayableUsage {
+                AnalyticsMetricStrip(
+                    metrics: [
+                        AnalyticsMetric(
+                        identifier: "codex.insights.account.metric.tokens",
+                        title: L10n.tr("insights.metric.tokens"),
+                        value: CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
+                        detail: accountCoverageText
+                    ),
+                        AnalyticsMetric(
+                        identifier: "codex.insights.account.metric.credits",
+                        title: L10n.tr("insights.metric.credits"),
+                        value: insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
+                        detail: nil
+                    ),
+                        AnalyticsMetric(
+                        identifier: "codex.insights.account.metric.api-equivalent",
+                        title: L10n.tr("insights.metric.api_equivalent"),
+                        value: insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
+                        detail: insights.effectiveSubscriptionUSDPerMillionTokens.map {
+                            L10n.tr("insights.metric.effective_per_million", L10n.localizedCurrencyUSD($0))
+                        } ?? L10n.tr("insights.metric.effective.collecting")
+                    ),
+                    ]
                 )
-                Divider().frame(height: 48)
-                AccountSummaryMetric(
-                    identifier: "codex.insights.account.metric.credits",
-                    title: L10n.tr("insights.metric.credits"),
-                    value: insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    subtitle: nil
-                )
-                Divider().frame(height: 48)
-                AccountSummaryMetric(
-                    identifier: "codex.insights.account.metric.api-equivalent",
-                    title: L10n.tr("insights.metric.api_equivalent"),
-                    value: insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
-                    subtitle: insights.effectiveSubscriptionUSDPerMillionTokens.map {
-                        L10n.tr("insights.metric.effective_per_million", L10n.localizedCurrencyUSD($0))
-                    } ?? L10n.tr("insights.metric.effective.collecting")
-                )
-            }
 
-            ModelUsageStrip(models: insights.models)
-            UsageTrendChart(daily: insights.daily, window: insights.window, now: now).frame(height: 130)
+                if hasModelUsage {
+                    ModelUsageStrip(models: insights.models)
+                }
+                if hasDailyUsage {
+                    UsageTrendChart(daily: insights.daily, window: insights.window, now: now)
+                        .frame(height: 130)
+                }
+            } else {
+                Text(L10n.tr("insights.account.empty"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("codex.insights.account-detail.empty")
+            }
+        }
+    }
+
+    private var hasModelUsage: Bool {
+        insights.models.contains { $0.totals.usage.totalTokens > 0 }
+    }
+
+    private var hasDailyUsage: Bool {
+        insights.daily.contains { day in
+            day.totals.usage.totalTokens > 0
+                || day.totals.credits.map({ $0 != 0 }) == true
+                || day.totals.apiEquivalentUSD.map({ $0 != 0 }) == true
         }
     }
 
@@ -1552,34 +1686,40 @@ private struct AccountUsageSummary: View {
     }
 }
 
-private struct AccountSummaryMetric: View {
-    let identifier: String
-    let title: String
-    let value: String
-    let subtitle: String?
+private struct AccountHeaderAccessory: View {
+    let presentation: ProviderBadgePresentation
+    let canDelete: Bool
+    let delete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            Text(value).font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
-            if let subtitle {
-                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+        HStack(spacing: 8) {
+            ProviderStatusBadge(presentation: presentation)
+
+            Menu {
+                Button(L10n.tr("action.delete"), role: .destructive, action: delete)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 16))
             }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .disabled(!canDelete)
+            .help(L10n.tr("action.more"))
+            .accessibilityLabel(L10n.tr("action.more"))
+            .accessibilityIdentifier("account.actions.more")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(identifier)
     }
 }
 
-private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: View {
+private struct AccountDetailLayout<HeaderAccessory: View, Details: View, Actions: View>: View {
     let title: String
     let subtitle: String?
     let note: String?
     let metaLine: String?
     let renameTitle: ((String) -> Void)?
     let subtitleIsCopyable: Bool
-    let stateBadge: StateBadge
+    let showsActions: Bool
+    let headerAccessory: HeaderAccessory
     let details: Details
     let actions: Actions
 
@@ -1594,7 +1734,8 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
         metaLine: String?,
         renameTitle: ((String) -> Void)? = nil,
         subtitleIsCopyable: Bool = false,
-        @ViewBuilder stateBadge: () -> StateBadge,
+        showsActions: Bool,
+        @ViewBuilder headerAccessory: () -> HeaderAccessory,
         @ViewBuilder details: () -> Details,
         @ViewBuilder actions: () -> Actions
     ) {
@@ -1604,7 +1745,8 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
         self.metaLine = metaLine
         self.renameTitle = renameTitle
         self.subtitleIsCopyable = subtitleIsCopyable
-        self.stateBadge = stateBadge()
+        self.showsActions = showsActions
+        self.headerAccessory = headerAccessory()
         self.details = details()
         self.actions = actions()
     }
@@ -1644,10 +1786,8 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
                 }
 
                 Spacer(minLength: 12)
-                stateBadge
+                headerAccessory
             }
-
-            details
 
             if let metaLine {
                 Text(metaLine)
@@ -1662,9 +1802,13 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
-                actions
+            if showsActions {
+                HStack(spacing: 10) {
+                    actions
+                }
             }
+
+            details
         }
         .onChange(of: titleFieldIsFocused) { _, isFocused in
             if !isFocused, isRenamingTitle {
@@ -1694,7 +1838,7 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
 
     private func subtitleLabel(_ subtitle: String) -> some View {
         Text(subtitle)
-            .font(subtitleIsCopyable ? .callout : .title3)
+            .font(.callout)
             .foregroundStyle(.secondary)
             .lineLimit(2)
     }
@@ -1842,15 +1986,17 @@ private extension ChatGPTAccountPanel where AdditionalContent == EmptyView {
     }
 }
 
-private struct CodexAccountIssueCard: View {
+private struct CodexAccountIssueSummary: View {
     let issue: CodexAccountIssuePresentation
+    let reauthenticate: (() -> Void)?
+    let canReauthenticate: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: issue.recommendedAction == .reauthenticate
                   ? "person.crop.circle.badge.exclamationmark"
                   : "exclamationmark.circle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(issue.tone.color)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1860,15 +2006,23 @@ private struct CodexAccountIssueCard: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Spacer(minLength: 12)
+
+            if let reauthenticate {
+                Button(L10n.tr("action.reauthenticate"), action: reauthenticate)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canReauthenticate)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("\(issue.title). \(issue.message)")
         .accessibilityIdentifier("codex.account.issue")
     }
 }
 
-private struct LimitSectionCard: View {
+private struct LimitSection: View {
     let section: RateLimitDisplaySection
     let tint: Color
 
@@ -1886,7 +2040,7 @@ private struct LimitSectionCard: View {
     }
 }
 
-private struct StoredAccountLimitsGrid: View {
+private struct AccountLimitsGrid: View {
     let sections: [RateLimitDisplaySection]
     let tint: Color
 
@@ -2101,7 +2255,7 @@ private struct LimitProgressBar: View {
     }
 }
 
-private struct EmptyLimitsCard: View {
+private struct EmptyLimitsSummary: View {
     let title: String
     let subtitle: String
 
@@ -2115,53 +2269,14 @@ private struct EmptyLimitsCard: View {
     }
 }
 
-private struct InlineWarningCard: View {
+private struct InlineStatusMessage: View {
     let text: String
+    var color: Color = .red
 
     var body: some View {
         Text(text)
             .font(.callout)
-            .foregroundStyle(.red)
+            .foregroundStyle(color)
             .padding(.vertical, 2)
-    }
-}
-
-private struct ClaudeStateBadge: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        Text(presentation.text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(presentation.tone.color.opacity(0.16), in: Capsule())
-            .foregroundStyle(presentation.tone.color)
-    }
-
-    private var presentation: ProviderBadgePresentation {
-        ProviderPresentation.claudeBadge(source: model.currentClaudeState.source)
-    }
-}
-
-private struct AccountStatusBadge: View {
-    let status: AccountStatus
-    let isCurrent: Bool
-    var provider: TrayStatusProvider = .codex
-
-    var body: some View {
-        Text(presentation.text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(presentation.tone.color.opacity(0.16), in: Capsule())
-            .foregroundStyle(presentation.tone.color)
-    }
-
-    private var presentation: ProviderBadgePresentation {
-        ProviderPresentation.accountBadge(
-            status: status,
-            isCurrent: isCurrent,
-            provider: provider
-        )
     }
 }

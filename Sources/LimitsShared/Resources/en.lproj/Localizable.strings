@@ -47,9 +47,9 @@
 "settings.language.title" = "Language";
 "settings.language.system" = "Use system language";
 "settings.tray_legend.title" = "Tray icon";
-"settings.tray_legend.description" = "Compact percentages show the current limit and how many visible accounts have usable limit data.";
-"settings.tray_legend.codex.title" = "Codex percentage";
-"settings.tray_legend.claude.title" = "Claude percentage";
+"settings.tray_legend.description" = "The first number is the nearest remaining limit; the second is accounts with fresh data.";
+"settings.tray_legend.codex.title" = "Codex";
+"settings.tray_legend.claude.title" = "Claude";
 "busy.connecting_claude_live" = "Connecting Claude live limits…";
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";
@@ -308,9 +308,10 @@
 "insights.tokens.millions_suffix" = "M";
 "insights.tokens.billions_suffix" = "B";
 "insights.settings.title" = "Codex statistics";
-"insights.settings.description" = "Clear starts a durable zero point: earlier local and server usage stays outside analytics. Import history again removes that boundary, rereads local JSONL and refreshes server totals; quota forecasts start collecting again.";
 "insights.settings.reimport" = "Import history again";
+"insights.settings.reimport.detail" = "Remove the zero point, reread local JSONL and refresh the server total.";
 "insights.settings.clear" = "Clear statistics";
+"insights.settings.clear.detail" = "Start new statistics now while keeping accounts and sign-in data.";
 "insights.settings.clear.confirm_title" = "Clear all Codex statistics?";
 "insights.settings.clear.confirm_message" = "Now becomes the new zero point. Earlier local and server usage stays outside analytics; accounts, credentials, auth history, rate cards and import positions remain. New activity is counted from this moment.";
 "insights.settings.clearing" = "Clearing Codex statistics…";
@@ -333,3 +334,4 @@
 "insights.unattributed.context" = "Not included in account totals · %@";
 "insights.unattributed.tokens" = "%@ tokens";
 "insights.unattributed.estimates" = "%@ cr · API ≈ %@";
+"insights.account.empty" = "No usage was recorded for this period.";

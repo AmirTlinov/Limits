@@ -1,9 +1,10 @@
 import SwiftUI
 import LimitsCore
+import LimitsShared
 
 enum ProviderAccent {
-    static let codex = Color.blue
-    static let claude = Color(red: 0.86, green: 0.39, blue: 0.24)
+    static let codex = LimitsProviderAppearance.codex.color
+    static let claude = LimitsProviderAppearance.claude.color
 }
 
 extension ProviderTone {
@@ -13,8 +14,6 @@ extension ProviderTone {
             return ProviderAccent.codex
         case .claude:
             return ProviderAccent.claude
-        case .success:
-            return .green
         case .warning:
             return .orange
         case .danger:

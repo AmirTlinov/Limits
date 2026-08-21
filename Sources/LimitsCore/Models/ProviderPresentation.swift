@@ -4,10 +4,24 @@ import LimitsShared
 @frozen public enum ProviderTone: Hashable, Sendable {
     case codex
     case claude
-    case success
     case warning
     case danger
     case secondary
+}
+
+public struct AccountIdentityPresentation: Hashable, Sendable {
+    public let title: String
+    public let subtitle: String?
+
+    public init(label: String, email: String?) {
+        title = label
+        guard let email, !email.isEmpty,
+              label.caseInsensitiveCompare(email) != .orderedSame else {
+            subtitle = nil
+            return
+        }
+        subtitle = email
+    }
 }
 
 public struct ProviderBadgePresentation: Hashable, Sendable {
@@ -87,7 +101,7 @@ public enum ProviderPresentation {
 
         return switch status {
         case .ok:
-            ProviderBadgePresentation(text: L10n.tr("account.ready"), tone: .success)
+            ProviderBadgePresentation(text: L10n.tr("account.ready"), tone: .secondary)
         case .limitReached:
             ProviderBadgePresentation(text: L10n.tr("account.limit"), tone: .warning)
         case .needsReauth:
@@ -128,7 +142,7 @@ public enum ProviderPresentation {
 
         switch status {
         case .ok:
-            return .success
+            return .secondary
         case .limitReached:
             return .warning
         case .needsReauth, .validationFailed:

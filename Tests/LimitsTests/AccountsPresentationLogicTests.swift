@@ -397,6 +397,24 @@ import LimitsShared
     #expect(ProviderPresentation.claudeBadge(source: .external("user@example.com")).tone == .claude)
     #expect(ProviderPresentation.accountBadge(status: .limitReached, isCurrent: false, provider: .codex).tone == .warning)
     #expect(ProviderPresentation.accountBadge(status: .ok, isCurrent: true, provider: .claude).tone == .claude)
+    #expect(ProviderPresentation.accountBadge(status: .ok, isCurrent: false, provider: .codex).tone == .secondary)
+}
+
+@Test func accountIdentityShowsEmailOnlyWhenItAddsASecondIdentity() {
+    let emailOnly = AccountIdentityPresentation(label: "user@example.com", email: "USER@example.com")
+    #expect(emailOnly.title == "user@example.com")
+    #expect(emailOnly.subtitle == nil)
+
+    let named = AccountIdentityPresentation(label: "Work", email: "user@example.com")
+    #expect(named.title == "Work")
+    #expect(named.subtitle == "user@example.com")
+}
+
+@Test func codexIssueCarriesTheSameSemanticSeverityAsItsRecoveryState() throws {
+    let account = makeStoredAccount(label: "expired@example.com", status: .needsReauth)
+    let issue = try #require(CodexAccountIssuePresentationPolicy.presentation(for: account))
+    #expect(issue.recommendedAction == .reauthenticate)
+    #expect(issue.tone == .danger)
 }
 
 @Test func trayStatusSnapshotCarriesMetricTooltipAndAccessibilityText() {

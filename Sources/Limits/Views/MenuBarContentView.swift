@@ -62,11 +62,20 @@ struct MenuBarContentView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            panelActionButton(L10n.tr("action.open_window")) {
-                openAccountsWindow()
-            }
+            Text("Limits")
+                .font(.headline)
 
             Spacer(minLength: 0)
+
+            Button {
+                openAccountsWindow()
+            } label: {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .help(L10n.tr("action.open_window"))
+            .accessibilityLabel(L10n.tr("action.open_window"))
         }
     }
 
@@ -197,7 +206,7 @@ struct MenuBarContentView: View {
                         subtitle: storedCodexSubtitle(for: account),
                         plan: model.chatGPTPlanPresentation(for: account),
                         subscriptionCycle: model.chatGPTSubscriptionCycle(for: account, now: model.presentationNow),
-                        compactRows: compactRows(from: model.rateLimitSections(for: account)),
+                        compactRows: allRows(from: model.rateLimitSections(for: account)),
                         detailText: storedCodexDetail(for: account),
                         metaText: nil,
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
@@ -363,6 +372,10 @@ struct MenuBarContentView: View {
         Array((sections.first?.rows ?? []).prefix(2))
     }
 
+    private func allRows(from sections: [RateLimitDisplaySection]) -> [RateLimitDisplayRow] {
+        sections.flatMap(\.rows)
+    }
+
     private func categoryCountText(_ count: Int) -> String {
         L10n.accountCount(count)
     }
@@ -445,7 +458,7 @@ struct MenuBarContentView: View {
             return issue.title
         }
 
-        if compactRows(from: model.rateLimitSections(for: account)).isEmpty {
+        if allRows(from: model.rateLimitSections(for: account)).isEmpty {
             return model.storedRateLimitSummary(for: account)
                 ?? account.shortStatusText
         }
@@ -606,14 +619,14 @@ private enum TrayAccountRowStyle {
     var cornerRadius: CGFloat {
         switch self {
         case .current: 18
-        case .stored: 16
+        case .stored: 10
         }
     }
 
     var verticalPadding: CGFloat {
         switch self {
         case .current: 10
-        case .stored: 8
+        case .stored: 6
         }
     }
 
@@ -627,14 +640,14 @@ private enum TrayAccountRowStyle {
     var fillOpacity: Double {
         switch self {
         case .current: 0.075
-        case .stored: 0.038
+        case .stored: 0
         }
     }
 
     var strokeOpacity: Double {
         switch self {
         case .current: 0.075
-        case .stored: 0.030
+        case .stored: 0
         }
     }
 }
@@ -701,55 +714,53 @@ private struct TrayAccountRow: View {
                 }
             }
 
-            if let plan {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(plan.title)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-
-                    Spacer(minLength: 6)
-
-                    if let monthlyPrice = plan.monthlyPrice {
-                        Text(monthlyPrice)
-                            .font(.subheadline.weight(.bold))
-                            .monospacedDigit()
+            switch style {
+            case .current:
+                if let plan {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(plan.title)
+                            .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
+
+                        Spacer(minLength: 6)
+
+                        if let monthlyPrice = plan.monthlyPrice {
+                            Text(monthlyPrice)
+                                .font(.subheadline.weight(.bold))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+
+                if let subscriptionCycle {
+                    CompactSubscriptionBarView(cycle: subscriptionCycle, tint: accent)
+                }
+
+                if let detailText, !detailText.isEmpty {
+                    detailLabel(detailText)
+                }
+
+                if !compactRows.isEmpty {
+                    CompactLimitBarsView(rows: compactRows, dense: true, tint: accent)
+                }
+
+                if let metaText, !metaText.isEmpty {
+                    HStack {
+                        Spacer(minLength: 0)
+
+                        Text(metaText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
                 }
-                .accessibilityElement(children: .combine)
-            }
-
-            if let subscriptionCycle {
-                CompactSubscriptionBarView(cycle: subscriptionCycle, tint: accent)
-            }
-
-            if let detailText, !detailText.isEmpty {
-                if let detailAccessibilityIdentifier {
-                    Text(detailText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .accessibilityIdentifier(detailAccessibilityIdentifier)
-                } else {
-                    Text(detailText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-
-            if !compactRows.isEmpty {
-                CompactLimitBarsView(rows: compactRows, dense: true, tint: accent)
-            }
-
-            if let metaText, !metaText.isEmpty {
-                HStack {
-                    Spacer(minLength: 0)
-
-                    Text(metaText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+            case .stored:
+                if let row = storedLimitRow {
+                    CompactLimitBarsView(rows: [row], tint: accent)
+                } else if let detailText, !detailText.isEmpty {
+                    detailLabel(detailText)
                 }
             }
         }
@@ -765,9 +776,34 @@ private struct TrayAccountRow: View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
 
         shape
-            .fill(Color.white.opacity(style.fillOpacity))
+            .fill(Color.primary.opacity(style.fillOpacity))
             .overlay {
                 shape.stroke(.primary.opacity(style.strokeOpacity), lineWidth: 1)
             }
+    }
+
+    private var storedLimitRow: RateLimitDisplayRow? {
+        compactRows.min { lhs, rhs in
+            if lhs.remainingPercent != rhs.remainingPercent {
+                return lhs.remainingPercent < rhs.remainingPercent
+            }
+            return lhs.id < rhs.id
+        }
+    }
+
+    @ViewBuilder
+    private func detailLabel(_ text: String) -> some View {
+        if let detailAccessibilityIdentifier {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .accessibilityIdentifier(detailAccessibilityIdentifier)
+        } else {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
     }
 }

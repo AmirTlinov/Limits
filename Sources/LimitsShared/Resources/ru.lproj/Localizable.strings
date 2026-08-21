@@ -47,9 +47,9 @@
 "settings.language.title" = "Язык";
 "settings.language.system" = "Как в системе";
 "settings.tray_legend.title" = "Иконка в трее";
-"settings.tray_legend.description" = "Компактные проценты показывают текущий лимит и сколько видимых аккаунтов имеют годные данные лимитов.";
-"settings.tray_legend.codex.title" = "Процент Codex";
-"settings.tray_legend.claude.title" = "Процент Claude";
+"settings.tray_legend.description" = "Первое число — ближайший оставшийся лимит; второе — аккаунты со свежими данными.";
+"settings.tray_legend.codex.title" = "Codex";
+"settings.tray_legend.claude.title" = "Claude";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";
@@ -308,9 +308,10 @@
 "insights.tokens.millions_suffix" = " млн";
 "insights.tokens.billions_suffix" = " млрд";
 "insights.settings.title" = "Статистика Codex";
-"insights.settings.description" = "Очистка создаёт устойчивую нулевую точку: прежняя локальная и серверная активность остаётся за границей аналитики. Повторный импорт снимает эту границу, перечитывает локальные JSONL и обновляет серверные итоги; прогнозы квот начинают собираться заново.";
 "insights.settings.reimport" = "Импортировать историю заново";
+"insights.settings.reimport.detail" = "Снимает нулевую точку, перечитывает локальные JSONL и обновляет серверный итог.";
 "insights.settings.clear" = "Очистить статистику";
+"insights.settings.clear.detail" = "Начинает новую статистику сейчас, сохраняя аккаунты и данные входа.";
 "insights.settings.clear.confirm_title" = "Очистить всю статистику Codex?";
 "insights.settings.clear.confirm_message" = "Текущий момент станет новой нулевой точкой. Прежняя локальная и серверная активность останется за границей аналитики; аккаунты, данные входа, история авторизации, тарифы и позиции импорта сохранятся. Новая активность будет считаться с этого момента.";
 "insights.settings.clearing" = "Очищаем статистику Codex…";
@@ -333,3 +334,4 @@
 "insights.unattributed.context" = "Не входит в итоги аккаунтов · %@";
 "insights.unattributed.tokens" = "%@ токенов";
 "insights.unattributed.estimates" = "%@ cr · API ≈ %@";
+"insights.account.empty" = "За этот период нет данных об использовании.";

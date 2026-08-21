@@ -909,6 +909,18 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
     public var riskiestQuotaForecast: CodexQuotaForecast? {
         quotaForecasts.min(by: CodexQuotaForecast.riskOrder)
     }
+
+    public var hasDisplayableUsage: Bool {
+        if totals.usage.totalTokens > 0 { return true }
+        if totals.credits.map({ $0 != 0 }) == true { return true }
+        if totals.apiEquivalentUSD.map({ $0 != 0 }) == true { return true }
+        if models.contains(where: { $0.totals.usage.totalTokens > 0 }) { return true }
+        return daily.contains { day in
+            day.totals.usage.totalTokens > 0
+                || day.totals.credits.map({ $0 != 0 }) == true
+                || day.totals.apiEquivalentUSD.map({ $0 != 0 }) == true
+        }
+    }
 }
 
 @frozen public enum OpenAIPriceMetric: String, CaseIterable, Codable, Hashable, Sendable {

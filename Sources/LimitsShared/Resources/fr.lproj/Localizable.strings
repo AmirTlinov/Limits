@@ -47,9 +47,9 @@
 "settings.language.title" = "Langue";
 "settings.language.system" = "Utiliser la langue du système";
 "settings.tray_legend.title" = "Icône de la barre de menus";
-"settings.tray_legend.description" = "Des pourcentages compacts affichent la limite actuelle et les comptes visibles avec des données de limites utilisables.";
-"settings.tray_legend.codex.title" = "Pourcentage Codex";
-"settings.tray_legend.claude.title" = "Pourcentage Claude";
+"settings.tray_legend.description" = "Le premier nombre est la limite restante la plus proche ; le second, le nombre de comptes aux données à jour.";
+"settings.tray_legend.codex.title" = "Codex";
+"settings.tray_legend.claude.title" = "Claude";
 "busy.connecting_claude_live" = "Connexion aux limites en direct de Claude…";
 "busy.deleting" = "Suppression de %@…";
 "busy.disconnecting_claude_bridge" = "Déconnexion du pont Claude…";
@@ -308,9 +308,10 @@
 "insights.tokens.millions_suffix" = " M";
 "insights.tokens.billions_suffix" = " Md";
 "insights.settings.title" = "Statistiques Codex";
-"insights.settings.description" = "Effacer crée un point zéro durable : l’usage local et serveur antérieur reste hors des analyses. Réimporter supprime cette frontière, relit les JSONL locaux et actualise les totaux serveur ; les prévisions recommencent leur collecte.";
 "insights.settings.reimport" = "Réimporter l’historique";
+"insights.settings.reimport.detail" = "Supprime le point zéro, relit les JSONL locaux et actualise le total serveur.";
 "insights.settings.clear" = "Effacer les statistiques";
+"insights.settings.clear.detail" = "Démarre de nouvelles statistiques maintenant tout en conservant les comptes et les données de connexion.";
 "insights.settings.clear.confirm_title" = "Effacer toutes les statistiques Codex ?";
 "insights.settings.clear.confirm_message" = "Maintenant devient le nouveau point zéro. L’usage local et serveur antérieur reste hors des analyses ; comptes, identifiants, historique d’authentification, tarifs et positions d’importation sont conservés. La nouvelle activité compte dès maintenant.";
 "insights.settings.clearing" = "Effacement des statistiques Codex…";
@@ -333,3 +334,4 @@
 "insights.unattributed.context" = "Hors des totaux des comptes · %@";
 "insights.unattributed.tokens" = "%@ jetons";
 "insights.unattributed.estimates" = "%@ cr · API ≈ %@";
+"insights.account.empty" = "Aucune utilisation n’a été enregistrée pour cette période.";

@@ -134,11 +134,13 @@ private struct LimitsWidgetView: View {
         VStack(alignment: .leading, spacing: 10) {
             header(compact: false)
 
-            HStack(alignment: .top, spacing: 10) {
-                ForEach(providers.prefix(2)) { provider in
-                    ProviderCard(provider: provider, stale: !provider.isFresh(at: entry.date), maxLimits: 2)
-                }
-            }
+            Divider()
+
+            ProviderSummaryColumns(
+                providers: Array(providers.prefix(2)),
+                now: entry.date,
+                maxLimits: 2
+            )
 
             Spacer(minLength: 0)
         }
@@ -150,7 +152,8 @@ private struct LimitsWidgetView: View {
             header(compact: false)
 
             if let analytics = snapshot.codexAnalytics {
-                WidgetCodexAnalyticsCard(
+                Divider()
+                WidgetCodexAnalyticsSummary(
                     summary: analytics,
                     now: entry.date,
                     stale: analytics.forecastState == .stale || (
@@ -163,15 +166,13 @@ private struct LimitsWidgetView: View {
                 )
             }
 
-            HStack(alignment: .top, spacing: 10) {
-                ForEach(providers.prefix(2)) { provider in
-                    ProviderCard(
-                        provider: provider,
-                        stale: !provider.isFresh(at: entry.date),
-                        maxLimits: family == .systemExtraLarge ? 3 : 2
-                    )
-                }
-            }
+            Divider()
+
+            ProviderSummaryColumns(
+                providers: Array(providers.prefix(2)),
+                now: entry.date,
+                maxLimits: family == .systemExtraLarge ? 3 : 2
+            )
 
             Spacer(minLength: 0)
             updatedText(snapshot: snapshot)
@@ -223,7 +224,7 @@ private struct LimitsWidgetView: View {
     }
 }
 
-private struct WidgetCodexAnalyticsCard: View {
+private struct WidgetCodexAnalyticsSummary: View {
     let summary: CodexAnalyticsSummary
     let now: Date
     let stale: Bool
@@ -251,18 +252,18 @@ private struct WidgetCodexAnalyticsCard: View {
                 .progressViewStyle(.linear)
                 .tint(forecastColor)
 
-            HStack(spacing: 16) {
-                Label(compactTokens(summary.weeklyTokens), systemImage: "text.word.spacing")
-                Label(
-                    summary.weeklyCredits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    systemImage: "sparkles"
+            HStack(spacing: 12) {
+                WidgetAnalyticsMetric(
+                    title: L10n.tr("insights.metric.tokens"),
+                    value: compactTokens(summary.weeklyTokens)
+                )
+                Divider().frame(height: 24)
+                WidgetAnalyticsMetric(
+                    title: L10n.tr("insights.metric.credits"),
+                    value: summary.weeklyCredits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—"
                 )
             }
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
         }
-        .padding(11)
-        .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
@@ -299,6 +300,22 @@ private struct WidgetCodexAnalyticsCard: View {
     }
 }
 
+private struct WidgetAnalyticsMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+        }
+    }
+}
+
 private struct ProviderCompactLine: View {
     let provider: LimitsWidgetProviderSnapshot
     let stale: Bool
@@ -320,7 +337,34 @@ private struct ProviderCompactLine: View {
     }
 }
 
-private struct ProviderCard: View {
+private struct ProviderSummaryColumns: View {
+    let providers: [LimitsWidgetProviderSnapshot]
+    let now: Date
+    let maxLimits: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            if let first = providers.first {
+                ProviderSummaryColumn(
+                    provider: first,
+                    stale: !first.isFresh(at: now),
+                    maxLimits: maxLimits
+                )
+            }
+
+            if providers.count > 1 {
+                Divider()
+                ProviderSummaryColumn(
+                    provider: providers[1],
+                    stale: !providers[1].isFresh(at: now),
+                    maxLimits: maxLimits
+                )
+            }
+        }
+    }
+}
+
+private struct ProviderSummaryColumn: View {
     let provider: LimitsWidgetProviderSnapshot
     let stale: Bool
     let maxLimits: Int
@@ -356,13 +400,7 @@ private struct ProviderCard: View {
                 }
             }
         }
-        .padding(10)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.primary.opacity(0.06), lineWidth: 1)
-        }
     }
 }
 
@@ -410,22 +448,9 @@ private struct LimitBarRow: View {
     }
 }
 
-private struct ProviderAppearance {
-    let displayTitle: String
-    let shortTitle: String
-    let color: Color
-}
-
 private extension LimitsWidgetProviderSnapshot {
-    var appearance: ProviderAppearance {
-        switch id {
-        case .codex:
-            ProviderAppearance(displayTitle: "Codex", shortTitle: "Codex", color: .blue)
-        case .claude:
-            ProviderAppearance(displayTitle: "Claude Code", shortTitle: "Claude", color: Color(red: 0.86, green: 0.39, blue: 0.24))
-        @unknown default:
-            ProviderAppearance(displayTitle: title, shortTitle: title, color: .secondary)
-        }
+    var appearance: LimitsProviderAppearance {
+        id.appearance
     }
 
     func primaryPercentText(stale: Bool) -> String {

@@ -20,82 +20,81 @@ struct SettingsView: View {
     private var catalog: ProviderCatalogSnapshot { model.providerCatalog }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(L10n.tr("settings.title"))
                 .font(.title2.weight(.semibold))
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 14)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.tr("settings.general.title"))
-                    .font(.headline)
+            Form {
+                Section {
+                    Toggle(L10n.tr("settings.launch_at_login.title"), isOn: launchAtLoginBinding)
+                        .disabled(launchAtLogin.state == .unavailable)
 
-                Toggle(L10n.tr("settings.launch_at_login.title"), isOn: launchAtLoginBinding)
-                .disabled(launchAtLogin.state == .unavailable)
-
-                if launchAtLogin.state == .requiresApproval {
-                    HStack(spacing: 8) {
-                        Text(L10n.tr("settings.launch_at_login.requires_approval"))
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        Button(L10n.tr("settings.launch_at_login.open_settings")) {
-                            launchAtLogin.openSystemSettings()
+                    if launchAtLogin.state == .requiresApproval {
+                        HStack(spacing: 8) {
+                            Text(L10n.tr("settings.launch_at_login.requires_approval"))
+                                .foregroundStyle(.orange)
+                            Spacer(minLength: 12)
+                            Button(L10n.tr("settings.launch_at_login.open_settings")) {
+                                launchAtLogin.openSystemSettings()
+                            }
                         }
-                        .buttonStyle(.link)
+                        .font(.caption)
+                    } else if launchAtLogin.state == .unavailable {
+                        Text(L10n.tr("settings.launch_at_login.unavailable"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                } else if launchAtLogin.state == .unavailable {
-                    Text(L10n.tr("settings.launch_at_login.unavailable"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+
+                    if let errorMessage = launchAtLogin.errorMessage {
+                        Text(L10n.tr("settings.launch_at_login.error", errorMessage))
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    Button(L10n.tr("settings.updates.check"), action: checkForUpdates)
+                } header: {
+                    Text(L10n.tr("settings.general.title"))
                 }
 
-                if let errorMessage = launchAtLogin.errorMessage {
-                    Text(L10n.tr("settings.launch_at_login.error", errorMessage))
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-
-                Button(L10n.tr("settings.updates.check"), action: checkForUpdates)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.tr("insights.settings.title"))
-                    .font(.headline)
-                Text(L10n.tr("insights.settings.description"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 10) {
-                    Button(L10n.tr("insights.settings.reimport")) {
+                Section {
+                    SettingsMaintenanceAction(
+                        title: L10n.tr("insights.settings.reimport"),
+                        detail: L10n.tr("insights.settings.reimport.detail"),
+                        isDisabled: model.isProviderBusy(.codex) || !model.canMutateDomain
+                    ) {
                         Task { await model.reimportCodexHistory() }
                     }
-                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
 
-                    Button(L10n.tr("insights.settings.clear"), role: .destructive) {
+                    SettingsMaintenanceAction(
+                        title: L10n.tr("insights.settings.clear"),
+                        detail: L10n.tr("insights.settings.clear.detail"),
+                        role: .destructive,
+                        isDisabled: model.isProviderBusy(.codex) || !model.canMutateDomain
+                    ) {
                         confirmsStatisticsClear = true
                     }
-                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
+                } header: {
+                    Text(L10n.tr("insights.settings.title"))
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.tr("settings.language.title"))
-                    .font(.headline)
-                Picker(L10n.tr("settings.language.title"), selection: languageBinding) {
-                    Text(L10n.tr("settings.language.system")).tag("")
-                    ForEach(L10n.supportedLocalizations, id: \.self) { language in
-                        Text(L10n.displayName(for: language)).tag(language)
+                Section {
+                    Picker(L10n.tr("settings.language.title"), selection: languageBinding) {
+                        Text(L10n.tr("settings.language.system")).tag("")
+                        ForEach(L10n.supportedLocalizations, id: \.self) { language in
+                            Text(L10n.displayName(for: language)).tag(language)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(maxWidth: 260, alignment: .leading)
+                } header: {
+                    Text(L10n.tr("settings.language.title"))
                 }
-                .pickerStyle(.menu)
-                .frame(width: 260, alignment: .leading)
-            }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text(L10n.tr("settings.tray_legend.title"))
-                    .font(.headline)
-                Text(L10n.tr("settings.tray_legend.description"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                VStack(alignment: .leading, spacing: 9) {
+                Section {
                     ForEach(catalog.trayProviders, id: \.self) { provider in
                         TrayLegendRow(
                             provider: provider,
@@ -104,15 +103,16 @@ struct SettingsView: View {
                             title: L10n.tr(provider == .codex ? "settings.tray_legend.codex.title" : "settings.tray_legend.claude.title")
                         )
                     }
+                } header: {
+                    Text(L10n.tr("settings.tray_legend.title"))
+                } footer: {
+                    Text(L10n.tr("settings.tray_legend.description"))
                 }
-                .padding(14)
-                .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-
-            Spacer(minLength: 0)
+            .formStyle(.grouped)
         }
-        .padding(28)
-        .frame(width: 560, height: 640, alignment: .topLeading)
+        .frame(width: 560)
+        .frame(minHeight: 680, alignment: .topLeading)
         .onAppear {
             launchAtLogin.refresh()
         }
@@ -146,6 +146,41 @@ struct SettingsView: View {
             get: { launchAtLogin.state.isRequested },
             set: { launchAtLogin.setEnabled($0) }
         )
+    }
+}
+
+private struct SettingsMaintenanceAction: View {
+    let title: String
+    let detail: String
+    var role: ButtonRole?
+    let isDisabled: Bool
+    let action: () -> Void
+
+    init(
+        title: String,
+        detail: String,
+        role: ButtonRole? = nil,
+        isDisabled: Bool,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.detail = detail
+        self.role = role
+        self.isDisabled = isDisabled
+        self.action = action
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Button(title, role: role, action: action)
+                .disabled(isDisabled)
+
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 3)
     }
 }
 

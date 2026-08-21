@@ -47,9 +47,9 @@
 "settings.language.title" = "语言";
 "settings.language.system" = "使用系统语言";
 "settings.tray_legend.title" = "菜单栏图标";
-"settings.tray_legend.description" = "紧凑百分比显示当前限额，以及可见账户中有可用限额数据的数量。";
-"settings.tray_legend.codex.title" = "Codex 百分比";
-"settings.tray_legend.claude.title" = "Claude 百分比";
+"settings.tray_legend.description" = "第一个数字是最近的剩余额度；第二个数字是数据仍然新鲜的账户数。";
+"settings.tray_legend.codex.title" = "Codex";
+"settings.tray_legend.claude.title" = "Claude";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";
@@ -308,9 +308,10 @@
 "insights.tokens.millions_suffix" = "M";
 "insights.tokens.billions_suffix" = "B";
 "insights.settings.title" = "Codex 统计";
-"insights.settings.description" = "清除会建立持久的零点：此前的本地和服务器用量不再进入分析。重新导入会移除这条边界，重读本地 JSONL 并刷新服务器总量；配额预测也会重新收集。";
 "insights.settings.reimport" = "重新导入历史";
+"insights.settings.reimport.detail" = "移除零点，重新读取本地 JSONL，并刷新服务器总量。";
 "insights.settings.clear" = "清除统计";
+"insights.settings.clear.detail" = "从现在开始重新统计，同时保留账户和登录数据。";
 "insights.settings.clear.confirm_title" = "清除所有 Codex 统计？";
 "insights.settings.clear.confirm_message" = "当前时刻将成为新的零点。此前的本地和服务器用量不再进入分析；账户、凭据、认证历史、费率和导入位置都会保留。新活动从此刻开始计入。";
 "insights.settings.clearing" = "正在清除 Codex 统计…";
@@ -333,3 +334,4 @@
 "insights.unattributed.context" = "不计入账户汇总 · %@";
 "insights.unattributed.tokens" = "%@ tokens";
 "insights.unattributed.estimates" = "%@ cr · API ≈ %@";
+"insights.account.empty" = "此期间没有记录到使用数据。";
