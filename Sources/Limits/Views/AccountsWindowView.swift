@@ -2006,6 +2006,9 @@ private struct CodexAccountIssueSummary: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(issue.title). \(issue.message)")
+            .accessibilityIdentifier("codex.account.issue")
 
             Spacer(minLength: 12)
 
@@ -2016,9 +2019,6 @@ private struct CodexAccountIssueSummary: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(issue.title). \(issue.message)")
-        .accessibilityIdentifier("codex.account.issue")
     }
 }
 
