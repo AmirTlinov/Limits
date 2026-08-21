@@ -1054,10 +1054,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func currentCLIProbeWarningText() -> String? {
-        currentCLIProbeError.map { CodexSessionPresentation.probeNote(for: $0) }
-    }
-
     func isCurrentCLIAuthMissing() -> Bool {
         if case .missing = currentCLIState.source {
             return true
@@ -1395,27 +1391,6 @@ final class AppModel: ObservableObject {
             }
         )
         return CodexAccountsPresentationPolicy.sortedForSidebar(accounts, summaries: summaries)
-    }
-
-    func currentCLISidebarLimitSummary(now: Date = .now) -> SidebarLimitSummary? {
-        CodexAccountsPresentationPolicy.sidebarLimitSummary(
-            primary: currentCLIProbe?.rateLimit,
-            byLimitId: currentCLIProbe?.rateLimitsByLimitId,
-            observedAt: currentCLIProbe?.limitsObservedAt,
-            now: now
-        )
-    }
-
-    func currentCLIDisplaySidebarLimitSummary(now: Date = .now) -> SidebarLimitSummary? {
-        if let liveSummary = currentCLISidebarLimitSummary(now: now), liveSummary.hasLimitData {
-            return liveSummary
-        }
-
-        guard let account = currentCLIReferenceAccount() else {
-            return nil
-        }
-
-        return sidebarLimitSummary(for: account, now: now)
     }
 
     func sidebarLimitSummary(for account: StoredAccount, now: Date = .now) -> SidebarLimitSummary? {

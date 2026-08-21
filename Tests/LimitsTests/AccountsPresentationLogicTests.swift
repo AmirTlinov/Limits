@@ -25,6 +25,22 @@ import LimitsShared
     #expect(destination == .currentClaudeCode)
 }
 
+@Test func removedCurrentCodexSelectionAndMissingAccountFallBackToOverview() {
+    let removedSelection = AccountsPresentationLogic.detailDestination(
+        selectionRaw: "current-cli",
+        codexAccountIDs: [],
+        claudeAccountIDs: []
+    )
+    let missingAccount = AccountsPresentationLogic.detailDestination(
+        selectionRaw: "account:\(UUID().uuidString)",
+        codexAccountIDs: [],
+        claudeAccountIDs: []
+    )
+
+    #expect(removedSelection == .codexOverview)
+    #expect(missingAccount == .codexOverview)
+}
+
 @Test func storedAccountRowsScrollOnlyAfterThreshold() {
     #expect(
         !AccountsPresentationLogic.needsStoredAccountsScroll(
@@ -47,7 +63,7 @@ import LimitsShared
 
     #expect(
         AccountsPresentationLogic.isVisible(
-            destination: .currentCodexCLI,
+            destination: .codexOverview,
             filter: .codex,
             catalog: catalog
         )

@@ -2,7 +2,6 @@ import Foundation
 
 @frozen public enum AccountsDetailDestination: Equatable, Sendable {
     case codexOverview
-    case currentCodexCLI
     case currentClaudeCode
     case codexAccount(UUID)
     case claudeAccount(UUID)
@@ -88,7 +87,7 @@ public enum AccountsPresentationLogic {
             if let id = UUID(uuidString: rawID), codexAccountIDs.contains(id) {
                 return .codexAccount(id)
             }
-            return .currentCodexCLI
+            return .codexOverview
         }
 
         if selectionRaw.hasPrefix("claude-account:") {
@@ -109,7 +108,7 @@ public enum AccountsPresentationLogic {
     ) -> Bool {
         let isClaudeDestination: Bool = switch destination {
         case .currentClaudeCode, .claudeAccount: true
-        case .codexOverview, .currentCodexCLI, .codexAccount: false
+        case .codexOverview, .codexAccount: false
         }
         if isClaudeDestination, !catalog.contains(.claude) { return false }
         switch filter {
@@ -117,7 +116,7 @@ public enum AccountsPresentationLogic {
             return true
         case .codex:
             switch destination {
-            case .codexOverview, .currentCodexCLI, .codexAccount:
+            case .codexOverview, .codexAccount:
                 return true
             case .currentClaudeCode, .claudeAccount:
                 return false
@@ -126,7 +125,7 @@ public enum AccountsPresentationLogic {
             switch destination {
             case .currentClaudeCode, .claudeAccount:
                 return true
-            case .codexOverview, .currentCodexCLI, .codexAccount:
+            case .codexOverview, .codexAccount:
                 return false
             }
         }

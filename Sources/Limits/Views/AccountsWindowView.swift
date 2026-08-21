@@ -6,7 +6,6 @@ import LimitsShared
 
 private enum AccountsSidebarSelection: Hashable {
     case codexOverview
-    case currentCodexCLI
     case codexAccount(UUID)
     case currentClaudeCode
     case claudeAccount(UUID)
@@ -15,8 +14,6 @@ private enum AccountsSidebarSelection: Hashable {
         switch self {
         case .codexOverview:
             return "codex-overview"
-        case .currentCodexCLI:
-            return "current-cli"
         case .codexAccount(let id):
             return "account:\(id.uuidString)"
         case .currentClaudeCode:
@@ -31,11 +28,6 @@ private enum AccountsSidebarSelection: Hashable {
             self = .codexOverview
             return
         }
-        if rawValue == "current-cli" {
-            self = .currentCodexCLI
-            return
-        }
-
         if rawValue == "current-claude" {
             self = .currentClaudeCode
             return
@@ -66,10 +58,6 @@ struct AccountsWindowView: View {
     @ObservedObject var model: AppModel
     @AppStorage("limits.accounts.selection") private var sidebarSelectionRaw = AccountsSidebarSelection.codexOverview.rawValue
     @AppStorage(AccountsSidebarFilter.providerFilterStorageKey) private var sidebarFilterRaw = AccountsSidebarFilter.all.rawValue
-
-    private var overview: AppModel.CurrentCLIOverview {
-        model.currentCLIOverview()
-    }
 
     private var sidebarFilter: AccountsSidebarFilter {
         model.providerCatalog.normalized(AccountsSidebarFilter(rawValue: sidebarFilterRaw) ?? .all)
@@ -236,15 +224,6 @@ struct AccountsWindowView: View {
                             accent: ProviderAccent.codex
                         )
                         .tag(AccountsSidebarSelection.codexOverview)
-
-                        SidebarRowView(
-                            icon: "person.crop.circle.fill.badge.checkmark",
-                            title: TrayStatusProvider.codex.displayTitle,
-                            subtitle: overview.title,
-                            trailing: currentCLITrailingText,
-                            accent: ProviderAccent.codex
-                        )
-                        .tag(AccountsSidebarSelection.currentCodexCLI)
                     }
 
                     if sidebarFilter.includesClaude, shouldShowCurrentClaudeSidebarRow {
@@ -346,10 +325,8 @@ struct AccountsWindowView: View {
                     StoredClaudeDetailPane(model: model, account: selectedClaudeAccount)
                 } else if detailDestination == .currentClaudeCode {
                     CurrentClaudeDetailPane(model: model)
-                } else if detailDestination == .codexOverview {
-                    CodexOverviewPane(model: model)
                 } else {
-                    CurrentCLIDetailPane(model: model)
+                    CodexOverviewPane(model: model)
                 }
             }
             .padding(24)
@@ -362,10 +339,6 @@ struct AccountsWindowView: View {
         }
         .accessibilityIdentifier("accounts.detail.scroll")
         .background(Color.clear)
-    }
-
-    private var currentCLITrailingText: String? {
-        model.currentCLIDisplaySidebarLimitSummary()?.compactLimitText()
     }
 
     private var overviewCreditsText: String? {
@@ -465,8 +438,6 @@ struct AccountsWindowView: View {
         switch destination {
         case .codexOverview:
             return .codexOverview
-        case .currentCodexCLI:
-            return .currentCodexCLI
         case .currentClaudeCode:
             return .currentClaudeCode
         case .codexAccount(let id):
@@ -1000,135 +971,6 @@ private struct UnattributedInsightsSummary: View {
         insights.totals.apiEquivalentUSD.map {
             L10n.localizedCurrencyUSD($0)
         } ?? "—"
-    }
-}
-
-private struct CurrentCLIDetailPane: View {
-    @ObservedObject var model: AppModel
-
-    private var overview: AppModel.CurrentCLIOverview {
-        model.currentCLIOverview()
-    }
-
-    private var sections: [RateLimitDisplaySection] {
-        model.currentCLIDisplayRateLimitSections()
-    }
-
-    private var probeWarningText: String? {
-        guard let warning = model.currentCLIProbeWarningText() else {
-            return nil
-        }
-
-        return warning == overview.note ? nil : warning
-    }
-
-    private var plan: ChatGPTPlanPresentation? {
-        model.currentChatGPTPlanPresentation()
-    }
-
-    private var subscriptionCycle: ChatGPTSubscriptionCyclePresentation? {
-        model.currentChatGPTSubscriptionCycle(now: model.presentationNow)
-    }
-
-    private var identity: AccountIdentityPresentation {
-        AccountIdentityPresentation(
-            label: overview.title,
-            email: model.currentCLIProbe?.email ?? model.currentCLIReferenceAccount()?.email
-        )
-    }
-
-    private var showsPrimaryAction: Bool {
-        model.hasCurrentCLIAuthToImport() || model.shouldOfferAddAccountAsPrimaryAction()
-    }
-
-    var body: some View {
-        AccountDetailLayout(
-            title: identity.title,
-            subtitle: identity.subtitle,
-            note: overview.note,
-            metaLine: nil,
-            renameTitle: model.canMutateDomain ? model.currentCLIReferenceAccount().map { account in
-                { title in Task { await model.renameAccount(account, to: title) } }
-            } : nil,
-            subtitleIsCopyable: identity.subtitle != nil,
-            showsActions: showsPrimaryAction,
-            headerAccessory: {
-                ProviderStatusBadge(
-                    presentation: ProviderPresentation.codexBadge(source: model.currentCLIState.source)
-                )
-            },
-            details: {
-                if let plan {
-                    ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle) {
-                        MinimalSeparator()
-                        CurrentCodexAccountSummary(
-                            errorMessage: model.providerErrorMessage(.codex) ?? model.errorMessage,
-                            warningText: probeWarningText,
-                            sections: sections,
-                            emptySummary: model.currentLastKnownRateLimitSummary()
-                                ?? overview.note
-                                ?? L10n.tr("limits.empty.subtitle")
-                        )
-                    }
-                } else {
-                    CurrentCodexAccountSummary(
-                        errorMessage: model.providerErrorMessage(.codex) ?? model.errorMessage,
-                        warningText: probeWarningText,
-                        sections: sections,
-                        emptySummary: model.currentLastKnownRateLimitSummary()
-                            ?? overview.note
-                            ?? L10n.tr("limits.empty.subtitle")
-                    )
-                }
-            },
-            actions: {
-                if showsPrimaryAction {
-                    if model.hasCurrentCLIAuthToImport() {
-                        Button(L10n.tr("action.import_current_auth")) {
-                            Task { await model.importCurrentCLIAuth() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
-                    } else if model.shouldOfferAddAccountAsPrimaryAction() {
-                        Button(L10n.tr("action.add_account")) {
-                            Task { await model.addAccount() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
-                    }
-                }
-            }
-        )
-    }
-}
-
-private struct CurrentCodexAccountSummary: View {
-    let errorMessage: String?
-    let warningText: String?
-    let sections: [RateLimitDisplaySection]
-    let emptySummary: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let errorMessage {
-                InlineStatusMessage(text: errorMessage, color: .red)
-                MinimalSeparator()
-            }
-
-            if let warningText {
-                InlineStatusMessage(text: warningText, color: .orange)
-                MinimalSeparator()
-            }
-
-            if sections.isEmpty {
-                EmptyLimitsSummary(
-                    title: L10n.tr("limits.empty.title"),
-                    subtitle: emptySummary
-                )
-            } else {
-                AccountLimitsGrid(sections: sections, tint: ProviderAccent.codex)
-            }
-        }
     }
 }
 
