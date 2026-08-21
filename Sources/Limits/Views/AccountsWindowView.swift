@@ -1688,6 +1688,7 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
                                 subtitleLabel(subtitle)
                             }
                             .buttonStyle(.plain)
+                            .focusEffectDisabled()
                             .help(L10n.tr("account.email.copy"))
                             .accessibilityHint(L10n.tr("account.email.copy"))
                             .accessibilityIdentifier("account.identity.email")
