@@ -157,7 +157,6 @@ struct TokenActivityCalendar: View {
 
     private struct ActivityGrid {
         let weeks: [Week]
-        let intensityScale: TokenActivityIntensityScale
     }
 
     let daily: [CodexDailyUsage]
@@ -168,7 +167,7 @@ struct TokenActivityCalendar: View {
 
     private let cellSpacing: CGFloat = 2
     private let minimumCellSize: CGFloat = 9
-    private let maximumCellSize: CGFloat = 13
+    private let maximumCellSize: CGFloat = 18
     private let weekdayColumnWidth: CGFloat = 18
     private let weekdayColumnSpacing: CGFloat = 6
 
@@ -184,6 +183,35 @@ struct TokenActivityCalendar: View {
     }
     private var start: Date { visibleRange.lowerBound }
     private var end: Date { visibleRange.upperBound }
+    private var usageByDay: [Date: CodexDailyUsage] {
+        Dictionary(uniqueKeysWithValues: daily.map { (calendar.startOfDay(for: $0.date), $0) })
+    }
+    private var visibleDays: [Day] {
+        let usage = usageByDay
+        var date = start
+        var result: [Day] = []
+        while date <= end {
+            result.append(
+                Day(
+                    date: date,
+                    usage: usage[date],
+                    isInRange: true,
+                    isFuture: date > today
+                )
+            )
+            guard let next = calendar.date(byAdding: .day, value: 1, to: date), next > date else { break }
+            date = next
+        }
+        return result
+    }
+    private var visibleDayCount: Int {
+        max(1, (calendar.dateComponents([.day], from: start, to: end).day ?? 0) + 1)
+    }
+    private var intensityScale: TokenActivityIntensityScale {
+        TokenActivityIntensityScale(tokens: visibleDays.map(\.tokens))
+    }
+    private var usesDayStrip: Bool { visibleDayCount <= 42 }
+
     private func cellSize(for weekCount: Int) -> CGFloat {
         guard gridViewportWidth > 0, weekCount > 0 else { return minimumCellSize }
         let columnGaps = CGFloat(max(0, weekCount - 1)) * cellSpacing
@@ -191,14 +219,16 @@ struct TokenActivityCalendar: View {
         return min(maximumCellSize, max(minimumCellSize, available / CGFloat(weekCount)))
     }
 
+    private func dayStripCellSize(for dayCount: Int) -> CGFloat {
+        guard gridViewportWidth > 0, dayCount > 0 else { return 18 }
+        let gaps = CGFloat(max(0, dayCount - 1)) * cellSpacing
+        let available = gridViewportWidth - gaps
+        let maximum: CGFloat = dayCount <= 14 ? 28 : 22
+        return min(maximum, max(10, available / CGFloat(dayCount)))
+    }
+
     private var activityGrid: ActivityGrid {
-        let usageByDay = Dictionary(
-            uniqueKeysWithValues: daily.map { (calendar.startOfDay(for: $0.date), $0) }
-        )
-        let visibleTokens = usageByDay.compactMap { entry -> Int64? in
-            guard entry.key >= start, entry.key <= min(end, today) else { return nil }
-            return entry.value.totals.usage.totalTokens
-        }
+        let usage = usageByDay
         let weekday = calendar.component(.weekday, from: start)
         let daysSinceMonday = (weekday - calendar.firstWeekday + 7) % 7
         var weekStart = calendar.date(byAdding: .day, value: -daysSinceMonday, to: start) ?? start
@@ -209,7 +239,7 @@ struct TokenActivityCalendar: View {
                 guard let date = calendar.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
                 return Day(
                     date: date,
-                    usage: usageByDay[date],
+                    usage: usage[date],
                     isInRange: date >= start && date <= end,
                     isFuture: date > today
                 )
@@ -223,113 +253,152 @@ struct TokenActivityCalendar: View {
             result.append(Week(start: weekStart, monthLabel: monthLabel, days: days))
             weekStart = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? end.addingTimeInterval(1)
         }
-        return ActivityGrid(
-            weeks: result,
-            intensityScale: TokenActivityIntensityScale(tokens: visibleTokens)
-        )
+        return ActivityGrid(weeks: result)
     }
 
     var body: some View {
-        let grid = activityGrid
-        let cellSize = cellSize(for: grid.weeks.count)
-
         VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
-                Text(
-                    L10n.tr(
-                        "insights.calendar.year_range",
-                        L10n.shortDateWithYear(start),
-                        L10n.shortDateWithYear(end)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
+                    Text(
+                        L10n.tr(
+                            "insights.calendar.year_range",
+                            L10n.shortDateWithYear(start),
+                            L10n.shortDateWithYear(end)
+                        )
                     )
-                )
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                intensityLegend
             }
 
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: weekdayColumnSpacing) {
-                    VStack(alignment: .trailing, spacing: cellSpacing) {
-                        Text("").frame(height: 13)
-                        ForEach(0..<7, id: \.self) { index in
-                            Text(weekdayLabel(index))
+            if usesDayStrip {
+                dayStrip
+            } else {
+                weeklyGrid
+            }
+        }
+        .accessibilityIdentifier("codex.insights.activity-calendar")
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            if abs(width - gridViewportWidth) > 0.5 {
+                gridViewportWidth = width
+            }
+        }
+        .onChange(of: window) {
+            presentedDate = nil
+        }
+    }
+
+    private var intensityLegend: some View {
+        HStack(spacing: 4) {
+            Text(L10n.tr("insights.calendar.less")).font(.caption2).foregroundStyle(.secondary)
+            ForEach(TokenActivityIntensity.allCases, id: \.self) { intensity in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(color(for: intensity))
+                    .frame(width: 9, height: 9)
+            }
+            Text(L10n.tr("insights.calendar.more")).font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private var dayStrip: some View {
+        let days = visibleDays
+        let scale = TokenActivityIntensityScale(tokens: days.map(\.tokens))
+        let size = dayStripCellSize(for: days.count)
+        return HStack(alignment: .top, spacing: cellSpacing) {
+            ForEach(days) { day in
+                VStack(spacing: 3) {
+                    Text(L10n.localizedInteger(Int64(calendar.component(.day, from: day.date))))
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .frame(width: size, height: 11)
+                    activityCell(day, size: size, scale: scale)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("codex.insights.activity-calendar-day-strip")
+    }
+
+    private var weeklyGrid: some View {
+        let grid = activityGrid
+        let scale = intensityScale
+        let size = cellSize(for: grid.weeks.count)
+        return ScrollView(.horizontal) {
+            HStack(alignment: .top, spacing: weekdayColumnSpacing) {
+                VStack(alignment: .trailing, spacing: cellSpacing) {
+                    Text("").frame(height: 13)
+                    ForEach(0..<7, id: \.self) { index in
+                        Text(weekdayLabel(index))
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
+                            .frame(width: weekdayColumnWidth, height: size, alignment: .trailing)
+                    }
+                }
+                HStack(alignment: .top, spacing: cellSpacing) {
+                    ForEach(grid.weeks) { week in
+                        VStack(alignment: .leading, spacing: cellSpacing) {
+                            Text(week.monthLabel ?? "")
                                 .font(.system(size: 8))
                                 .foregroundStyle(.secondary)
-                                .frame(width: weekdayColumnWidth, height: cellSize, alignment: .trailing)
-                        }
-                    }
-                    HStack(alignment: .top, spacing: cellSpacing) {
-                        ForEach(grid.weeks) { week in
-                            VStack(alignment: .leading, spacing: cellSpacing) {
-                                Text(week.monthLabel ?? "")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
-                                    .frame(width: cellSize, height: 13, alignment: .leading)
-                                    .zIndex(1)
-                                ForEach(week.days) { day in
-                                    if day.isInRange, !day.isFuture {
-                                        Button { presentedDate = day.date } label: {
-                                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                .fill(color(for: grid.intensityScale.intensity(for: day.tokens)))
-                                                .frame(width: cellSize, height: cellSize)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .onHover { isInside in
-                                            if isInside {
-                                                presentedDate = day.date
-                                            } else if presentedDate == day.date {
-                                                presentedDate = nil
-                                            }
-                                        }
-                                        .popover(
-                                            isPresented: presentationBinding(for: day.date),
-                                            attachmentAnchor: .rect(.bounds),
-                                            arrowEdge: .bottom
-                                        ) {
-                                            DayDetails(date: day.date, usage: day.usage)
-                                                .padding(12)
-                                                .frame(width: 280)
-                                        }
-                                        .accessibilityLabel(L10n.shortDate(day.date))
-                                        .accessibilityValue(CodexInsightsTextPresentation.compactTokens(day.tokens))
-                                    } else if day.isInRange {
-                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                            .fill(Color.secondary.opacity(0.05))
-                                            .frame(width: cellSize, height: cellSize)
-                                            .accessibilityHidden(true)
-                                    } else {
-                                        Color.clear.frame(width: cellSize, height: cellSize)
-                                    }
-                                }
+                                .fixedSize()
+                                .frame(width: size, height: 13, alignment: .leading)
+                                .zIndex(1)
+                            ForEach(week.days) { day in
+                                activityCell(day, size: size, scale: scale)
                             }
                         }
                     }
                 }
             }
-            .scrollIndicators(.hidden)
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.width
-            } action: { width in
-                if abs(width - gridViewportWidth) > 0.5 {
-                    gridViewportWidth = width
-                }
-            }
-
-            HStack(spacing: 4) {
-                Spacer()
-                Text(L10n.tr("insights.calendar.less")).font(.caption2).foregroundStyle(.secondary)
-                ForEach(TokenActivityIntensity.allCases, id: \.self) { intensity in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(color(for: intensity))
-                        .frame(width: 9, height: 9)
-                }
-                Text(L10n.tr("insights.calendar.more")).font(.caption2).foregroundStyle(.secondary)
-            }
         }
-        .accessibilityIdentifier("codex.insights.activity-calendar")
-        .onChange(of: window) {
-            presentedDate = nil
+        .scrollIndicators(.hidden)
+        .accessibilityIdentifier("codex.insights.activity-calendar-week-grid")
+    }
+
+    @ViewBuilder
+    private func activityCell(
+        _ day: Day,
+        size: CGFloat,
+        scale: TokenActivityIntensityScale
+    ) -> some View {
+        if day.isInRange, !day.isFuture {
+            Button { presentedDate = day.date } label: {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(color(for: scale.intensity(for: day.tokens)))
+                    .frame(width: size, height: size)
+            }
+            .buttonStyle(.plain)
+            .onHover { isInside in
+                if isInside {
+                    presentedDate = day.date
+                } else if presentedDate == day.date {
+                    presentedDate = nil
+                }
+            }
+            .popover(
+                isPresented: presentationBinding(for: day.date),
+                attachmentAnchor: .rect(.bounds),
+                arrowEdge: .bottom
+            ) {
+                DayDetails(date: day.date, usage: day.usage)
+                    .padding(12)
+                    .frame(width: 280)
+            }
+            .accessibilityLabel(L10n.shortDate(day.date))
+            .accessibilityValue(CodexInsightsTextPresentation.compactTokens(day.tokens))
+        } else if day.isInRange {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Color.secondary.opacity(0.05))
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+        } else {
+            Color.clear.frame(width: size, height: size)
         }
     }
 

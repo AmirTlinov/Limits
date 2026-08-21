@@ -557,19 +557,6 @@ private struct CodexOverviewPane: View {
     private var today: Date {
         CodexUsageWindow.utcCalendar.startOfDay(for: model.presentationNow)
     }
-    private var periodSelection: Binding<CodexUsagePeriod> {
-        Binding(
-            get: { model.codexUsagePeriod },
-            set: { period in
-                if period == .custom {
-                    presentCustomPeriodEditor()
-                } else {
-                    isCustomPeriodPresented = false
-                    model.selectCodexUsagePeriod(period)
-                }
-            }
-        )
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -578,14 +565,33 @@ private struct CodexOverviewPane: View {
                     .font(.largeTitle.weight(.semibold))
                     .accessibilityIdentifier("codex.insights.overview")
                 Spacer(minLength: 12)
-                Picker(L10n.tr("insights.period.label"), selection: periodSelection) {
+                Menu {
                     ForEach(CodexUsagePeriod.allCases, id: \.self) { period in
-                        Text(CodexInsightsTextPresentation.periodTitle(period)).tag(period)
+                        Button {
+                            if period == .custom {
+                                presentCustomPeriodEditor()
+                            } else {
+                                model.selectCodexUsagePeriod(period)
+                            }
+                        } label: {
+                            if period == model.codexUsagePeriod {
+                                Label(
+                                    CodexInsightsTextPresentation.periodTitle(period),
+                                    systemImage: "checkmark"
+                                )
+                            } else {
+                                Text(CodexInsightsTextPresentation.periodTitle(period))
+                            }
+                        }
                     }
+                } label: {
+                    Text(CodexInsightsTextPresentation.periodTitle(model.codexUsagePeriod))
+                        .font(.callout.weight(.medium))
+                        .frame(minWidth: 76)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(minWidth: 380, idealWidth: 480, maxWidth: 480)
+                .menuStyle(.borderlessButton)
+                .focusable(false)
+                .fixedSize()
                 .accessibilityIdentifier("codex.insights.period")
                 .popover(
                     isPresented: $isCustomPeriodPresented,
