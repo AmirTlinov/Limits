@@ -3,7 +3,7 @@ import LimitsCore
 import LimitsShared
 
 struct LimitsRuntimeEnvironment {
-    let isolatedRoot: URL?
+    let storageLayout: LimitsStorageLayout
     let disablesExternalProbes: Bool
     let isUITest: Bool
     let initialAccountsSelection: String?
@@ -13,7 +13,7 @@ struct LimitsRuntimeEnvironment {
         let environment = ProcessInfo.processInfo.environment
         let root = environment["LIMITS_TEST_ROOT"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
         return LimitsRuntimeEnvironment(
-            isolatedRoot: root,
+            storageLayout: root.map(LimitsStorageLayout.isolated) ?? .production(),
             disablesExternalProbes: environment["LIMITS_DISABLE_EXTERNAL_PROBES"] == "1",
             isUITest: environment["LIMITS_UI_TEST"] == "1",
             initialAccountsSelection: environment["LIMITS_TEST_ACCOUNTS_SELECTION"],
@@ -110,11 +110,18 @@ struct AppModelDependencies {
     let isolated: Bool
 
     static func make(environment: LimitsRuntimeEnvironment = .current) -> AppModelDependencies {
-        guard let root = environment.isolatedRoot else {
-            let usageRepository = CodexUsageRepository()
-            let repository = AccountsRepository(usageRepository: usageRepository)
-            let globalCodex = GlobalCodexAuthService()
-            let globalClaude = GlobalClaudeCredentialService()
+        let layout = environment.storageLayout
+        let usageRepository = CodexUsageRepository(
+            persistence: CodexUsagePersistence(baseURL: layout.stateDirectory)
+        )
+
+        if !layout.isIsolated {
+            let repository = AccountsRepository(
+                persistence: AccountsPersistence(baseURL: layout.stateDirectory),
+                usageRepository: usageRepository
+            )
+            let globalCodex = GlobalCodexAuthService(authURL: layout.codexAuthURL)
+            let globalClaude = GlobalClaudeCredentialService(lockURL: layout.claudeGlobalLockURL)
             let claudeStatus = ClaudeAuthStatusService()
             let codexCoordinator = CodexSessionCoordinator(globalStore: globalCodex, accountService: CodexAccountService())
             return AppModelDependencies(
@@ -122,27 +129,32 @@ struct AppModelDependencies {
                 usageCoordinator: CodexUsageCoordinator(
                     accountsRepository: repository,
                     usageRepository: usageRepository,
-                    sessionCoordinator: codexCoordinator
+                    sessionCoordinator: codexCoordinator,
+                    codexHome: layout.codexHome
                 ),
                 codexCoordinator: codexCoordinator,
                 claudeCoordinator: ClaudeSessionCoordinator(
                     globalStore: globalClaude,
                     statusReader: claudeStatus,
-                    repository: repository
+                    repository: repository,
+                    bridge: ClaudeStatuslineBridgeService(
+                        homeDirectory: layout.homeDirectory,
+                        appSupportDirectory: layout.stateDirectory
+                    )
                 ),
-                widgetPublisher: LimitsWidgetSnapshotPublisher(),
+                widgetPublisher: LimitsWidgetSnapshotPublisher(
+                    store: LimitsWidgetSnapshotStore(baseURL: layout.widgetDirectory)
+                ),
                 isolated: false
             )
         }
 
-        let stateRoot = root.appending(path: "Application Support/Limits")
-        let usageRepository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: stateRoot))
         let repository = AccountsRepository(
-            persistence: AccountsPersistence(baseURL: stateRoot),
+            persistence: AccountsPersistence(baseURL: layout.stateDirectory),
             usageRepository: usageRepository,
             vault: KeychainAuthVault(store: RuntimeMemoryKeychainStore())
         )
-        let globalCodex = GlobalCodexAuthService(authURL: root.appending(path: "Codex/auth.json"))
+        let globalCodex = GlobalCodexAuthService(authURL: layout.codexAuthURL)
         let globalClaude = RuntimeClaudeCredentialStore()
         let claudeStatus: any ClaudeSessionStatusReading = environment.disablesExternalProbes
             ? DisabledClaudeStatusReader()
@@ -154,9 +166,9 @@ struct AppModelDependencies {
                 accountsRepository: repository,
                 usageRepository: usageRepository,
                 sessionCoordinator: codexCoordinator,
-                codexHome: root.appending(path: "Codex", directoryHint: .isDirectory),
+                codexHome: layout.codexHome,
                 allowsServerProbes: false,
-                pricingDownloader: FixturePricingDownloader(directory: root.appending(path: "Pricing"))
+                pricingDownloader: FixturePricingDownloader(directory: layout.pricingFixtureDirectory)
             ),
             codexCoordinator: codexCoordinator,
             claudeCoordinator: ClaudeSessionCoordinator(
@@ -164,12 +176,12 @@ struct AppModelDependencies {
                 statusReader: claudeStatus,
                 repository: repository,
                 bridge: ClaudeStatuslineBridgeService(
-                    homeDirectory: root.appending(path: "Home"),
-                    appSupportDirectory: root.appending(path: "Application Support/Limits")
+                    homeDirectory: layout.homeDirectory,
+                    appSupportDirectory: layout.stateDirectory
                 )
             ),
             widgetPublisher: LimitsWidgetSnapshotPublisher(
-                store: LimitsWidgetSnapshotStore(baseURL: root.appending(path: "AppGroup")),
+                store: LimitsWidgetSnapshotStore(baseURL: layout.widgetDirectory),
                 reloadTimelines: {}
             ),
             isolated: true

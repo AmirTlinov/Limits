@@ -1,32 +1,21 @@
 import AppKit
 import CryptoKit
 import LimitsCore
-import Security
 import XCTest
 
 final class LimitsUITests: XCTestCase {
     @MainActor
-    func testNoClaudeFixtureContainsNoClaudeSurfaceAndLeavesProductionFilesUntouched() throws {
+    func testIsolatedLayoutCreatesAndReadsOnlyInsideTestRoot() async throws {
         let fileManager = FileManager.default
-        let home = fileManager.homeDirectoryForCurrentUser
-        let productionState = home.appending(path: "Library/Application Support/Limits/state.json")
-        let productionAuth = home.appending(path: ".codex/auth.json")
-        let stateBefore = try dataIfPresent(productionState)
-        let authBefore = try dataIfPresent(productionAuth)
-        let productionUsageURLs = ["", "-wal", "-shm"].map {
-            URL(fileURLWithPath: home.appending(path: "Library/Application Support/Limits/usage.sqlite3").path + $0)
-        }
-        let usageBefore = try productionUsageURLs.map(dataIfPresent)
-        let keychainBefore = keychainMetadataSnapshot()
-        let stableSessionsBefore = stableSessionMetadataSnapshot(
-            roots: [
-                home.appending(path: ".codex/sessions", directoryHint: .isDirectory),
-                home.appending(path: ".codex/archived_sessions", directoryHint: .isDirectory),
-            ],
-            olderThan: Date().addingTimeInterval(-10 * 60)
-        )
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-test-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        let stateDirectory = isolatedRoot.appending(path: "Application Support/Limits")
+        for suffix in ["", "-wal", "-shm"] {
+            try? fileManager.removeItem(
+                at: URL(fileURLWithPath: stateDirectory.appending(path: "usage.sqlite3").path + suffix)
+            )
+        }
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
@@ -36,19 +25,17 @@ final class LimitsUITests: XCTestCase {
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Codex"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.debugDescription.contains("Codex CLI"))
+        XCTAssertTrue(app.staticTexts["Demo Codex"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
 
         app.terminate()
-        XCTAssertEqual(try dataIfPresent(productionState), stateBefore)
-        XCTAssertEqual(try dataIfPresent(productionAuth), authBefore)
-        XCTAssertEqual(try productionUsageURLs.map(dataIfPresent), usageBefore)
-        XCTAssertEqual(keychainMetadataSnapshot(), keychainBefore)
-        XCTAssertEqual(
-            fileMetadataSnapshot(paths: Array(stableSessionsBefore.keys)),
-            stableSessionsBefore
+        XCTAssertEqual(try firstCodexAccount(in: isolatedRoot)["label"] as? String, "Demo Codex")
+        XCTAssertTrue(fileManager.fileExists(atPath: stateDirectory.appending(path: "usage.sqlite3").path))
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: isolatedRoot.appending(path: "AppGroup/Widget/current-limits.json").path
+            )
         )
-        XCTAssertTrue(fileManager.fileExists(atPath: isolatedRoot.appending(path: "Application Support/Limits").path))
     }
 
     @MainActor
@@ -139,6 +126,41 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
+    func testFutureUsageSchemaDisablesAccountMutationsBeforeInteraction() async throws {
+        let fileManager = FileManager.default
+        let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-read-only-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: isolatedRoot) }
+        try await writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
+        let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
+        let database = isolatedRoot.appending(path: "Application Support/Limits/usage.sqlite3")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        process.arguments = [database.path, "PRAGMA user_version = 999;"]
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["LIMITS_UI_TEST"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
+        app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchEnvironment["LIMITS_TEST_ACCOUNTS_SELECTION"] = "account:\(accountID.uuidString)"
+        app.launchArguments += ["-limits.language.override", "en"]
+        app.launch()
+        app.activate()
+
+        let title = app.staticTexts["account.identity.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 8))
+        let delete = app.buttons["Delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertFalse(delete.isEnabled)
+        title.doubleClick()
+        XCTAssertFalse(app.textFields["account.identity.name-field"].waitForExistence(timeout: 1))
+        app.terminate()
+    }
+
+    @MainActor
     func testCodexOverviewShowsWeeklyRiskCostsAndOpensAccountWithoutClaude() async throws {
         let fileManager = FileManager.default
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-insights-\(UUID().uuidString)")
@@ -193,6 +215,11 @@ final class LimitsUITests: XCTestCase {
         let statusItem = app.menuBars.statusItems.firstMatch
         XCTAssertTrue(statusItem.waitForExistence(timeout: 8))
         statusItem.click()
+        if !app.dialogs.firstMatch.waitForExistence(timeout: 3) {
+            app.activate()
+            statusItem.click()
+        }
+        XCTAssertTrue(app.dialogs.firstMatch.waitForExistence(timeout: 3))
         let forecast = app.descendants(matching: .any)["codex.tray.forecast"]
         XCTAssertTrue(forecast.waitForExistence(timeout: 3))
         XCTAssertTrue(forecast.label.contains("Collecting pace") || ((forecast.value as? String)?.contains("Collecting pace") == true))
@@ -335,76 +362,6 @@ final class LimitsUITests: XCTestCase {
         return app
     }
 
-    private func dataIfPresent(_ url: URL) throws -> Data? {
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try Data(contentsOf: url)
-    }
-
-    private func keychainMetadataSnapshot() -> [String] {
-        ["com.amir.Limits.authblob", "Claude Code-credentials"].flatMap { service -> [String] in
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecReturnAttributes as String: true,
-                kSecReturnPersistentRef as String: true,
-                kSecMatchLimit as String: kSecMatchLimitAll,
-            ]
-            var result: CFTypeRef?
-            let status = SecItemCopyMatching(query as CFDictionary, &result)
-            if status == errSecItemNotFound { return ["\(service)|empty"] }
-            guard status == errSecSuccess else { return ["\(service)|status:\(status)"] }
-            let items: [[String: Any]]
-            if let values = result as? [[String: Any]] {
-                items = values
-            } else if let value = result as? [String: Any] {
-                items = [value]
-            } else {
-                return ["\(service)|unreadable"]
-            }
-            return items.map { item in
-                let account = item[kSecAttrAccount as String] as? String ?? ""
-                let label = item[kSecAttrLabel as String] as? String ?? ""
-                let persistentReference = (item[kSecValuePersistentRef as String] as? Data)?.base64EncodedString() ?? ""
-                return "\(service)|\(account)|\(label)|\(persistentReference)"
-            }
-            .sorted()
-        }
-    }
-
-    private func stableSessionMetadataSnapshot(roots: [URL], olderThan cutoff: Date) -> [String: String] {
-        let manager = FileManager.default
-        let keys: [URLResourceKey] = [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]
-        var paths: [String] = []
-        for root in roots {
-            guard let enumerator = manager.enumerator(
-                at: root,
-                includingPropertiesForKeys: keys,
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
-            ) else { continue }
-            for case let url as URL in enumerator {
-                guard let values = try? url.resourceValues(forKeys: Set(keys)),
-                      values.isRegularFile == true,
-                      values.isSymbolicLink != true,
-                      (values.contentModificationDate ?? .distantFuture) < cutoff else { continue }
-                paths.append(url.path)
-            }
-        }
-        return fileMetadataSnapshot(paths: paths)
-    }
-
-    private func fileMetadataSnapshot(paths: [String]) -> [String: String] {
-        let manager = FileManager.default
-        return Dictionary(uniqueKeysWithValues: paths.map { path in
-            guard let attributes = try? manager.attributesOfItem(atPath: path) else {
-                return (path, "missing")
-            }
-            let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
-            let modified = (attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-            let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
-            return (path, "\(inode)|\(size)|\(modified)")
-        })
-    }
-
     @MainActor
     private func waitForText(_ expected: String, on element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
@@ -428,13 +385,13 @@ final class LimitsUITests: XCTestCase {
     @MainActor
     private func replaceText(in field: XCUIElement, with value: String) {
         field.click()
-        let existingValue = (field.value as? String) ?? ""
-        for _ in 0...existingValue.count {
-            field.typeKey(.rightArrow, modifierFlags: [])
-        }
-        for _ in existingValue {
+        field.typeKey(.rightArrow, modifierFlags: .command)
+        let maximumDeletions = ((field.value as? String)?.count ?? 0) + 3
+        for _ in 0..<maximumDeletions {
+            guard (field.value as? String)?.isEmpty == false else { break }
             field.typeKey(.delete, modifierFlags: [])
         }
+        XCTAssertEqual(field.value as? String, "")
         field.typeText(value)
     }
 

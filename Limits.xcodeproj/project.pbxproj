@@ -86,6 +86,7 @@
 		D000000000000000000000EF /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000F1 /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000F4 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F3 /* Sparkle */; };
+		F1487C306C96C4D8DEA1095B /* LimitsStorageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */; };
 		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
 		F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */; };
 		F1C250476E90A6D8A3DC070F /* CodexInsightsTextPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */; };
@@ -109,6 +110,7 @@
 		F6E5FB23D64480BBBF453643 /* LimitBurnEstimatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4A8315955E917B742D2596 /* LimitBurnEstimatorTests.swift */; };
 		F735FFC984FFA146419E15A3 /* CodexAccountUsageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */; };
 		F7E909F7F9CF17918A4A4CAD /* LimitsRuntimeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */; };
+		F7EEED42DE2A479CF9570670 /* LimitsStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B154C6C27CF2D2DFA6D626 /* LimitsStorageLayout.swift */; };
 		F859B684E8B5BE7DFF31DBDF /* WidgetPresentationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9701B18B173BC111A054530 /* WidgetPresentationPolicy.swift */; };
 		F9351083F88241B95E0C4B91 /* SessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */; };
 		F9AB483AAE4DE322961C2172 /* CodexUsagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */; };
@@ -333,6 +335,7 @@
 		F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexInsightsTextPresentation.swift; path = Models/CodexInsightsTextPresentation.swift; sourceTree = "<group>"; };
 		F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageRepository.swift; path = Services/CodexUsageRepository.swift; sourceTree = "<group>"; };
 		F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountIssuePresentation.swift; path = Models/CodexAccountIssuePresentation.swift; sourceTree = "<group>"; };
+		F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsStorageLayoutTests.swift; sourceTree = "<group>"; };
 		F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderOperationState.swift; path = Models/ProviderOperationState.swift; sourceTree = "<group>"; };
 		F4B0F6596F1E101C81F39792 /* OpenAIPricingCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OpenAIPricingCatalog.swift; path = Services/OpenAIPricingCatalog.swift; sourceTree = "<group>"; };
 		F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountsPresentationPolicy.swift; path = Models/CodexAccountsPresentationPolicy.swift; sourceTree = "<group>"; };
@@ -341,6 +344,7 @@
 		F72539F2956FEBB17FC55B6E /* MinimalChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MinimalChrome.swift; path = Views/MinimalChrome.swift; sourceTree = "<group>"; };
 		F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexRefreshPolicy.swift; path = Models/CodexRefreshPolicy.swift; sourceTree = "<group>"; };
 		F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsRuntimeEnvironment.swift; path = App/LimitsRuntimeEnvironment.swift; sourceTree = "<group>"; };
+		F7B154C6C27CF2D2DFA6D626 /* LimitsStorageLayout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsStorageLayout.swift; path = AppSupport/LimitsStorageLayout.swift; sourceTree = "<group>"; };
 		F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginControllerTests.swift; sourceTree = "<group>"; };
 		F8D540EE018553DD225DFD4D /* L10n.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountsRepository.swift; path = Services/AccountsRepository.swift; sourceTree = "<group>"; };
@@ -573,6 +577,7 @@
 				D00000000000000000000091 /* KeychainAuthVault.swift */,
 				F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */,
 				F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */,
+				F7B154C6C27CF2D2DFA6D626 /* LimitsStorageLayout.swift */,
 				F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */,
 				F4B0F6596F1E101C81F39792 /* OpenAIPricingCatalog.swift */,
 				D00000000000000000000093 /* PersistedStateMigrator.swift */,
@@ -630,6 +635,7 @@
 				D000000000000000000000AD /* KeychainAuthVaultTests.swift */,
 				F8B3D336D468A7C29B811086 /* LaunchAtLoginControllerTests.swift */,
 				FC4A8315955E917B742D2596 /* LimitBurnEstimatorTests.swift */,
+				F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */,
 				D000000000000000000000AF /* LimitsWidgetSnapshotTests.swift */,
 				FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */,
 				D000000000000000000000B1 /* PersistedStateMigrationTests.swift */,
@@ -1015,6 +1021,7 @@
 				D00000000000000000000092 /* KeychainAuthVault.swift in Sources */,
 				FA45F942D3EAF5DC2CF5260E /* LaunchAtLoginController.swift in Sources */,
 				F5B64BD92969E2E937BFC0DD /* LimitBurnEstimator.swift in Sources */,
+				F7EEED42DE2A479CF9570670 /* LimitsStorageLayout.swift in Sources */,
 				FE001B7BA74548881B29F888 /* LimitsWidgetSnapshotPublisher.swift in Sources */,
 				F65F8E4DA6620C09E292FAD1 /* OpenAIPricingCatalog.swift in Sources */,
 				D00000000000000000000094 /* PersistedStateMigrator.swift in Sources */,
@@ -1068,6 +1075,7 @@
 				D000000000000000000000AE /* KeychainAuthVaultTests.swift in Sources */,
 				FCFDCD6A63D89141936B5337 /* LaunchAtLoginControllerTests.swift in Sources */,
 				F6E5FB23D64480BBBF453643 /* LimitBurnEstimatorTests.swift in Sources */,
+				F1487C306C96C4D8DEA1095B /* LimitsStorageLayoutTests.swift in Sources */,
 				D000000000000000000000B0 /* LimitsWidgetSnapshotTests.swift in Sources */,
 				F448771D5EA6D06181F0491B /* OpenAIPricingCatalogTests.swift in Sources */,
 				D000000000000000000000B2 /* PersistedStateMigrationTests.swift in Sources */,
