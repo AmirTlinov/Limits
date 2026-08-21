@@ -600,15 +600,15 @@ private struct CodexOverviewPane: View {
                 )
                 .frame(maxWidth: .infinity, minHeight: 360)
             } else {
+                TokenActivityCalendar(
+                    daily: model.codexAnalyticsSnapshots.all.daily,
+                    now: model.presentationNow
+                )
                 InsightsMetricsGrid(snapshot: snapshot)
                 WeeklyRiskCard(snapshot: snapshot, now: model.presentationNow)
                 ModelUsageStrip(models: snapshot.models)
                 UsageTrendChart(daily: snapshot.daily, period: snapshot.period, now: model.presentationNow)
                     .frame(height: 176)
-                TokenActivityCalendar(
-                    daily: model.codexAnalyticsSnapshots.all.daily,
-                    now: model.presentationNow
-                )
                 if let work = snapshot.work {
                     WorkUsageBreakdown(insights: work)
                 }
