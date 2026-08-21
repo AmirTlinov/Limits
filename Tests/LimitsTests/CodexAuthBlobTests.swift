@@ -172,7 +172,7 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     )
 
     #expect(sections.count == 2)
-    #expect(sections.first?.title == "Codex CLI")
+    #expect(sections.first?.title == "Codex")
     #expect(sections.last?.title == "GPT-5.3-Codex-Spark")
 }
 
@@ -485,6 +485,10 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     #expect(updated.statusMessage == nil)
     #expect(updated.limitsIssue == .temporarilyUnavailable)
     #expect(updated.authFingerprint == "new-fingerprint")
+    #expect(
+        CodexAccountIssuePresentationPolicy.presentation(for: updated)?.recommendedAction
+            == .automaticRetry
+    )
 }
 
 @Test func revokedLimitTokenBecomesOneHumanReauthenticationIssue() throws {

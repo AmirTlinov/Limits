@@ -2,7 +2,7 @@ import Foundation
 import LimitsShared
 
 @frozen public enum CodexAccountIssueAction: Hashable, Sendable {
-    case refresh
+    case automaticRetry
     case reauthenticate
 }
 
@@ -34,7 +34,7 @@ public enum CodexAccountIssuePresentationPolicy {
             return CodexAccountIssuePresentation(
                 title: L10n.tr("limits.unavailable.title"),
                 message: L10n.tr("limits.unavailable.message"),
-                recommendedAction: .refresh
+                recommendedAction: .automaticRetry
             )
         case nil:
             break
@@ -51,7 +51,7 @@ public enum CodexAccountIssuePresentationPolicy {
             return CodexAccountIssuePresentation(
                 title: L10n.tr("account.validation_failed.title"),
                 message: L10n.tr("account.validation_failed.message"),
-                recommendedAction: .refresh
+                recommendedAction: .automaticRetry
             )
         case .unknown, .ok, .limitReached:
             return nil

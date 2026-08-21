@@ -167,7 +167,7 @@ struct MenuBarContentView: View {
 
     private var codexSection: some View {
         TrayProviderSection(
-            title: "Codex CLI",
+            title: TrayStatusProvider.codex.displayTitle,
             countText: categoryCountText(codexAccountCount),
             accent: ProviderAccent.codex,
             isExpanded: $codexExpanded
@@ -287,12 +287,6 @@ struct MenuBarContentView: View {
                 if model.hasCurrentClaudeAuthToImport() {
                     Button(L10n.tr("action.import_current_claude")) {
                         Task { await model.importCurrentClaudeAuth() }
-                    }
-                }
-
-                if !model.accounts.isEmpty || model.currentClaudeStatus != nil {
-                    Button(L10n.tr("action.refresh_current_values")) {
-                        Task { await model.refreshCurrentValues() }
                     }
                 }
 

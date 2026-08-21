@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 final class LimitsUITests: XCTestCase {
@@ -19,7 +20,8 @@ final class LimitsUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["Codex CLI"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Codex"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.debugDescription.contains("Codex CLI"))
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
 
         app.terminate()
@@ -51,7 +53,7 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
         statusItem.click()
         XCTAssertTrue(app.dialogs.firstMatch.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Codex CLI"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Codex"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Demo Codex 6"].waitForExistence(timeout: 3))
         app.terminate()
@@ -63,18 +65,47 @@ final class LimitsUITests: XCTestCase {
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-subscription-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
         try writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
+        let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
         app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
         app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
-        app.launchArguments += ["-limits.language.override", "en"]
+        app.launchArguments += [
+            "-limits.language.override", "en",
+            "-limits.accounts.selection", "account:\(accountID.uuidString)",
+        ]
         app.launch()
         app.activate()
 
-        let account = app.staticTexts["Demo Codex"].firstMatch
-        XCTAssertTrue(account.waitForExistence(timeout: 8))
-        account.click()
+        let title = app.staticTexts["account.identity.title"]
+        let email = app.buttons["account.identity.email"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        XCTAssertEqual(title.value as? String, "Demo Codex")
+        XCTAssertTrue(email.waitForExistence(timeout: 3))
+        XCTAssertEqual(email.label, "demo1@example.com")
+
+        XCTAssertFalse(app.buttons["Refresh"].exists)
+        XCTAssertFalse(app.buttons["Refresh values"].exists)
+        XCTAssertFalse(app.buttons["Refresh current values"].exists)
+        XCTAssertFalse(app.buttons["Sign in again"].exists)
+
+        NSPasteboard.general.clearContents()
+        email.click()
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "demo1@example.com")
+
+        title.doubleClick()
+        let nameField = app.textFields["account.identity.name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        replaceText(in: nameField, with: "2042")
+        XCTAssertEqual(nameField.value as? String, "2042")
+        nameField.typeKey(.return, modifierFlags: [])
+
+        let renamedTitle = app.staticTexts["account.identity.title"]
+        XCTAssertTrue(renamedTitle.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForText("2042", on: renamedTitle, timeout: 3))
+        XCTAssertEqual(try firstCodexAccount(in: isolatedRoot)["label"] as? String, "2042")
 
         let plan = app.otherElements["chatgpt.subscription.plan"]
         let cycle = app.otherElements["chatgpt.subscription.cycle"]
@@ -92,23 +123,28 @@ final class LimitsUITests: XCTestCase {
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-account-issue-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
         try writeCodexFixture(to: isolatedRoot, accountCount: 1, limitsIssue: "authorizationExpired")
+        let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
+        let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
         app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
         app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
-        app.launchArguments += ["-limits.language.override", "en"]
+        app.launchArguments += [
+            "-limits.language.override", "en",
+            "-limits.accounts.selection", "account:\(accountID.uuidString)",
+        ]
         app.launch()
         app.activate()
-
-        let account = app.staticTexts["Demo Codex"].firstMatch
-        XCTAssertTrue(account.waitForExistence(timeout: 8))
-        account.click()
 
         let issue = app.otherElements["codex.account.issue"]
         XCTAssertTrue(issue.waitForExistence(timeout: 3))
         XCTAssertEqual(issue.label, "Sign-in expired. Sign in again to restore limits for this account.")
         XCTAssertEqual(app.otherElements.matching(identifier: "codex.account.issue").count, 1)
+        XCTAssertTrue(app.buttons["Sign in again"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Refresh"].exists)
+        XCTAssertFalse(app.buttons["Refresh values"].exists)
+        XCTAssertFalse(app.buttons["Refresh current values"].exists)
 
         let statusItem = app.menuBars.statusItems.firstMatch
         XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
@@ -137,15 +173,17 @@ final class LimitsUITests: XCTestCase {
         let isolatedRoot = FileManager.default.temporaryDirectory.appending(path: "limits-screenshot-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: isolatedRoot) }
         try writeCodexFixture(to: isolatedRoot, accountCount: 1)
+        let fixtureAccount = try firstCodexAccount(in: isolatedRoot)
+        let accountID = try XCTUnwrap((fixtureAccount["id"] as? String).flatMap(UUID.init(uuidString:)))
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
         app.launchEnvironment["LIMITS_TEST_ROOT"] = isolatedRoot.path
         app.launchEnvironment["LIMITS_DISABLE_EXTERNAL_PROBES"] = "1"
+        app.launchArguments += ["-limits.accounts.selection", "account:\(accountID.uuidString)"]
         app.launch()
         app.activate()
         XCTAssertTrue(app.staticTexts["Demo Codex"].waitForExistence(timeout: 8))
-        app.staticTexts["Demo Codex"].firstMatch.click()
         let window = app.windows.containing(.staticText, identifier: "Demo Codex").firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 8))
         let windowAttachment = XCTAttachment(screenshot: window.screenshot())
@@ -171,6 +209,39 @@ final class LimitsUITests: XCTestCase {
     private func dataIfPresent(_ url: URL) throws -> Data? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return try Data(contentsOf: url)
+    }
+
+    @MainActor
+    private func waitForText(_ expected: String, on element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.value as? String == expected || element.label == expected {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return element.value as? String == expected || element.label == expected
+    }
+
+    private func firstCodexAccount(in root: URL) throws -> [String: Any] {
+        let stateURL = root.appending(path: "Application Support/Limits/state.json")
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: stateURL))
+        let state = try XCTUnwrap(object as? [String: Any])
+        let accounts = try XCTUnwrap(state["accounts"] as? [[String: Any]])
+        return try XCTUnwrap(accounts.first)
+    }
+
+    @MainActor
+    private func replaceText(in field: XCUIElement, with value: String) {
+        field.click()
+        let existingValue = (field.value as? String) ?? ""
+        for _ in 0...existingValue.count {
+            field.typeKey(.rightArrow, modifierFlags: [])
+        }
+        for _ in existingValue {
+            field.typeKey(.delete, modifierFlags: [])
+        }
+        field.typeText(value)
     }
 
     private func writeCodexFixture(to root: URL, accountCount: Int, limitsIssue: String? = nil) throws {

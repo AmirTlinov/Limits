@@ -33,9 +33,6 @@
 "action.settings" = "Settings…";
 "action.quit" = "Quit";
 "action.reauthenticate" = "Sign in again";
-"action.refresh" = "Refresh";
-"action.refresh_current_values" = "Refresh current values";
-"action.refresh_values" = "Refresh values";
 "action.save_account" = "Save account";
 "action.show_all" = "Show all";
 "app.title" = "Limits";
@@ -62,9 +59,8 @@
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";
 "busy.importing_current_claude" = "Importing current Claude Code…";
-"busy.importing_current_cli" = "Importing current CLI authorization…";
+"busy.importing_current_cli" = "Importing current Codex authorization…";
 "busy.reauthenticating" = "Signing in to %@ again…";
-"busy.refreshing_claude" = "Refreshing Claude Code…";
 "busy.refreshing_live_limits" = "Refreshing live limits…";
 "busy.signing_in" = "Signing in…";
 "busy.switching_claude" = "Switching Claude Code…";
@@ -118,11 +114,10 @@
 "cli.auth_unreadable.title" = "Could not read auth.json";
 "cli.current_reauth_needed" = "Current authorization needs sign-in again.";
 "cli.import_current_note" = "Import current authorization so it appears in the app.";
-"cli.live_limits_loaded" = "Showing live limits for the current CLI.";
 "cli.live_update_failed" = "Could not refresh live limits.";
 "cli.no_auth.note.empty" = "Add the first account.";
 "cli.no_auth.note.saved" = "Choose a saved snapshot or add a new account.";
-"cli.no_auth.title" = "No CLI authorization";
+"cli.no_auth.title" = "No Codex authorization";
 "claude.auth.keychain_error" = "Claude Code Keychain returned error %d.";
 "claude.auth.keychain_missing" = "Current Claude Code authorization was not found in Keychain.";
 "duration.days.short" = "%dd";
@@ -143,8 +138,8 @@
 "limit.used_five_hours" = "%d%% used in 5 hours";
 "limit.weekly" = "Weekly limit";
 "limit.window" = "Window";
-"limits.empty.account.subtitle" = "Click “Refresh” to get current data for this account.";
-"limits.empty.subtitle" = "Check authorization or refresh the data.";
+"limits.empty.account.subtitle" = "Limits checks this account automatically. Current data will appear here when available.";
+"limits.empty.subtitle" = "Limits checks authorization and limits automatically. Current data will appear here when available.";
 "limits.empty.title" = "Limits are not loaded yet";
 "limits.last_known_data" = "Last known limit data is being refreshed";
 "limits.last_known_reset" = "Last known reset: %@";
@@ -164,7 +159,11 @@
 "limits.unavailable.title" = "Limits temporarily unavailable";
 "limits.unavailable.message" = "Your account is saved. Limits will try again later.";
 "account.validation_failed.title" = "Could not check account";
-"account.validation_failed.message" = "Refresh the account or sign in again.";
+"account.validation_failed.message" = "Limits will check this account again automatically.";
+"account.rename.prompt" = "Account name";
+"account.rename.action" = "Rename account";
+"account.rename.hint" = "Double-click to rename";
+"account.email.copy" = "Copy email";
 "reset.other_day.compact" = "Reset %@, %@";
 "reset.other_day.expanded" = "Resets at %@, %@";
 "reset.stale.compact" = "reset passed";
@@ -204,7 +203,7 @@
 "accounts.persistence.atomic_replace_failed" = "Could not replace the accounts state atomically (error %d).";
 "accounts.repository.not_opened" = "The accounts store has not been opened yet.";
 "accounts.repository.read_only" = "These accounts were written by schema v%d. Limits opened them read-only so the newer data stays intact.";
-"accounts.repository.revision_conflict" = "Accounts changed in another Limits process (expected revision %@, found %@). Refresh and try again.";
+"accounts.repository.revision_conflict" = "Accounts changed in another Limits process (expected revision %@, found %@). Try the action again; Limits will load the current state automatically.";
 "accounts.repository.account_missing" = "The saved account no longer exists.";
 "accounts.repository.credential_missing" = "The saved credential no longer exists.";
 "claude.statusline.snapshot_missing" = "Claude has not sent a statusLine snapshot yet.";

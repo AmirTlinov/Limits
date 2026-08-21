@@ -140,7 +140,7 @@ public enum RateLimitDisplayBuilder {
         if let limitName = snapshot.limitName, !limitName.isEmpty {
             return limitName
         }
-        return "Codex CLI"
+        return TrayStatusProvider.codex.displayTitle
     }
 
     private static func rows(for snapshot: RateLimitSnapshotModel, excludingExpiredRowsAt now: Date?) -> [RateLimitDisplayRow] {

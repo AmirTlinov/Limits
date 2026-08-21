@@ -33,9 +33,6 @@
 "action.settings" = "Ajustes…";
 "action.quit" = "Salir";
 "action.reauthenticate" = "Iniciar sesión otra vez";
-"action.refresh" = "Actualizar";
-"action.refresh_current_values" = "Actualizar valores actuales";
-"action.refresh_values" = "Actualizar valores";
 "action.save_account" = "Guardar cuenta";
 "action.show_all" = "Mostrar todo";
 "app.title" = "Limits";
@@ -62,9 +59,8 @@
 "busy.deleting" = "Eliminando %@…";
 "busy.disconnecting_claude_bridge" = "Desconectando puente de Claude…";
 "busy.importing_current_claude" = "Importando Claude Code actual…";
-"busy.importing_current_cli" = "Importando autorización CLI actual…";
+"busy.importing_current_cli" = "Importando la autorización actual de Codex…";
 "busy.reauthenticating" = "Iniciando sesión en %@ otra vez…";
-"busy.refreshing_claude" = "Actualizando Claude Code…";
 "busy.refreshing_live_limits" = "Actualizando límites en vivo…";
 "busy.signing_in" = "Iniciando sesión…";
 "busy.switching_claude" = "Cambiando Claude Code…";
@@ -118,11 +114,10 @@
 "cli.auth_unreadable.title" = "No se pudo leer auth.json";
 "cli.current_reauth_needed" = "La autorización actual necesita iniciar sesión otra vez.";
 "cli.import_current_note" = "Importa la autorización actual para que aparezca en la app.";
-"cli.live_limits_loaded" = "Mostrando límites en vivo del CLI actual.";
 "cli.live_update_failed" = "No se pudieron actualizar los límites en vivo.";
 "cli.no_auth.note.empty" = "Añade la primera cuenta.";
 "cli.no_auth.note.saved" = "Elige una instantánea guardada o añade una cuenta nueva.";
-"cli.no_auth.title" = "Sin autorización CLI";
+"cli.no_auth.title" = "Sin autorización de Codex";
 "claude.auth.keychain_error" = "Keychain de Claude Code devolvió el error %d.";
 "claude.auth.keychain_missing" = "La autorización actual de Claude Code no se encontró en Keychain.";
 "duration.days.short" = "%dd";
@@ -143,8 +138,8 @@
 "limit.used_five_hours" = "%d%% usado en 5 horas";
 "limit.weekly" = "Límite semanal";
 "limit.window" = "Ventana";
-"limits.empty.account.subtitle" = "Haz clic en “Actualizar” para obtener datos actuales de esta cuenta.";
-"limits.empty.subtitle" = "Comprueba la autorización o actualiza los datos.";
+"limits.empty.account.subtitle" = "Limits comprueba esta cuenta automáticamente. Los datos actuales aparecerán aquí cuando estén disponibles.";
+"limits.empty.subtitle" = "Limits comprueba automáticamente la autorización y los límites. Los datos actuales aparecerán aquí cuando estén disponibles.";
 "limits.empty.title" = "Los límites aún no están cargados";
 "limits.last_known_data" = "Actualizando los últimos límites conocidos";
 "limits.last_known_reset" = "Último reinicio conocido: %@";
@@ -164,7 +159,11 @@
 "limits.unavailable.title" = "Límites temporalmente no disponibles";
 "limits.unavailable.message" = "Tu cuenta está guardada. Limits volverá a intentarlo más tarde.";
 "account.validation_failed.title" = "No se pudo comprobar la cuenta";
-"account.validation_failed.message" = "Actualiza la cuenta o inicia sesión de nuevo.";
+"account.validation_failed.message" = "Limits volverá a comprobar esta cuenta automáticamente.";
+"account.rename.prompt" = "Nombre de la cuenta";
+"account.rename.action" = "Cambiar nombre de la cuenta";
+"account.rename.hint" = "Haz doble clic para cambiar el nombre";
+"account.email.copy" = "Copiar correo";
 "reset.other_day.compact" = "Reinicio %@, %@";
 "reset.other_day.expanded" = "Reinicio a las %@, %@";
 "reset.stale.compact" = "reinicio pasado";
@@ -204,7 +203,7 @@
 "accounts.persistence.atomic_replace_failed" = "No se pudo reemplazar atómicamente el estado de las cuentas (error %d).";
 "accounts.repository.not_opened" = "El almacén de cuentas aún no está abierto.";
 "accounts.repository.read_only" = "Estas cuentas se escribieron con el esquema v%d. Limits las abrió en modo de solo lectura para conservar los datos más recientes.";
-"accounts.repository.revision_conflict" = "Las cuentas cambiaron en otro proceso de Limits (revisión esperada %@, encontrada %@). Actualiza y vuelve a intentarlo.";
+"accounts.repository.revision_conflict" = "Las cuentas cambiaron en otro proceso de Limits (revisión esperada %@, encontrada %@). Repite la acción; Limits cargará automáticamente el estado actual.";
 "accounts.repository.account_missing" = "La cuenta guardada ya no existe.";
 "accounts.repository.credential_missing" = "La credencial guardada ya no existe.";
 "claude.statusline.snapshot_missing" = "Claude aún no ha enviado una captura de statusLine.";

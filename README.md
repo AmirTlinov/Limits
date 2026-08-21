@@ -1,6 +1,6 @@
 # Limits
 
-Native macOS tray app for people who switch between several **Codex CLI** and **Claude Code** accounts and want to see remaining limits at a glance.
+Native macOS tray app for people who switch between several **Codex** and **Claude Code** accounts and want to see remaining limits at a glance.
 
 Limits keeps the important thing close: current account, remaining 5-hour limit, weekly limit, and quick switching between saved accounts.
 
@@ -16,7 +16,7 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 
 ## What it does
 
-- Shows Codex CLI limits in the menu bar panel, native macOS window, and WidgetKit widgets.
+- Shows Codex limits in the menu bar panel, native macOS window, and WidgetKit widgets.
 - Shows Claude only when a saved Claude account exists or Claude Code reports a live, stable signed-in identity.
 - Publishes a safe widget snapshot through the macOS App Group container; widgets never read auth files or Keychain credentials.
 - Saves separate Codex and Claude accounts for quick switching.

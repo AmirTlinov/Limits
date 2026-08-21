@@ -416,6 +416,52 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func renameAccount(_ account: StoredAccount, to proposedLabel: String) async {
+        await renameAccount(
+            provider: .codex,
+            accountID: account.id,
+            to: proposedLabel
+        )
+    }
+
+    func renameAccount(_ account: ClaudeStoredAccount, to proposedLabel: String) async {
+        await renameAccount(
+            provider: .claude,
+            accountID: account.id,
+            to: proposedLabel
+        )
+    }
+
+    private func renameAccount(
+        provider: ProviderKind,
+        accountID: UUID,
+        to proposedLabel: String
+    ) async {
+        let label = proposedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !label.isEmpty else { return }
+        defer { publishWidgetSnapshotIfPossible() }
+
+        do {
+            let snapshot = try await accountsRepository.renameAccount(
+                provider: provider,
+                accountID: accountID,
+                label: label
+            )
+            applyRepositorySnapshot(snapshot)
+            providerOperationStates[provider] = ProviderOperationState(
+                notice: providerOperationStates[provider]?.notice
+            )
+            if provider == .codex {
+                errorMessage = nil
+            }
+        } catch {
+            providerOperationStates[provider] = ProviderOperationState(
+                notice: providerOperationStates[provider]?.notice,
+                error: error.localizedDescription
+            )
+        }
+    }
+
     func activateClaudeAccount(_ account: ClaudeStoredAccount) async {
         await runBusy(provider: .claude, L10n.tr("busy.switching_claude")) { [self] in
             self.currentClaudeLiveEvidence = nil
@@ -426,12 +472,6 @@ final class AppModel: ObservableObject {
                 await self.refreshCurrentClaudeState()
                 throw error
             }
-        }
-    }
-
-    func refreshCurrentClaudeAccount() async {
-        await runBusy(provider: .claude, L10n.tr("busy.refreshing_claude")) { [self] in
-            await self.refreshCurrentClaudeState()
         }
     }
 
@@ -461,7 +501,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func refreshCurrentValues(forceProbe: Bool = true) async {
+    func refreshCurrentValues(forceProbe: Bool) async {
         if let activeTask = currentValuesRefreshTask {
             let needsForcedFollowup = forceProbe && !currentValuesRefreshIsForced
             await activeTask.value
@@ -642,7 +682,7 @@ final class AppModel: ObservableObject {
         currentCLIReferenceAccount()?.id
     }
 
-    func validateAccount(_ account: StoredAccount) async {
+    private func validateAccount(_ account: StoredAccount) async {
         defer { publishWidgetSnapshotIfPossible() }
         do {
             let authData = try await accountsRepository.credential(provider: .codex, accountID: account.id)
@@ -811,7 +851,7 @@ final class AppModel: ObservableObject {
             )
         case .external:
             return CurrentClaudeOverview(
-                title: currentClaudeStatus?.email ?? account?.label ?? "Claude Code",
+                title: account?.label ?? currentClaudeStatus?.email ?? "Claude Code",
                 subtitle: claudeSubtitle(account: account, status: currentClaudeStatus),
                 note: account == nil ? L10n.tr("claude.import_current_note") : claudeNote(account: account)
             )
@@ -1511,11 +1551,11 @@ final class AppModel: ObservableObject {
     }
 
     private func titleForExternalAuth(_ account: StoredAccount?, probe: CurrentCLIProbe?) -> String {
-        if let probe {
-            return probe.email
-        }
         if let account {
             return account.label
+        }
+        if let probe {
+            return probe.email
         }
         return currentCLIState.accountId ?? L10n.tr("account.external_auth")
     }

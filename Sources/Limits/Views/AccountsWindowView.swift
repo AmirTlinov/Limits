@@ -140,13 +140,6 @@ struct AccountsWindowView: View {
                     .disabled(model.isProviderBusy(.codex))
                 }
 
-                Button {
-                    Task { await model.refreshCurrentValues() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help(L10n.tr("action.refresh_current_values"))
-                .disabled(model.isBusy)
             }
         }
         .background(WindowChromeConfigurator())
@@ -221,7 +214,7 @@ struct AccountsWindowView: View {
                     if sidebarFilter.includesCodex {
                         SidebarRowView(
                             icon: "person.crop.circle.fill.badge.checkmark",
-                            title: "Codex CLI",
+                            title: TrayStatusProvider.codex.displayTitle,
                             subtitle: overview.title,
                             trailing: currentCLITrailingText,
                             accent: ProviderAccent.codex
@@ -253,21 +246,24 @@ struct AccountsWindowView: View {
                             )
                             .tag(AccountsSidebarSelection.codexAccount(account.id))
                             .contextMenu {
-                                if !model.isCurrentCLIAccount(account) {
+                                let canMakeCurrent = !model.isCurrentCLIAccount(account)
+                                let canReauthenticate = model.codexAccountIssue(for: account)?.recommendedAction == .reauthenticate
+
+                                if canMakeCurrent {
                                     Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateAccount(account) }
                                     }
                                 }
 
-                                Button(L10n.tr("action.refresh_values")) {
-                                    Task { await model.validateAccount(account) }
+                                if canReauthenticate {
+                                    Button(L10n.tr("action.reauthenticate")) {
+                                        Task { await model.reauthenticateAccount(account) }
+                                    }
                                 }
 
-                                Button(L10n.tr("action.reauthenticate")) {
-                                    Task { await model.reauthenticateAccount(account) }
+                                if canMakeCurrent || canReauthenticate {
+                                    Divider()
                                 }
-
-                                Divider()
 
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     model.requestDeleteAccount(account)
@@ -293,13 +289,8 @@ struct AccountsWindowView: View {
                                     Button(L10n.tr("action.make_current")) {
                                         Task { await model.activateClaudeAccount(account) }
                                     }
-                                } else {
-                                    Button(L10n.tr("action.refresh")) {
-                                        Task { await model.refreshCurrentClaudeAccount() }
-                                    }
+                                    Divider()
                                 }
-
-                                Divider()
 
                                 Button(L10n.tr("action.delete_account"), role: .destructive) {
                                     model.requestDeleteClaudeAccount(account)
@@ -542,9 +533,13 @@ private struct CurrentCLIDetailPane: View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
                 title: overview.title,
-                subtitle: overview.subtitle,
+                subtitle: model.currentCLIProbe?.email ?? model.currentCLIReferenceAccount()?.email,
                 note: overview.note,
                 metaLine: nil,
+                renameTitle: model.currentCLIReferenceAccount().map { account in
+                    { title in Task { await model.renameAccount(account, to: title) } }
+                },
+                subtitleIsCopyable: true,
                 stateBadge: {
                     CLIStateBadge(source: model.currentCLIState.source)
                 },
@@ -568,11 +563,6 @@ private struct CurrentCLIDetailPane: View {
                         .disabled(model.isProviderBusy(.codex))
                     }
 
-                    Button(L10n.tr("action.refresh_values")) {
-                        Task { await model.refreshCurrentValues(forceProbe: true) }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.codex))
                 }
             )
 
@@ -615,6 +605,14 @@ private struct CurrentClaudeDetailPane: View {
         model.currentClaudeOverview()
     }
 
+    private var referenceAccount: ClaudeStoredAccount? {
+        model.currentClaudeReferenceAccount()
+    }
+
+    private var email: String? {
+        model.currentClaudeStatus?.email ?? referenceAccount?.email
+    }
+
     private var liveSections: [RateLimitDisplaySection] {
         model.currentClaudeLiveRateLimitSections()
     }
@@ -623,9 +621,13 @@ private struct CurrentClaudeDetailPane: View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
                 title: overview.title,
-                subtitle: overview.subtitle,
+                subtitle: email,
                 note: overview.note,
                 metaLine: metaLine,
+                renameTitle: referenceAccount.map { account in
+                    { title in Task { await model.renameAccount(account, to: title) } }
+                },
+                subtitleIsCopyable: email != nil,
                 stateBadge: {
                     ClaudeStateBadge(model: model)
                 },
@@ -638,14 +640,6 @@ private struct CurrentClaudeDetailPane: View {
                             Task { await model.importCurrentClaudeAuth() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.claude))
-                    }
-
-                    if model.currentClaudeStatus?.loggedIn == true {
-                        Button(L10n.tr("action.refresh")) {
-                            Task { await model.refreshCurrentClaudeAccount() }
-                        }
-                        .buttonStyle(.bordered)
                         .disabled(model.isProviderBusy(.claude))
                     }
 
@@ -771,6 +765,10 @@ private struct StoredClaudeDetailPane: View {
                 subtitle: account.email,
                 note: accountNote,
                 metaLine: accountMetaLine,
+                renameTitle: { title in
+                    Task { await model.renameAccount(account, to: title) }
+                },
+                subtitleIsCopyable: true,
                 stateBadge: {
                     AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)
                 },
@@ -785,12 +783,6 @@ private struct StoredClaudeDetailPane: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isProviderBusy(.claude))
                     } else {
-                        Button(L10n.tr("action.refresh")) {
-                            Task { await model.refreshCurrentClaudeAccount() }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(model.isProviderBusy(.claude))
-
                         if model.claudeLiveBridgeInstalled() {
                             Button(L10n.tr("action.disconnect_bridge")) {
                                 Task { await model.uninstallClaudeLiveLimitsBridge() }
@@ -948,17 +940,17 @@ private struct StoredAccountDetailPane: View {
         model.codexAccountIssue(for: account)
     }
 
-    private var accountSubtitle: String? {
-        account.label.caseInsensitiveCompare(account.email) == .orderedSame ? nil : account.email
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
                 title: account.label,
-                subtitle: accountSubtitle,
+                subtitle: account.email,
                 note: nil,
                 metaLine: nil,
+                renameTitle: { title in
+                    Task { await model.renameAccount(account, to: title) }
+                },
+                subtitleIsCopyable: true,
                 stateBadge: {
                     AccountStatusBadge(status: account.status, isCurrent: isCurrent)
                 },
@@ -974,17 +966,13 @@ private struct StoredAccountDetailPane: View {
                         .disabled(model.isProviderBusy(.codex))
                     }
 
-                    Button(L10n.tr("action.refresh")) {
-                        Task { await model.validateAccount(account) }
+                    if accountIssue?.recommendedAction == .reauthenticate {
+                        Button(L10n.tr("action.reauthenticate")) {
+                            Task { await model.reauthenticateAccount(account) }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isProviderBusy(.codex))
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.codex))
-
-                    Button(L10n.tr("action.reauthenticate")) {
-                        Task { await model.reauthenticateAccount(account) }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isProviderBusy(.codex))
 
                     Button(L10n.tr("action.delete"), role: .destructive) {
                         model.requestDeleteAccount(account)
@@ -1027,15 +1015,23 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
     let subtitle: String?
     let note: String?
     let metaLine: String?
+    let renameTitle: ((String) -> Void)?
+    let subtitleIsCopyable: Bool
     let stateBadge: StateBadge
     let details: Details
     let actions: Actions
+
+    @State private var isRenamingTitle = false
+    @State private var titleDraft = ""
+    @FocusState private var titleFieldIsFocused: Bool
 
     init(
         title: String,
         subtitle: String?,
         note: String?,
         metaLine: String?,
+        renameTitle: ((String) -> Void)? = nil,
+        subtitleIsCopyable: Bool = false,
         @ViewBuilder stateBadge: () -> StateBadge,
         @ViewBuilder details: () -> Details,
         @ViewBuilder actions: () -> Actions
@@ -1044,6 +1040,8 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
         self.subtitle = subtitle
         self.note = note
         self.metaLine = metaLine
+        self.renameTitle = renameTitle
+        self.subtitleIsCopyable = subtitleIsCopyable
         self.stateBadge = stateBadge()
         self.details = details()
         self.actions = actions()
@@ -1053,15 +1051,32 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
-                        .font(.largeTitle.weight(.semibold))
-                        .lineLimit(2)
+                    if isRenamingTitle {
+                        TextField(L10n.tr("account.rename.prompt"), text: $titleDraft)
+                            .textFieldStyle(.plain)
+                            .font(.largeTitle.weight(.semibold))
+                            .focused($titleFieldIsFocused)
+                            .onSubmit(commitRename)
+                            .onExitCommand(perform: cancelRename)
+                            .accessibilityIdentifier("account.identity.name-field")
+                    } else {
+                        displayedTitle
+                    }
 
                     if let subtitle {
-                        Text(subtitle)
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                        if subtitleIsCopyable {
+                            Button {
+                                copyToPasteboard(subtitle)
+                            } label: {
+                                subtitleLabel(subtitle)
+                            }
+                            .buttonStyle(.plain)
+                            .help(L10n.tr("account.email.copy"))
+                            .accessibilityHint(L10n.tr("account.email.copy"))
+                            .accessibilityIdentifier("account.identity.email")
+                        } else {
+                            subtitleLabel(subtitle)
+                        }
                     }
                 }
 
@@ -1088,6 +1103,74 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
                 actions
             }
         }
+        .onChange(of: titleFieldIsFocused) { _, isFocused in
+            if !isFocused, isRenamingTitle {
+                commitRename()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var displayedTitle: some View {
+        let text = Text(title)
+            .font(.largeTitle.weight(.semibold))
+            .lineLimit(2)
+            .accessibilityLabel(title)
+            .accessibilityIdentifier("account.identity.title")
+
+        if renameTitle != nil {
+            text
+                .onTapGesture(count: 2, perform: beginRename)
+                .help(L10n.tr("account.rename.hint"))
+                .accessibilityHint(L10n.tr("account.rename.hint"))
+                .accessibilityAction(named: Text(L10n.tr("account.rename.action")), beginRename)
+        } else {
+            text
+        }
+    }
+
+    private func subtitleLabel(_ subtitle: String) -> some View {
+        Text(subtitle)
+            .font(subtitleIsCopyable ? .callout : .title3)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+    }
+
+    private func beginRename() {
+        guard renameTitle != nil else { return }
+        titleDraft = title
+        isRenamingTitle = true
+        Task { @MainActor in
+            await Task.yield()
+            titleFieldIsFocused = true
+        }
+    }
+
+    private func commitRename() {
+        guard isRenamingTitle else { return }
+        let proposedTitle = titleDraft
+        isRenamingTitle = false
+        titleFieldIsFocused = false
+        guard !proposedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            titleDraft = title
+            return
+        }
+        guard proposedTitle.trimmingCharacters(in: .whitespacesAndNewlines) != title else {
+            return
+        }
+        renameTitle?(proposedTitle)
+    }
+
+    private func cancelRename() {
+        guard isRenamingTitle else { return }
+        isRenamingTitle = false
+        titleFieldIsFocused = false
+        titleDraft = title
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
     }
 }
 

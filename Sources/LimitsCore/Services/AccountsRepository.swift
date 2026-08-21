@@ -226,6 +226,34 @@ public actor AccountsRepository {
     }
 
     @discardableResult
+    public func renameAccount(
+        provider: ProviderKind,
+        accountID: UUID,
+        label: String,
+        expectedRevision: UInt64? = nil,
+        now: Date = .now
+    ) throws -> AccountsRepositorySnapshot {
+        try mutate(expectedRevision: expectedRevision) { state in
+            switch provider {
+            case .codex:
+                guard let index = state.accounts.firstIndex(where: { $0.id == accountID }) else {
+                    throw AccountsRepositoryError.accountMissing(accountID)
+                }
+                state.accounts[index].label = label
+                state.accounts[index].updatedAt = now
+                state.accounts.sort { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+            case .claude:
+                guard let index = state.claudeAccounts.firstIndex(where: { $0.id == accountID }) else {
+                    throw AccountsRepositoryError.accountMissing(accountID)
+                }
+                state.claudeAccounts[index].label = label
+                state.claudeAccounts[index].updatedAt = now
+                state.claudeAccounts.sort { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+            }
+        }
+    }
+
+    @discardableResult
     public func deleteAccount(
         provider: ProviderKind,
         accountID: UUID,

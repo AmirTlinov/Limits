@@ -328,7 +328,7 @@ private extension LimitsWidgetProviderSnapshot {
     var appearance: ProviderAppearance {
         switch id {
         case .codex:
-            ProviderAppearance(displayTitle: "Codex CLI", shortTitle: "Codex", color: .blue)
+            ProviderAppearance(displayTitle: "Codex", shortTitle: "Codex", color: .blue)
         case .claude:
             ProviderAppearance(displayTitle: "Claude Code", shortTitle: "Claude", color: Color(red: 0.86, green: 0.39, blue: 0.24))
         @unknown default:

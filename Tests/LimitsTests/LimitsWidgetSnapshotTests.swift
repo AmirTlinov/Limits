@@ -86,7 +86,7 @@ import Testing
     let now = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 5, day: 27, hour: 8)))
     let section = RateLimitDisplaySection(
         id: "codex",
-        title: "Codex CLI",
+        title: "Codex",
         rows: [
             RateLimitDisplayRow(
                 id: "five_hour",

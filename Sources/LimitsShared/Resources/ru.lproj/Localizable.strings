@@ -33,9 +33,6 @@
 "action.settings" = "Настройки…";
 "action.quit" = "Выход";
 "action.reauthenticate" = "Повторный вход";
-"action.refresh" = "Обновить";
-"action.refresh_current_values" = "Обновить текущие значения";
-"action.refresh_values" = "Обновить значения";
 "action.save_account" = "Сохранить аккаунт";
 "action.show_all" = "Показать всё";
 "app.title" = "Лимиты";
@@ -62,9 +59,8 @@
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";
 "busy.importing_current_claude" = "Импортирую текущий Claude Code…";
-"busy.importing_current_cli" = "Импортирую текущую CLI-авторизацию…";
+"busy.importing_current_cli" = "Импортирую текущую авторизацию Codex…";
 "busy.reauthenticating" = "Повторно авторизую %@…";
-"busy.refreshing_claude" = "Обновляю Claude Code…";
 "busy.refreshing_live_limits" = "Обновляю живые лимиты…";
 "busy.signing_in" = "Выполняю вход…";
 "busy.switching_claude" = "Переключаю Claude Code…";
@@ -118,11 +114,10 @@
 "cli.auth_unreadable.title" = "Не удалось прочитать auth.json";
 "cli.current_reauth_needed" = "Текущей авторизации нужен повторный вход.";
 "cli.import_current_note" = "Импортируйте текущую авторизацию, чтобы она появилась в приложении.";
-"cli.live_limits_loaded" = "Показаны живые лимиты текущего CLI.";
 "cli.live_update_failed" = "Не удалось обновить живые лимиты.";
 "cli.no_auth.note.empty" = "Добавьте первый аккаунт.";
 "cli.no_auth.note.saved" = "Выберите сохранённый снимок или добавьте новый аккаунт.";
-"cli.no_auth.title" = "Нет CLI-авторизации";
+"cli.no_auth.title" = "Нет авторизации Codex";
 "claude.auth.keychain_error" = "Keychain Claude Code вернул ошибку %d.";
 "claude.auth.keychain_missing" = "Текущая авторизация Claude Code не найдена в Keychain.";
 "duration.days.short" = "%dд";
@@ -143,8 +138,8 @@
 "limit.used_five_hours" = "За 5 часов использовано %d%%";
 "limit.weekly" = "Недельный лимит";
 "limit.window" = "Окно";
-"limits.empty.account.subtitle" = "Нажмите «Обновить», чтобы получить актуальные данные по этому аккаунту.";
-"limits.empty.subtitle" = "Проверьте авторизацию или обновите данные.";
+"limits.empty.account.subtitle" = "Limits проверяет этот аккаунт автоматически. Актуальные данные появятся здесь после проверки.";
+"limits.empty.subtitle" = "Limits проверяет авторизацию и лимиты автоматически. Актуальные данные появятся здесь после проверки.";
 "limits.empty.title" = "Лимиты пока не загружены";
 "limits.last_known_data" = "Последние известные лимиты обновляются";
 "limits.last_known_reset" = "Последний известный сброс: %@";
@@ -164,7 +159,11 @@
 "limits.unavailable.title" = "Лимиты временно недоступны";
 "limits.unavailable.message" = "Аккаунт сохранён. Limits попробует снова позже.";
 "account.validation_failed.title" = "Не удалось проверить аккаунт";
-"account.validation_failed.message" = "Обновите аккаунт или выполните повторный вход.";
+"account.validation_failed.message" = "Limits проверит этот аккаунт снова автоматически.";
+"account.rename.prompt" = "Имя аккаунта";
+"account.rename.action" = "Переименовать аккаунт";
+"account.rename.hint" = "Дважды нажмите, чтобы переименовать";
+"account.email.copy" = "Скопировать почту";
 "reset.other_day.compact" = "Сброс %@, %@";
 "reset.other_day.expanded" = "Сброс в %@, %@";
 "reset.stale.compact" = "сброс прошёл";
@@ -204,7 +203,7 @@
 "accounts.persistence.atomic_replace_failed" = "Не удалось атомарно заменить состояние аккаунтов (ошибка %d).";
 "accounts.repository.not_opened" = "Хранилище аккаунтов ещё не открыто.";
 "accounts.repository.read_only" = "Эти аккаунты записаны схемой v%d. Limits открыл их только для чтения, чтобы сохранить более новые данные.";
-"accounts.repository.revision_conflict" = "Аккаунты изменились в другом процессе Limits (ожидалась ревизия %@, найдена %@). Обновите данные и повторите действие.";
+"accounts.repository.revision_conflict" = "Аккаунты изменились в другом процессе Limits (ожидалась ревизия %@, найдена %@). Повторите действие: Limits сам загрузит актуальное состояние.";
 "accounts.repository.account_missing" = "Сохранённый аккаунт уже удалён.";
 "accounts.repository.credential_missing" = "Сохранённые данные входа уже удалены.";
 "claude.statusline.snapshot_missing" = "Claude ещё не прислал снимок statusLine.";

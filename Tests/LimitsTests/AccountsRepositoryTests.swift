@@ -131,6 +131,67 @@ import Testing
     #expect(merged.state.revision == 2)
 }
 
+@Test func repositoryRenameChangesOnlyTheLabelAcrossAStaleProcess() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = MemoryKeychainStore()
+    let persistence = AccountsPersistence(baseURL: root)
+    let firstRepository = AccountsRepository(persistence: persistence, vault: KeychainAuthVault(store: store))
+    let secondRepository = AccountsRepository(persistence: persistence, vault: KeychainAuthVault(store: store))
+    _ = try await firstRepository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let account = repositoryAccount(label: "Original", fingerprint: "rename")
+    let saved = try await firstRepository.saveCodexAccount(account, credential: Data("credential".utf8))
+    let savedAccount = try #require(saved.state.accounts.first)
+    let credentialReference = savedAccount.keychainAccount
+    _ = try await secondRepository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+
+    var concurrentlyValidated = savedAccount
+    concurrentlyValidated.status = .limitReached
+    concurrentlyValidated.statusMessage = "Limit Reached"
+    _ = try await firstRepository.updateCodexAccount(concurrentlyValidated)
+
+    let renamed = try await secondRepository.renameAccount(
+        provider: .codex,
+        accountID: account.id,
+        label: "Anything I Want",
+        now: Date(timeIntervalSince1970: 2_000_000)
+    )
+    let result = try #require(renamed.state.accounts.first)
+
+    #expect(result.label == "Anything I Want")
+    #expect(result.status == .limitReached)
+    #expect(result.statusMessage == "Limit Reached")
+    #expect(result.keychainAccount == credentialReference)
+    #expect(store.data(for: credentialReference) == Data("credential".utf8))
+}
+
+@Test func repositoryRenamePreservesClaudeIdentityAndCredential() async throws {
+    let root = temporaryRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = MemoryKeychainStore()
+    let repository = AccountsRepository(
+        persistence: AccountsPersistence(baseURL: root),
+        vault: KeychainAuthVault(store: store)
+    )
+    _ = try await repository.open(currentCodexFingerprint: nil, currentClaudeFingerprint: nil)
+    let account = repositoryClaudeAccount(label: "Original", fingerprint: "claude-rename")
+    let saved = try await repository.saveClaudeAccount(account, credential: Data("claude-credential".utf8))
+    let savedAccount = try #require(saved.state.claudeAccounts.first)
+
+    let renamed = try await repository.renameAccount(
+        provider: .claude,
+        accountID: account.id,
+        label: "My Claude Account"
+    )
+    let result = try #require(renamed.state.claudeAccounts.first)
+
+    #expect(result.label == "My Claude Account")
+    #expect(result.email == account.email)
+    #expect(result.orgId == account.orgId)
+    #expect(result.keychainAccount == savedAccount.keychainAccount)
+    #expect(store.data(for: result.keychainAccount) == Data("claude-credential".utf8))
+}
+
 @Test func repositoryDeletionCommitsStateBeforeDeferredKeychainCleanup() async throws {
     let root = temporaryRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -240,5 +301,24 @@ private func repositoryAccount(label: String = "Account", fingerprint: String) -
         planType: "pro", createdAt: .distantPast, updatedAt: .distantPast, lastValidatedAt: nil,
         status: .ok, statusMessage: nil, lastRateLimit: nil, lastRateLimitsByLimitId: nil,
         authFingerprint: fingerprint, keychainAccount: "legacy.\(fingerprint)"
+    )
+}
+
+private func repositoryClaudeAccount(label: String, fingerprint: String) -> ClaudeStoredAccount {
+    ClaudeStoredAccount(
+        id: UUID(),
+        label: label,
+        email: "claude@example.com",
+        subscriptionType: "max",
+        authMethod: "claude.ai",
+        orgId: "org_fixture",
+        orgName: "Fixture Org",
+        createdAt: .distantPast,
+        updatedAt: .distantPast,
+        lastValidatedAt: nil,
+        status: .ok,
+        statusMessage: nil,
+        authFingerprint: fingerprint,
+        keychainAccount: "legacy.\(fingerprint)"
     )
 }

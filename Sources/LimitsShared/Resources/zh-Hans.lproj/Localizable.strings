@@ -33,9 +33,6 @@
 "action.settings" = "设置…";
 "action.quit" = "退出";
 "action.reauthenticate" = "重新登录";
-"action.refresh" = "刷新";
-"action.refresh_current_values" = "刷新当前数值";
-"action.refresh_values" = "刷新数值";
 "action.save_account" = "保存账户";
 "action.show_all" = "全部展开";
 "app.title" = "Limits";
@@ -62,9 +59,8 @@
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";
 "busy.importing_current_claude" = "正在导入当前 Claude Code…";
-"busy.importing_current_cli" = "正在导入当前 CLI 授权…";
+"busy.importing_current_cli" = "正在导入当前 Codex 授权…";
 "busy.reauthenticating" = "正在为 %@ 重新登录…";
-"busy.refreshing_claude" = "正在刷新 Claude Code…";
 "busy.refreshing_live_limits" = "正在刷新实时限额…";
 "busy.signing_in" = "正在登录…";
 "busy.switching_claude" = "正在切换 Claude Code…";
@@ -118,11 +114,10 @@
 "cli.auth_unreadable.title" = "无法读取 auth.json";
 "cli.current_reauth_needed" = "当前授权需要重新登录。";
 "cli.import_current_note" = "导入当前授权，让它出现在应用中。";
-"cli.live_limits_loaded" = "正在显示当前 CLI 的实时限额。";
 "cli.live_update_failed" = "无法刷新实时限额。";
 "cli.no_auth.note.empty" = "添加第一个账户。";
 "cli.no_auth.note.saved" = "选择已保存快照或添加新账户。";
-"cli.no_auth.title" = "没有 CLI 授权";
+"cli.no_auth.title" = "没有 Codex 授权";
 "claude.auth.keychain_error" = "Claude Code Keychain 返回错误 %d。";
 "claude.auth.keychain_missing" = "在 Keychain 中找不到当前 Claude Code 授权。";
 "duration.days.short" = "%d天";
@@ -143,8 +138,8 @@
 "limit.used_five_hours" = "5小时内已用 %d%%";
 "limit.weekly" = "每周限额";
 "limit.window" = "窗口";
-"limits.empty.account.subtitle" = "点击“刷新”获取此账户的最新数据。";
-"limits.empty.subtitle" = "检查授权或刷新数据。";
+"limits.empty.account.subtitle" = "Limits 会自动检查此账户。当前数据可用后会显示在这里。";
+"limits.empty.subtitle" = "Limits 会自动检查授权和限额。当前数据可用后会显示在这里。";
 "limits.empty.title" = "尚未加载限额";
 "limits.last_known_data" = "正在刷新上次已知的限额数据";
 "limits.last_known_reset" = "上次已知重置时间：%@";
@@ -164,7 +159,11 @@
 "limits.unavailable.title" = "限额暂时不可用";
 "limits.unavailable.message" = "账号已保存。Limits 稍后会重试。";
 "account.validation_failed.title" = "无法检查账号";
-"account.validation_failed.message" = "请刷新账号或重新登录。";
+"account.validation_failed.message" = "Limits 会自动再次检查此账号。";
+"account.rename.prompt" = "账号名称";
+"account.rename.action" = "重命名账号";
+"account.rename.hint" = "双击即可重命名";
+"account.email.copy" = "复制邮箱";
 "reset.other_day.compact" = "重置 %@ %@";
 "reset.other_day.expanded" = "%@，%@ 重置";
 "reset.stale.compact" = "重置已过";
@@ -204,7 +203,7 @@
 "accounts.persistence.atomic_replace_failed" = "无法以原子方式替换账户状态（错误 %d）。";
 "accounts.repository.not_opened" = "账户存储尚未打开。";
 "accounts.repository.read_only" = "这些账户由架构 v%d 写入。Limits 已用只读模式打开，以保留较新的数据。";
-"accounts.repository.revision_conflict" = "账户已在另一个 Limits 进程中更改（预期修订 %@，实际 %@）。请刷新后重试。";
+"accounts.repository.revision_conflict" = "账户已在另一个 Limits 进程中更改（预期修订 %@，实际 %@）。请重试此操作；Limits 会自动加载当前状态。";
 "accounts.repository.account_missing" = "保存的账户已不存在。";
 "accounts.repository.credential_missing" = "保存的凭据已不存在。";
 "claude.statusline.snapshot_missing" = "Claude 尚未发送 statusLine 快照。";
