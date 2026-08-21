@@ -37,7 +37,7 @@ manifest_path = pathlib.Path(sys.argv[1])
 attachments_dir = pathlib.Path(sys.argv[2])
 output_dir = pathlib.Path(sys.argv[3])
 manifest = json.loads(manifest_path.read_text())
-wanted = {"limits-window.png", "limits-tray.png"}
+wanted = {"limits-window.png", "limits-window-dark.png", "limits-tray.png"}
 copied = set()
 
 def visit(value):
@@ -69,5 +69,6 @@ if missing:
 PY
 
 test -s "$OUTPUT_DIR/limits-window.png"
+test -s "$OUTPUT_DIR/limits-window-dark.png"
 test -s "$OUTPUT_DIR/limits-tray.png"
-printf '%s\n' "$OUTPUT_DIR/limits-window.png" "$OUTPUT_DIR/limits-tray.png"
+printf '%s\n' "$OUTPUT_DIR/limits-window.png" "$OUTPUT_DIR/limits-window-dark.png" "$OUTPUT_DIR/limits-tray.png"

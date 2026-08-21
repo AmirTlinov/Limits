@@ -1,11 +1,14 @@
 # Limits
 
-Native macOS tray app for people who switch between several **Codex** and **Claude Code** accounts and want to see remaining limits at a glance.
+Native macOS app for people who switch between several **Codex** and **Claude Code** accounts and want to understand both remaining limits and actual Codex usage.
 
-Limits keeps the important thing close: current account, remaining 5-hour limit, weekly limit, and quick switching between saved accounts.
+Limits keeps the important thing close: which account is most likely to run out first, whether it will last until reset, how many tokens and credits were used, the current API-price equivalent, and quick switching between saved accounts.
 
 <p align="center">
-  <img src="docs/images/limits-window.png" alt="Limits main window with sanitized demo accounts" width="820">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/limits-window-dark.png">
+    <img src="docs/images/limits-window.png" alt="Limits Codex overview with sanitized demo accounts" width="820">
+  </picture>
 </p>
 
 <p align="center">
@@ -16,6 +19,9 @@ Limits keeps the important thing close: current account, remaining 5-hour limit,
 
 ## What it does
 
+- Opens on a Codex overview with the nearest weekly-limit risk across all saved accounts.
+- Shows weekly tokens, Codex credits, the current API-price equivalent, subscription cost, model mix, and daily usage.
+- Forecasts “runs out before reset”, “lasts until reset”, “collecting pace”, and stale evidence from observed server limits.
 - Shows Codex limits in the menu bar panel, native macOS window, and WidgetKit widgets.
 - Shows Claude only when a saved Claude account exists or Claude Code reports a live, stable signed-in identity.
 - Publishes a safe widget snapshot through the macOS App Group container; widgets never read auth files or Keychain credentials.
@@ -37,7 +43,9 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 
 ## Notes
 
-- Codex support works through the local Codex CLI auth file and official CLI account/limit surfaces.
+- Codex account totals come from the official `account/usage/read` app-server surface. Model-level detail is imported from local Codex JSONL as numeric metadata only.
+- Limits reads `session_meta`, `turn_context`, cumulative `token_count`, and reroute metadata. It does not store conversation text, prompts, responses, transcripts, or project contents.
+- Credits use the versioned [Codex pricing](https://learn.chatgpt.com/docs/pricing) table. API equivalent uses current [OpenAI API pricing](https://developers.openai.com/api/docs/pricing); it is a comparison, not an API bill.
 - Claude Code supports account switching through Keychain credentials and reads live limits only from Claude Code statusline data.
 - The app does not invent Claude limits when Claude Code does not provide them.
 
@@ -48,7 +56,7 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 ./script/build_and_run.sh
 ```
 
-Limits targets macOS 26 on Apple silicon. `LimitsCore` owns account storage, provider sessions, and presentation policies; the app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
+Limits targets macOS 26 on Apple silicon. `AccountsRepository` owns account identities and credential references. `CodexUsageRepository` owns usage history in SQLite. Provider coordinators own authenticated operations and refresh queues. The app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
 
 The release zip and checksum are written to `dist/` by the release command. The
 temporary app bundle stays under Spotlight-hidden `.build/release/package/`:
