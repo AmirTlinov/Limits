@@ -329,6 +329,7 @@
 "usage.repository.read_only" = "Usage storage schema %d is newer than this app and was opened read-only.";
 "codex.account.usage_malformed" = "Codex returned malformed account usage data.";
 "insights.coverage.inconsistent" = "Local %@ exceeds server %@; data needs reconciliation";
-"insights.unattributed.title" = "Unattributed local history";
-"insights.unattributed.subtitle" = "These events are shown separately from saved-account totals.";
-"insights.unattributed.models" = "Models: %@";
+"insights.unattributed.title" = "History without an account";
+"insights.unattributed.context" = "Not included in account totals · %@";
+"insights.unattributed.tokens" = "%@ tokens";
+"insights.unattributed.estimates" = "%@ cr · API ≈ %@";

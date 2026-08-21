@@ -329,6 +329,7 @@
 "usage.repository.read_only" = "Le schéma d’usage %d est plus récent et a été ouvert en lecture seule.";
 "codex.account.usage_malformed" = "Codex a renvoyé des données d’usage de compte incorrectes.";
 "insights.coverage.inconsistent" = "Le total local %@ dépasse le serveur %@ ; les données doivent être rapprochées";
-"insights.unattributed.title" = "Historique local non attribué";
-"insights.unattributed.subtitle" = "Ces événements sont affichés séparément des totaux des comptes enregistrés.";
-"insights.unattributed.models" = "Modèles : %@";
+"insights.unattributed.title" = "Historique sans compte";
+"insights.unattributed.context" = "Hors des totaux des comptes · %@";
+"insights.unattributed.tokens" = "%@ jetons";
+"insights.unattributed.estimates" = "%@ cr · API ≈ %@";

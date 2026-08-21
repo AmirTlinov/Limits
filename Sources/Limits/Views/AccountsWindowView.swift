@@ -629,7 +629,7 @@ private struct CodexOverviewPane: View {
             }
 
             if let unattributed = snapshot.unattributed {
-                UnattributedInsightsCard(insights: unattributed)
+                UnattributedInsightsSummary(insights: unattributed)
             }
         }
     }
@@ -906,52 +906,63 @@ private struct ModelUsageBucket: Identifiable {
     }
 }
 
-private struct UnattributedInsightsCard: View {
+private struct UnattributedInsightsSummary: View {
     let insights: CodexUnattributedInsights
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.tr("insights.unattributed.title"))
-                    .font(.headline)
-                Text(L10n.tr("insights.unattributed.subtitle"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 10) {
+            MinimalSeparator()
 
-            HStack(spacing: 18) {
-                Label(
-                    CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
-                    systemImage: "text.word.spacing"
-                )
-                Label(
-                    insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    systemImage: "sparkles"
-                )
-                Label(
-                    insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
-                    systemImage: "dollarsign.circle"
-                )
-            }
-            .font(.callout.weight(.semibold))
-            .monospacedDigit()
+            HStack(alignment: .firstTextBaseline, spacing: 20) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.tr("insights.unattributed.title"))
+                        .font(.callout.weight(.semibold))
+                    Text(L10n.tr("insights.unattributed.context", modelNames))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
 
-            Text(
-                L10n.tr(
-                    "insights.unattributed.models",
-                    insights.models.prefix(4)
-                        .map { CodexInsightsTextPresentation.modelTitle($0.modelID) }
-                        .joined(separator: ", ")
-                )
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
+                Spacer(minLength: 16)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(
+                        L10n.tr(
+                            "insights.unattributed.tokens",
+                            CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens)
+                        )
+                    )
+                    .font(.callout.weight(.semibold))
+
+                    Text(L10n.tr("insights.unattributed.estimates", credits, apiEquivalent))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .monospacedDigit()
+                .fixedSize(horizontal: true, vertical: false)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("codex.insights.unattributed")
+    }
+
+    private var modelNames: String {
+        insights.models.prefix(4)
+            .map { CodexInsightsTextPresentation.modelTitle($0.modelID) }
+            .formatted(.list(type: .and).locale(L10n.locale))
+    }
+
+    private var credits: String {
+        insights.totals.credits.map {
+            L10n.localizedDecimal($0, maximumFractionDigits: 1)
+        } ?? "—"
+    }
+
+    private var apiEquivalent: String {
+        insights.totals.apiEquivalentUSD.map {
+            L10n.localizedCurrencyUSD($0)
+        } ?? "—"
     }
 }
 
