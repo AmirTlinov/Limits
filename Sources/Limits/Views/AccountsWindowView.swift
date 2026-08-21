@@ -1695,19 +1695,32 @@ private struct AccountHeaderAccessory: View {
         HStack(spacing: 8) {
             ProviderStatusBadge(presentation: presentation)
 
-            Menu {
-                Button(L10n.tr("action.delete"), role: .destructive, action: delete)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 16))
+            Group {
+                if canDelete {
+                    Menu {
+                        Button(L10n.tr("action.delete"), role: .destructive, action: delete)
+                    } label: {
+                        actionsIcon
+                    }
+                    .menuStyle(.borderlessButton)
+                } else {
+                    Button(action: delete) {
+                        actionsIcon
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(true)
+                }
             }
-            .menuStyle(.borderlessButton)
             .fixedSize()
-            .disabled(!canDelete)
             .help(L10n.tr("action.more"))
             .accessibilityLabel(L10n.tr("action.more"))
             .accessibilityIdentifier("account.actions.more")
         }
+    }
+
+    private var actionsIcon: some View {
+        Image(systemName: "ellipsis.circle")
+            .font(.system(size: 16))
     }
 }
 
