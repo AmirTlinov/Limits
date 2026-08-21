@@ -82,8 +82,10 @@
 		D000000000000000000000E9 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
 		D000000000000000000000EB /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000EC /* LimitsCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000EE /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000F1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F0 /* Sparkle */; };
+		D000000000000000000000EE /* LimitsShared.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EF /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000F1 /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000F4 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F3 /* Sparkle */; };
 		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
 		F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */; };
 		F1C250476E90A6D8A3DC070F /* CodexInsightsTextPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */; };
@@ -216,13 +218,25 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D000000000000000000000ED /* Embed App Extensions */ = {
+		D000000000000000000000ED /* Embed Test Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D000000000000000000000EF /* LimitsCore.framework in Embed Test Frameworks */,
+				D000000000000000000000EE /* LimitsShared.framework in Embed Test Frameworks */,
+			);
+			name = "Embed Test Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D000000000000000000000F0 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				D000000000000000000000EE /* LimitsWidgetExtension.appex in Embed App Extensions */,
+				D000000000000000000000F1 /* LimitsWidgetExtension.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -358,7 +372,7 @@
 				D0000000000000000000001C /* Cocoa.framework in Frameworks */,
 				D000000000000000000000E2 /* LimitsCore.framework in Frameworks */,
 				D000000000000000000000E1 /* LimitsShared.framework in Frameworks */,
-				D000000000000000000000F1 /* Sparkle in Frameworks */,
+				D000000000000000000000F4 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -701,7 +715,7 @@
 				D00000000000000000000018 /* Frameworks */,
 				D00000000000000000000019 /* Resources */,
 				D000000000000000000000EA /* Embed Frameworks */,
-				D000000000000000000000ED /* Embed App Extensions */,
+				D000000000000000000000F0 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
@@ -712,7 +726,7 @@
 			);
 			name = Limits;
 			packageProductDependencies = (
-				D000000000000000000000F0 /* Sparkle */,
+				D000000000000000000000F3 /* Sparkle */,
 			);
 			productName = Limits;
 			productReference = D00000000000000000000016 /* Limits.app */;
@@ -799,6 +813,7 @@
 				D00000000000000000000048 /* Sources */,
 				D00000000000000000000049 /* Frameworks */,
 				D0000000000000000000004A /* Resources */,
+				D000000000000000000000ED /* Embed Test Frameworks */,
 			);
 			buildRules = (
 			);
@@ -864,7 +879,7 @@
 			mainGroup = D00000000000000000000002;
 			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
-				D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */,
+				D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00000000000000000000003 /* Products */;
@@ -1644,7 +1659,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+		D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
@@ -1655,9 +1670,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		D000000000000000000000F0 /* Sparkle */ = {
+		D000000000000000000000F3 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D000000000000000000000EF /* XCRemoteSwiftPackageReference "Sparkle" */;
+			package = D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */

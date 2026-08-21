@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DERIVED_DATA="${LIMITS_CI_DERIVED_DATA:-$ROOT_DIR/.build/ci}"
+DERIVED_DATA="${LIMITS_CI_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/Limits-CI}"
 SOURCE_PACKAGES="${LIMITS_SOURCE_PACKAGES:-$ROOT_DIR/.build/SourcePackages}"
 DESTINATION="platform=macOS,arch=arm64"
 XCODE_ARGS=(

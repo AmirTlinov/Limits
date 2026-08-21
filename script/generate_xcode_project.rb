@@ -167,6 +167,16 @@ shared_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOn
 core_build_file = embed_frameworks.add_file_reference(core.product_reference)
 core_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
 
+# The UI-test fixture imports these frameworks and executes in Xcode's runner
+# sandbox. Embedding them in the test bundle lets @loader_path resolve both
+# dependencies within that sandbox.
+embed_ui_test_frameworks = ui_tests.new_copy_files_build_phase("Embed Test Frameworks")
+embed_ui_test_frameworks.dst_subfolder_spec = "10"
+shared_ui_test_build_file = embed_ui_test_frameworks.add_file_reference(shared.product_reference)
+shared_ui_test_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
+core_ui_test_build_file = embed_ui_test_frameworks.add_file_reference(core.product_reference)
+core_ui_test_build_file.settings = { "ATTRIBUTES" => %w[CodeSignOnCopy RemoveHeadersOnCopy] }
+
 embed_extensions = app.new_copy_files_build_phase("Embed App Extensions")
 embed_extensions.dst_subfolder_spec = "13"
 widget_build_file = embed_extensions.add_file_reference(widget.product_reference)
