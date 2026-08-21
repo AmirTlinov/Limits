@@ -47,6 +47,9 @@ public enum CodexAccountValidationPolicy {
             updated.lastRateLimit = result.rateLimit
             updated.lastRateLimitsByLimitId = result.rateLimitsByLimitId
             updated.lastRateLimitObservedAt = observedAt
+            updated.limitsIssue = nil
+        } else if let rateLimitError = result.rateLimitError {
+            updated.limitsIssue = limitsIssue(for: rateLimitError)
         }
 
         if let subscriptionPeriod = result.subscriptionPeriod {
@@ -56,8 +59,29 @@ public enum CodexAccountValidationPolicy {
         }
 
         updated.status = limitsWereObserved ? status(for: result) : .ok
-        updated.statusMessage = result.rateLimitError ?? statusMessage(for: result)
+        updated.statusMessage = limitsWereObserved ? statusMessage(for: result) : nil
         return updated
+    }
+
+    public static func limitsIssue(for errorMessage: String) -> CodexLimitsIssue {
+        let message = errorMessage.lowercased()
+        if message.contains("token_revoked")
+            || message.contains("invalidated oauth token")
+            || message.contains("401 unauthorized") {
+            return .authorizationExpired
+        }
+        return .temporarilyUnavailable
+    }
+
+    public static func legacyLimitsIssue(from statusMessage: String?) -> CodexLimitsIssue? {
+        guard let statusMessage else { return nil }
+        let message = statusMessage.lowercased()
+        guard message.contains("failed to fetch codex rate limits")
+            || message.contains("backend-api/wham/usage")
+        else {
+            return nil
+        }
+        return limitsIssue(for: statusMessage)
     }
 
     private static func status(for result: AccountValidationResult) -> AccountStatus {

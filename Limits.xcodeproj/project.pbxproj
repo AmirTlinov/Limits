@@ -82,6 +82,7 @@
 		D000000000000000000000E6 /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000E9 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000E8 /* Sparkle */; };
 		F1B42CB6BDEBE43FEFFBBD14 /* AccountsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E36AE198294A46528DF8B6 /* AccountsRepository.swift */; };
+		F2107FE4707598E821D33575 /* CodexAccountIssuePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */; };
 		F27190BBD6B6F7021B0C59C0 /* ClaudeSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */; };
 		F43E2142BE2C9BD8925155F0 /* InterprocessFileLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */; };
 		F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */; };
@@ -274,6 +275,7 @@
 		F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LaunchAtLoginController.swift; path = AppSupport/LaunchAtLoginController.swift; sourceTree = "<group>"; };
 		F2C7D4E29A00235C2D96F3D2 /* ClaudeLivePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ClaudeLivePresentation.swift; path = Models/ClaudeLivePresentation.swift; sourceTree = "<group>"; };
 		F2EA9E6F7F242AAF58643835 /* LimitsWidgetSnapshotPublisher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitsWidgetSnapshotPublisher.swift; path = AppSupport/LimitsWidgetSnapshotPublisher.swift; sourceTree = "<group>"; };
+		F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountIssuePresentation.swift; path = Models/CodexAccountIssuePresentation.swift; sourceTree = "<group>"; };
 		F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderOperationState.swift; path = Models/ProviderOperationState.swift; sourceTree = "<group>"; };
 		F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountsPresentationPolicy.swift; path = Models/CodexAccountsPresentationPolicy.swift; sourceTree = "<group>"; };
 		F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProviderCatalogTests.swift; sourceTree = "<group>"; };
@@ -475,6 +477,7 @@
 				FCAC215DEC6DA603E473C242 /* ClaudeSessionCoordinator.swift */,
 				D00000000000000000000080 /* ClaudeStatuslineBridgeService.swift */,
 				D0000000000000000000006E /* ClaudeStoredAccount.swift */,
+				F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */,
 				D00000000000000000000082 /* CodexAccountService.swift */,
 				F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */,
 				FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */,
@@ -896,6 +899,7 @@
 				F27190BBD6B6F7021B0C59C0 /* ClaudeSessionCoordinator.swift in Sources */,
 				D00000000000000000000081 /* ClaudeStatuslineBridgeService.swift in Sources */,
 				D0000000000000000000006F /* ClaudeStoredAccount.swift in Sources */,
+				F2107FE4707598E821D33575 /* CodexAccountIssuePresentation.swift in Sources */,
 				D00000000000000000000083 /* CodexAccountService.swift in Sources */,
 				FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */,
 				FD95438612D6ADB49C195CDD /* CodexAccountValidationPolicy.swift in Sources */,

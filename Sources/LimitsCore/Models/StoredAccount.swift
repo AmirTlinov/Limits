@@ -38,6 +38,11 @@ public struct ClaudeAccountIdentity: Codable, Hashable, Sendable {
     case validationFailed
 }
 
+@frozen public enum CodexLimitsIssue: String, Codable, Hashable, Sendable {
+    case authorizationExpired
+    case temporarilyUnavailable
+}
+
 public struct RateLimitWindowSnapshot: Codable, Hashable, Sendable {
     public let resetsAt: Int64?
     public let usedPercent: Int
@@ -155,8 +160,9 @@ public struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
     public var keychainAccount: String
     public var lastRateLimitObservedAt: Date?
     public var subscriptionPeriod: ChatGPTSubscriptionPeriod?
+    public var limitsIssue: CodexLimitsIssue?
 
-    public init(id: UUID, label: String, email: String, accountId: String?, planType: String, createdAt: Date, updatedAt: Date, lastValidatedAt: Date?, status: AccountStatus, statusMessage: String?, lastRateLimit: RateLimitSnapshotModel?, lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?, authFingerprint: String, keychainAccount: String, lastRateLimitObservedAt: Date? = nil, subscriptionPeriod: ChatGPTSubscriptionPeriod? = nil) {
+    public init(id: UUID, label: String, email: String, accountId: String?, planType: String, createdAt: Date, updatedAt: Date, lastValidatedAt: Date?, status: AccountStatus, statusMessage: String?, lastRateLimit: RateLimitSnapshotModel?, lastRateLimitsByLimitId: [String: RateLimitSnapshotModel]?, authFingerprint: String, keychainAccount: String, lastRateLimitObservedAt: Date? = nil, subscriptionPeriod: ChatGPTSubscriptionPeriod? = nil, limitsIssue: CodexLimitsIssue? = nil) {
         self.id = id
         self.label = label
         self.email = email
@@ -173,6 +179,7 @@ public struct StoredAccount: Identifiable, Codable, Hashable, Sendable {
         self.keychainAccount = keychainAccount
         self.lastRateLimitObservedAt = lastRateLimitObservedAt
         self.subscriptionPeriod = subscriptionPeriod
+        self.limitsIssue = limitsIssue
     }
 
     public var stableIdentity: CodexAccountIdentity? {

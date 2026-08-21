@@ -24,6 +24,54 @@ struct CompactLimitBarsView: View {
     }
 }
 
+struct CompactSubscriptionBarView: View {
+    let cycle: ChatGPTSubscriptionCyclePresentation
+    var tint: Color = ProviderAccent.codex
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(L10n.tr("subscription.payment_in"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 6)
+
+                Text(cycle.countdownText)
+                    .font(.subheadline.weight(.bold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+
+            if let progress = cycle.remainingProgress {
+                CompactLimitBar(progress: progress, tint: resolvedTint, height: 7)
+                    .frame(maxWidth: .infinity)
+            } else {
+                Capsule()
+                    .fill(.secondary.opacity(0.16))
+                    .frame(height: 3)
+                    .frame(height: 7)
+            }
+
+            Text(cycle.paymentDateText)
+                .font(.caption2)
+                .foregroundStyle(.secondary.opacity(0.78))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(L10n.tr("subscription.payment_in")): \(cycle.countdownText). \(cycle.paymentDateText)"
+        )
+    }
+
+    private var resolvedTint: Color {
+        if cycle.isExpired { return .red }
+        if let progress = cycle.remainingProgress, progress <= 0.1 { return .orange }
+        return tint
+    }
+}
+
 private struct CompactLimitMetricTile: View {
     let row: RateLimitDisplayRow
     let tint: Color

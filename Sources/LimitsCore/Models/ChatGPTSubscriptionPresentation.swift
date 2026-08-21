@@ -15,6 +15,25 @@ public struct ChatGPTPlanPresentation: Hashable, Sendable {
     }
 }
 
+public struct ChatGPTSubscriptionCyclePresentation: Hashable, Sendable {
+    public let remainingProgress: Double?
+    public let countdownText: String
+    public let paymentDateText: String
+    public let isExpired: Bool
+
+    public init(
+        remainingProgress: Double?,
+        countdownText: String,
+        paymentDateText: String,
+        isExpired: Bool
+    ) {
+        self.remainingProgress = remainingProgress
+        self.countdownText = countdownText
+        self.paymentDateText = paymentDateText
+        self.isExpired = isExpired
+    }
+}
+
 public enum ChatGPTSubscriptionPresentationPolicy {
     public static func plan(for planType: String) -> ChatGPTPlanPresentation {
         switch planType.lowercased() {
@@ -43,16 +62,35 @@ public enum ChatGPTSubscriptionPresentationPolicy {
         }
     }
 
-    public static func periodText(
+    public static func cycle(
         for period: ChatGPTSubscriptionPeriod?,
         now: Date = .now
-    ) -> String? {
+    ) -> ChatGPTSubscriptionCyclePresentation? {
         guard let activeUntil = period?.activeUntil else { return nil }
-        let formatted = L10n.localizedDateTime(activeUntil)
-        if activeUntil > now {
-            return L10n.tr("subscription.current_period_until", formatted)
+        let isExpired = activeUntil <= now
+        let countdownText: String
+        let paymentDateText: String
+
+        if isExpired {
+            countdownText = L10n.tr("subscription.period_ended")
+            paymentDateText = L10n.tr("subscription.ended_at", L10n.shortDayTime(activeUntil))
+        } else {
+            let timestamp = Int64(activeUntil.timeIntervalSince1970)
+            countdownText = L10n.countdown(until: timestamp, now: now)
+                ?? L10n.tr("subscription.date_unavailable")
+            paymentDateText = L10n.tr("subscription.payment_at", L10n.shortDayTime(activeUntil))
         }
-        return L10n.tr("subscription.last_period_until", formatted)
+
+        return ChatGPTSubscriptionCyclePresentation(
+            remainingProgress: remainingProgress(
+                from: period?.activeStart,
+                until: activeUntil,
+                now: now
+            ),
+            countdownText: countdownText,
+            paymentDateText: paymentDateText,
+            isExpired: isExpired
+        )
     }
 
     private static func priced(_ title: String, dollars: Int) -> ChatGPTPlanPresentation {
@@ -60,5 +98,12 @@ public enum ChatGPTSubscriptionPresentationPolicy {
             title: title,
             monthlyPrice: L10n.tr("subscription.price.monthly", dollars)
         )
+    }
+
+    private static func remainingProgress(from activeStart: Date?, until activeUntil: Date, now: Date) -> Double? {
+        guard let activeStart, activeUntil > activeStart else { return nil }
+        let duration = activeUntil.timeIntervalSince(activeStart)
+        let remaining = activeUntil.timeIntervalSince(now)
+        return min(max(remaining / duration, 0), 1)
     }
 }

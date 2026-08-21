@@ -176,10 +176,12 @@ struct MenuBarContentView: View {
                 TrayAccountRow(
                     symbolName: "terminal",
                     title: codexOverview.title,
-                    subtitle: codexOverview.subtitle,
+                    subtitle: codexCurrentSubtitle,
+                    plan: model.currentChatGPTPlanPresentation(),
+                    subscriptionCycle: model.currentChatGPTSubscriptionCycle(now: model.presentationNow),
                     compactRows: currentCodexRows,
                     detailText: codexCurrentDetailText,
-                    metaText: codexCurrentMetaText,
+                    metaText: nil,
                     accent: codexAccent,
                     badgeText: codexBadge.text,
                     badgeColor: codexBadge.tone.color,
@@ -192,9 +194,11 @@ struct MenuBarContentView: View {
                         symbolName: "terminal",
                         title: account.label,
                         subtitle: storedCodexSubtitle(for: account),
+                        plan: model.chatGPTPlanPresentation(for: account),
+                        subscriptionCycle: model.chatGPTSubscriptionCycle(for: account, now: model.presentationNow),
                         compactRows: compactRows(from: model.rateLimitSections(for: account)),
                         detailText: storedCodexDetail(for: account),
-                        metaText: model.chatGPTSubscriptionPeriodText(for: account, now: model.presentationNow),
+                        metaText: nil,
                         accent: ProviderPresentation.statusTone(status: account.status, isCurrent: false, provider: .codex).color,
                         badgeText: nil,
                         badgeColor: .secondary,
@@ -221,6 +225,8 @@ struct MenuBarContentView: View {
                         symbolName: "text.bubble",
                         title: claudeOverview.title,
                         subtitle: claudeOverview.subtitle,
+                        plan: nil,
+                        subscriptionCycle: nil,
                         compactRows: currentClaudeRows,
                         detailText: claudeCurrentDetailText,
                         metaText: updatedAtText(for: model.claudeLiveBridgeSnapshotUpdatedAt() ?? model.claudeValidatedAt()),
@@ -237,6 +243,8 @@ struct MenuBarContentView: View {
                         symbolName: "text.bubble",
                         title: account.label,
                         subtitle: storedClaudeSubtitle(for: account),
+                        plan: nil,
+                        subscriptionCycle: nil,
                         compactRows: [],
                         detailText: account.shortStatusText,
                         metaText: nil,
@@ -418,21 +426,20 @@ struct MenuBarContentView: View {
     }
 
     private func storedCodexSubtitle(for account: StoredAccount) -> String? {
-        var parts: [String] = []
         if account.label.caseInsensitiveCompare(account.email) != .orderedSame {
-            parts.append(account.email)
+            return account.email
         }
-
-        if account.planType.caseInsensitiveCompare("unknown") != .orderedSame {
-            parts.append(model.chatGPTPlanSummary(for: account))
-        }
-
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return nil
     }
 
     private func storedCodexDetail(for account: StoredAccount) -> String? {
+        if let issue = model.codexAccountIssue(for: account) {
+            return issue.title
+        }
+
         if compactRows(from: model.rateLimitSections(for: account)).isEmpty {
-            return model.storedRateLimitSummary(for: account) ?? account.shortStatusText
+            return model.storedRateLimitSummary(for: account)
+                ?? account.shortStatusText
         }
         return nil
     }
@@ -451,18 +458,13 @@ struct MenuBarContentView: View {
         return L10n.updatedAtShort(date)
     }
 
-    private var codexCurrentMetaText: String? {
-        var parts: [String] = []
-        if let plan = model.currentChatGPTPlanSummary() {
-            parts.append(plan)
+    private var codexCurrentSubtitle: String? {
+        guard let subtitle = codexOverview.subtitle else { return nil }
+        let plan = model.currentChatGPTPlanPresentation()
+        if subtitle == plan?.title || subtitle == plan?.summary {
+            return nil
         }
-        if let period = model.currentChatGPTSubscriptionPeriodText(now: model.presentationNow) {
-            parts.append(period)
-        }
-        if let updated = updatedAtText(for: model.currentCLILimitsObservedAt()) {
-            parts.append(updated)
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return subtitle
     }
 }
 
@@ -634,6 +636,8 @@ private struct TrayAccountRow: View {
     let symbolName: String
     let title: String
     let subtitle: String?
+    let plan: ChatGPTPlanPresentation?
+    let subscriptionCycle: ChatGPTSubscriptionCyclePresentation?
     let compactRows: [RateLimitDisplayRow]
     let detailText: String?
     let metaText: String?
@@ -689,13 +693,37 @@ private struct TrayAccountRow: View {
                 }
             }
 
-            if !compactRows.isEmpty {
-                CompactLimitBarsView(rows: compactRows, dense: true, tint: accent)
-            } else if let detailText, !detailText.isEmpty {
+            if let plan {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(plan.title)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+
+                    Spacer(minLength: 6)
+
+                    if let monthlyPrice = plan.monthlyPrice {
+                        Text(monthlyPrice)
+                            .font(.subheadline.weight(.bold))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+
+            if let subscriptionCycle {
+                CompactSubscriptionBarView(cycle: subscriptionCycle, tint: accent)
+            }
+
+            if let detailText, !detailText.isEmpty {
                 Text(detailText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+            }
+
+            if !compactRows.isEmpty {
+                CompactLimitBarsView(rows: compactRows, dense: true, tint: accent)
             }
 
             if let metaText, !metaText.isEmpty {

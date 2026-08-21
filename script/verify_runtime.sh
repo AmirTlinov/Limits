@@ -31,6 +31,7 @@ EXPECTED_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/limits-runtime.XXXXXX")"
 WINDOW_PROBE="$TEMP_DIR/presented-window-count"
+URL_OPENER="$TEMP_DIR/open-url"
 LAUNCHED_PID=""
 
 cleanup() {
@@ -92,6 +93,52 @@ let count = windows.filter { window in
 print(count)
 SWIFT
 xcrun swiftc -O "$TEMP_DIR/presented-window-count.swift" -o "$WINDOW_PROBE"
+
+cat >"$TEMP_DIR/open-url.swift" <<'SWIFT'
+import AppKit
+import Foundation
+
+final class OpenResult: @unchecked Sendable {
+    var error: Error?
+}
+
+guard CommandLine.arguments.count == 3,
+      let targetURL = URL(string: CommandLine.arguments[2])
+else {
+    exit(2)
+}
+
+let applicationURL = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+let configuration = NSWorkspace.OpenConfiguration()
+configuration.activates = true
+configuration.createsNewApplicationInstance = false
+let result = OpenResult()
+let finished = DispatchSemaphore(value: 0)
+
+NSWorkspace.shared.open(
+    [targetURL],
+    withApplicationAt: applicationURL,
+    configuration: configuration
+) { _, error in
+    result.error = error
+    finished.signal()
+}
+
+let deadline = Date().addingTimeInterval(10)
+while finished.wait(timeout: .now()) == .timedOut {
+    guard Date() < deadline else {
+        fputs("timed out opening URL\n", stderr)
+        exit(3)
+    }
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+}
+
+if let error = result.error {
+    fputs("\(error.localizedDescription)\n", stderr)
+    exit(4)
+}
+SWIFT
+xcrun swiftc -O "$TEMP_DIR/open-url.swift" -o "$URL_OPENER"
 
 process_pids() {
   local pid command
@@ -199,11 +246,16 @@ on run argv
   set targetPID to (item 1 of argv) as integer
   tell application "System Events"
     tell (first application process whose unix id is targetPID)
-    set frontmost to true
-    delay 0.25
-    keystroke "w" using command down
+      repeat with candidateWindow in windows
+        set windowSize to size of candidateWindow
+        if (item 1 of windowSize) >= 900 and (item 2 of windowSize) >= 550 then
+          click (first button of candidateWindow whose subrole is "AXCloseButton")
+          return
+        end if
+      end repeat
     end tell
   end tell
+  error "No presented Limits window found"
 end run
 OSA
 }
@@ -252,7 +304,7 @@ kill -0 "$LAUNCHED_PID" 2>/dev/null || fail "application terminated after its la
 [[ -n "$(wait_for_tray_item "$LAUNCHED_PID")" ]] || fail "menu bar item disappeared in tray-only state"
 echo "tray-only state: same process alive, no presented window, tray exposed"
 
-/usr/bin/open -a "$APP_BUNDLE" 'limits://open'
+"$URL_OPENER" "$APP_BUNDLE" 'limits://open' || fail "could not deliver limits://open to the exact app bundle"
 [[ "$(wait_for_single_process)" == "$LAUNCHED_PID" ]] || fail "URL reopen created a second process"
 wait_for_window_count 1 "$LAUNCHED_PID"
 wait_for_activation_type Foreground "$LAUNCHED_PID"

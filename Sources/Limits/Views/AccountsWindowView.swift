@@ -530,14 +530,29 @@ private struct CurrentCLIDetailPane: View {
         return warning == overview.note ? nil : warning
     }
 
+    private var plan: ChatGPTPlanPresentation? {
+        model.currentChatGPTPlanPresentation()
+    }
+
+    private var subscriptionCycle: ChatGPTSubscriptionCyclePresentation? {
+        model.currentChatGPTSubscriptionCycle(now: model.presentationNow)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
                 title: overview.title,
                 subtitle: overview.subtitle,
-                stateBadge: AnyView(CLIStateBadge(source: model.currentCLIState.source)),
                 note: overview.note,
-                metaLine: currentCLIMetaLine,
+                metaLine: nil,
+                stateBadge: {
+                    CLIStateBadge(source: model.currentCLIState.source)
+                },
+                details: {
+                    if let plan {
+                        ChatGPTSubscriptionCard(plan: plan, cycle: subscriptionCycle)
+                    }
+                },
                 actions: {
                     if model.hasCurrentCLIAuthToImport() {
                         Button(L10n.tr("action.import_current_auth")) {
@@ -591,26 +606,6 @@ private struct CurrentCLIDetailPane: View {
             }
         }
     }
-
-    private var currentCLIMetaLine: String? {
-        var parts: [String] = []
-        if let plan = model.currentChatGPTPlanSummary() {
-            parts.append(plan)
-        }
-        if let period = model.currentChatGPTSubscriptionPeriodText(now: model.presentationNow) {
-            parts.append(period)
-        }
-        if let date = model.currentCLILimitsObservedAt() {
-            parts.append(L10n.updatedAt(formatted(date: date)))
-        } else if model.isRefreshingCurrentCLIProbe {
-            parts.append(L10n.tr("busy.refreshing_live_limits"))
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: "\n")
-    }
-
-    private func formatted(date: Date) -> String {
-        L10n.localizedDateTime(date)
-    }
 }
 
 private struct CurrentClaudeDetailPane: View {
@@ -629,9 +624,14 @@ private struct CurrentClaudeDetailPane: View {
             DetailHeroCard(
                 title: overview.title,
                 subtitle: overview.subtitle,
-                stateBadge: AnyView(ClaudeStateBadge(model: model)),
                 note: overview.note,
                 metaLine: metaLine,
+                stateBadge: {
+                    ClaudeStateBadge(model: model)
+                },
+                details: {
+                    EmptyView()
+                },
                 actions: {
                     if model.hasCurrentClaudeAuthToImport() {
                         Button(L10n.tr("action.save_account")) {
@@ -769,9 +769,14 @@ private struct StoredClaudeDetailPane: View {
             DetailHeroCard(
                 title: account.label,
                 subtitle: account.email,
-                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)),
                 note: accountNote,
                 metaLine: accountMetaLine,
+                stateBadge: {
+                    AccountStatusBadge(status: account.status, isCurrent: isCurrent, provider: .claude)
+                },
+                details: {
+                    EmptyView()
+                },
                 actions: {
                     if !isCurrent {
                         Button(L10n.tr("action.make_current")) {
@@ -931,14 +936,35 @@ private struct StoredAccountDetailPane: View {
         model.isCurrentCLIAccount(account)
     }
 
+    private var plan: ChatGPTPlanPresentation {
+        model.chatGPTPlanPresentation(for: account)
+    }
+
+    private var subscriptionCycle: ChatGPTSubscriptionCyclePresentation? {
+        model.chatGPTSubscriptionCycle(for: account, now: model.presentationNow)
+    }
+
+    private var accountIssue: CodexAccountIssuePresentation? {
+        model.codexAccountIssue(for: account)
+    }
+
+    private var accountSubtitle: String? {
+        account.label.caseInsensitiveCompare(account.email) == .orderedSame ? nil : account.email
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             DetailHeroCard(
                 title: account.label,
-                subtitle: account.email,
-                stateBadge: AnyView(AccountStatusBadge(status: account.status, isCurrent: isCurrent)),
-                note: accountNote,
-                metaLine: accountMetaLine,
+                subtitle: accountSubtitle,
+                note: nil,
+                metaLine: nil,
+                stateBadge: {
+                    AccountStatusBadge(status: account.status, isCurrent: isCurrent)
+                },
+                details: {
+                    ChatGPTSubscriptionCard(plan: plan, cycle: subscriptionCycle)
+                },
                 actions: {
                     if !isCurrent {
                         Button(L10n.tr("action.make_current")) {
@@ -968,14 +994,20 @@ private struct StoredAccountDetailPane: View {
                 }
             )
 
-            if sections.isEmpty {
+            if let accountIssue {
                 MinimalSeparator()
-                EmptyLimitsCard(
-                    title: L10n.tr("limits.empty.title"),
-                    subtitle: model.storedRateLimitSummary(for: account)
-                        ?? accountNote
-                        ?? L10n.tr("limits.empty.account.subtitle")
-                )
+                CodexAccountIssueCard(issue: accountIssue)
+            }
+
+            if sections.isEmpty {
+                if accountIssue == nil {
+                    MinimalSeparator()
+                    EmptyLimitsCard(
+                        title: L10n.tr("limits.empty.title"),
+                        subtitle: model.storedRateLimitSummary(for: account)
+                            ?? L10n.tr("limits.empty.account.subtitle")
+                    )
+                }
             } else {
                 MinimalSeparator()
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
@@ -988,56 +1020,32 @@ private struct StoredAccountDetailPane: View {
             }
         }
     }
-
-    private var accountNote: String? {
-        if isCurrent, model.currentCLIProbe != nil {
-            return L10n.tr("cli.live_limits_loaded")
-        }
-        return account.statusMessage
-    }
-
-    private var accountMetaLine: String? {
-        var parts: [String] = []
-
-        if isCurrent {
-            parts.append(L10n.tr("account.current") + " CLI")
-        }
-
-        parts.append(model.chatGPTPlanSummary(for: account))
-
-        if let period = model.chatGPTSubscriptionPeriodText(for: account, now: model.presentationNow) {
-            parts.append(period)
-        }
-
-        if let date = account.lastValidatedAt {
-            parts.append(L10n.checkedAt(L10n.localizedDateTime(date)))
-        }
-
-        return parts.isEmpty ? nil : parts.joined(separator: "\n")
-    }
 }
 
-private struct DetailHeroCard<Actions: View>: View {
+private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: View {
     let title: String
     let subtitle: String?
-    let stateBadge: AnyView
     let note: String?
     let metaLine: String?
+    let stateBadge: StateBadge
+    let details: Details
     let actions: Actions
 
     init(
         title: String,
         subtitle: String?,
-        stateBadge: AnyView,
         note: String?,
         metaLine: String?,
+        @ViewBuilder stateBadge: () -> StateBadge,
+        @ViewBuilder details: () -> Details,
         @ViewBuilder actions: () -> Actions
     ) {
         self.title = title
         self.subtitle = subtitle
-        self.stateBadge = stateBadge
         self.note = note
         self.metaLine = metaLine
+        self.stateBadge = stateBadge()
+        self.details = details()
         self.actions = actions()
     }
 
@@ -1061,6 +1069,8 @@ private struct DetailHeroCard<Actions: View>: View {
                 stateBadge
             }
 
+            details
+
             if let metaLine {
                 Text(metaLine)
                     .font(.caption)
@@ -1078,6 +1088,115 @@ private struct DetailHeroCard<Actions: View>: View {
                 actions
             }
         }
+    }
+}
+
+private struct ChatGPTSubscriptionCard: View {
+    let plan: ChatGPTPlanPresentation
+    let cycle: ChatGPTSubscriptionCyclePresentation?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(plan.title)
+                    .font(.title2.weight(.semibold))
+
+                Spacer(minLength: 12)
+
+                if let monthlyPrice = plan.monthlyPrice {
+                    Text(monthlyPrice)
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                plan.monthlyPrice.map { "\(plan.title), \($0)" } ?? plan.title
+            )
+            .accessibilityIdentifier("chatgpt.subscription.plan")
+
+            if let cycle {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                    GridRow(alignment: .center) {
+                        Text(L10n.tr("subscription.payment_in"))
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 160, alignment: .leading)
+
+                        if let progress = cycle.remainingProgress {
+                            LimitProgressBar(progress: progress, tint: subscriptionTint(for: cycle))
+                                .frame(maxWidth: .infinity)
+                                .accessibilityIdentifier("chatgpt.subscription.progress")
+                        } else {
+                            MinimalProgressTrack(fillOpacity: 0.075, strokeOpacity: 0.18)
+                                .frame(height: 12)
+                        }
+
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(cycle.countdownText)
+                                .font(.title3.weight(.semibold))
+                                .monospacedDigit()
+
+                            Text(cycle.paymentDateText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(width: 190, alignment: .trailing)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    "\(L10n.tr("subscription.payment_in")): \(cycle.countdownText). \(cycle.paymentDateText)"
+                )
+                .accessibilityIdentifier("chatgpt.subscription.cycle")
+            } else {
+                Text(L10n.tr("subscription.date_unavailable"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.primary.opacity(0.035))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(.primary.opacity(0.07), lineWidth: 1)
+                }
+        )
+    }
+
+    private func subscriptionTint(for cycle: ChatGPTSubscriptionCyclePresentation) -> Color {
+        if cycle.isExpired { return .red }
+        if let progress = cycle.remainingProgress, progress <= 0.1 { return .orange }
+        return ProviderAccent.codex
+    }
+}
+
+private struct CodexAccountIssueCard: View {
+    let issue: CodexAccountIssuePresentation
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: issue.recommendedAction == .reauthenticate
+                  ? "person.crop.circle.badge.exclamationmark"
+                  : "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(issue.title)
+                    .font(.headline)
+                Text(issue.message)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(issue.title). \(issue.message)")
+        .accessibilityIdentifier("codex.account.issue")
     }
 }
 

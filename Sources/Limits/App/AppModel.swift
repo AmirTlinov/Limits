@@ -654,6 +654,7 @@ final class AppModel: ObservableObject {
                     stored.updatedAt = Date()
                     stored.status = classifyValidationError(error)
                     stored.statusMessage = validationStatusMessage(for: error)
+                    stored.limitsIssue = nil
                 }
             } catch {
                 errorMessage = error.localizedDescription
@@ -1279,7 +1280,7 @@ final class AppModel: ObservableObject {
         case .needsReauth:
             return L10n.tr("account.needs_login")
         case .validationFailed, .unknown, .ok, .limitReached:
-            return error.localizedDescription
+            return L10n.tr("account.validation_failed.message")
         }
     }
 
@@ -1445,25 +1446,29 @@ final class AppModel: ObservableObject {
         currentCLIProbe?.limitsObservedAt ?? currentCLIReferenceAccount()?.rateLimitObservedAt
     }
 
-    func currentChatGPTPlanSummary() -> String? {
+    func currentChatGPTPlanPresentation() -> ChatGPTPlanPresentation? {
         let planType = currentCLIProbe?.planType ?? currentCLIReferenceAccount()?.planType
         guard let planType, planType.caseInsensitiveCompare("unknown") != .orderedSame else { return nil }
-        return ChatGPTSubscriptionPresentationPolicy.plan(for: planType).summary
+        return ChatGPTSubscriptionPresentationPolicy.plan(for: planType)
     }
 
-    func chatGPTPlanSummary(for account: StoredAccount) -> String {
-        ChatGPTSubscriptionPresentationPolicy.plan(for: account.planType).summary
+    func chatGPTPlanPresentation(for account: StoredAccount) -> ChatGPTPlanPresentation {
+        ChatGPTSubscriptionPresentationPolicy.plan(for: account.planType)
     }
 
-    func currentChatGPTSubscriptionPeriodText(now: Date = .now) -> String? {
-        ChatGPTSubscriptionPresentationPolicy.periodText(
+    func currentChatGPTSubscriptionCycle(now: Date = .now) -> ChatGPTSubscriptionCyclePresentation? {
+        ChatGPTSubscriptionPresentationPolicy.cycle(
             for: currentCLIProbe?.subscriptionPeriod ?? currentCLIReferenceAccount()?.subscriptionPeriod,
             now: now
         )
     }
 
-    func chatGPTSubscriptionPeriodText(for account: StoredAccount, now: Date = .now) -> String? {
-        ChatGPTSubscriptionPresentationPolicy.periodText(for: account.subscriptionPeriod, now: now)
+    func chatGPTSubscriptionCycle(for account: StoredAccount, now: Date = .now) -> ChatGPTSubscriptionCyclePresentation? {
+        ChatGPTSubscriptionPresentationPolicy.cycle(for: account.subscriptionPeriod, now: now)
+    }
+
+    func codexAccountIssue(for account: StoredAccount) -> CodexAccountIssuePresentation? {
+        CodexAccountIssuePresentationPolicy.presentation(for: account)
     }
 
     func claudeValidatedAt(for account: ClaudeStoredAccount? = nil) -> Date? {

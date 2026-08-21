@@ -77,11 +77,11 @@ import LimitsShared
     }
 }
 
-@Test func subscriptionPresentationNamesPaidPeriodWithoutClaimingCancellation() {
+@Test func subscriptionPresentationShowsRemainingCycleAsTimeAndProgress() throws {
     let now = Date(timeIntervalSince1970: 2_000_000)
     let current = ChatGPTSubscriptionPeriod(
-        activeStart: now.addingTimeInterval(-1_000),
-        activeUntil: now.addingTimeInterval(1_000),
+        activeStart: now.addingTimeInterval(-10 * 86_400),
+        activeUntil: now.addingTimeInterval(20 * 86_400),
         lastCheckedAt: now
     )
     let past = ChatGPTSubscriptionPeriod(
@@ -91,8 +91,15 @@ import LimitsShared
     )
 
     L10n.withLanguage("ru") {
-        #expect(ChatGPTSubscriptionPresentationPolicy.periodText(for: current, now: now)?.hasPrefix("Текущий оплаченный период до ") == true)
-        #expect(ChatGPTSubscriptionPresentationPolicy.periodText(for: past, now: now)?.hasPrefix("Последний подтверждённый период закончился ") == true)
+        let cycle = ChatGPTSubscriptionPresentationPolicy.cycle(for: current, now: now)
+        let ended = ChatGPTSubscriptionPresentationPolicy.cycle(for: past, now: now)
+
+        #expect(cycle?.countdownText == "20д")
+        #expect(cycle?.paymentDateText.hasPrefix("Оплата / продление ") == true)
+        #expect(cycle?.remainingProgress != nil)
+        #expect(abs((cycle?.remainingProgress ?? 0) - (2.0 / 3.0)) < 0.0001)
+        #expect(ended?.countdownText == "Оплаченный период закончился")
+        #expect(ended?.remainingProgress == 0)
     }
 }
 
@@ -412,6 +419,7 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     let account = try #require(state.accounts.first)
     #expect(account.lastRateLimitObservedAt == nil)
     #expect(account.subscriptionPeriod == nil)
+    #expect(account.limitsIssue == nil)
     #expect(account.rateLimitObservedAt == account.lastValidatedAt)
     #expect(state.claudeAccounts.isEmpty)
 }
@@ -474,8 +482,45 @@ private func base64URLJSON(_ object: [String: Any]) -> String {
     #expect(updated.lastRateLimitsByLimitId == ["codex": oldSnapshot])
     #expect(updated.subscriptionPeriod == paidPeriod)
     #expect(updated.status == .ok)
-    #expect(updated.statusMessage == "Limits are temporarily unavailable")
+    #expect(updated.statusMessage == nil)
+    #expect(updated.limitsIssue == .temporarilyUnavailable)
     #expect(updated.authFingerprint == "new-fingerprint")
+}
+
+@Test func revokedLimitTokenBecomesOneHumanReauthenticationIssue() throws {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let result = AccountValidationResult(
+        authData: Data("credential".utf8),
+        authFingerprint: "fingerprint",
+        identity: AuthIdentity(authMode: "chatgpt", accountId: "acct_123", email: "user@example.com"),
+        email: "user@example.com",
+        planType: "pro",
+        rateLimit: nil,
+        rateLimitsByLimitId: nil,
+        rateLimitError: "failed to fetch codex rate limits: 401 Unauthorized; token_revoked"
+    )
+    let account = CodexAccountValidationPolicy.makeAccount(
+        id: UUID(),
+        label: "Primary",
+        createdAt: now,
+        from: result,
+        observedAt: now
+    )
+
+    #expect(account.limitsIssue == .authorizationExpired)
+    #expect(account.statusMessage == nil)
+    L10n.withLanguage("ru") {
+        let issue = CodexAccountIssuePresentationPolicy.presentation(for: account)
+        #expect(issue?.title == "Вход устарел")
+        #expect(issue?.message == "Войдите снова, чтобы восстановить лимиты этого аккаунта.")
+        #expect(issue?.recommendedAction == .reauthenticate)
+    }
+
+    var legacy = account
+    legacy.limitsIssue = nil
+    legacy.statusMessage = "GET https://chatgpt.com/backend-api/wham/usage failed: 401 Unauthorized; token_revoked"
+    let legacyIssue = CodexAccountIssuePresentationPolicy.presentation(for: legacy)
+    #expect(legacyIssue?.recommendedAction == .reauthenticate)
 }
 
 @Test func validationMergeUsesEveryExactBucketWhenDeterminingAvailability() {
