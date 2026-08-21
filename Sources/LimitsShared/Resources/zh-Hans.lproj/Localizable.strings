@@ -234,10 +234,6 @@
 "insights.period.week" = "本周";
 "insights.period.30_days" = "30 天";
 "insights.period.all" = "全部";
-"insights.risk.nearest" = "最近的限额风险";
-"insights.risk.all_safe" = "所有账户都可用到重置";
-"insights.risk.scope" = "全部账户范围";
-"insights.remaining.percent" = "剩余 %d%%";
 "insights.metric.tokens" = "Token";
 "insights.metric.credits" = "Credits";
 "insights.metric.api_equivalent" = "API 等价成本";
@@ -298,7 +294,6 @@
 "insights.price_change.usd_per_million" = "%@ / 100 万";
 "insights.price_change.multiplier" = "%@×";
 "insights.account.title" = "用量与效率";
-"insights.limit.weekly" = "每周限额";
 "insights.forecast.collecting" = "正在收集速度";
 "insights.forecast.exhausted" = "限额已用尽";
 "insights.forecast.exhausts_in" = "将在 %@ 后用尽";

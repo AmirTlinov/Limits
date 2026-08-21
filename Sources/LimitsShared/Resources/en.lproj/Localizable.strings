@@ -234,10 +234,6 @@
 "insights.period.week" = "Week";
 "insights.period.30_days" = "30 days";
 "insights.period.all" = "All";
-"insights.risk.nearest" = "Nearest limit risk";
-"insights.risk.all_safe" = "Every account lasts until reset";
-"insights.risk.scope" = "Across all accounts";
-"insights.remaining.percent" = "%d%% left";
 "insights.metric.tokens" = "Tokens";
 "insights.metric.credits" = "Credits";
 "insights.metric.api_equivalent" = "API equivalent";
@@ -298,7 +294,6 @@
 "insights.price_change.usd_per_million" = "%@ / 1M";
 "insights.price_change.multiplier" = "%@×";
 "insights.account.title" = "Usage and efficiency";
-"insights.limit.weekly" = "Weekly limit";
 "insights.forecast.collecting" = "Collecting pace";
 "insights.forecast.exhausted" = "Limit exhausted";
 "insights.forecast.exhausts_in" = "Ends in %@";

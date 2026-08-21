@@ -163,7 +163,7 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
-    func testCodexOverviewShowsWeeklyRiskCostsAndOpensAccountWithoutClaude() async throws {
+    func testCodexOverviewShowsActivityAndKeepsAccountNavigationInTheSidebar() async throws {
         let fileManager = FileManager.default
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-insights-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
@@ -181,8 +181,6 @@ final class LimitsUITests: XCTestCase {
         app.activate()
 
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
-        let weeklyRisk = app.descendants(matching: .any)["codex.insights.weekly-risk"]
-        XCTAssertTrue(weeklyRisk.waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.tokens"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.credits"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.api-equivalent"].exists)
@@ -191,15 +189,18 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.activity-calendar"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.work"].exists)
         XCTAssertTrue(app.staticTexts["Daily tokens"].exists)
-        XCTAssertTrue(weeklyRisk.label.contains("Across all accounts"))
+        XCTAssertFalse(app.descendants(matching: .any)["codex.insights.weekly-risk"].exists)
+        XCTAssertFalse(
+            app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "codex.insights.account.")
+            ).firstMatch.exists
+        )
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
         XCTAssertFalse(app.buttons["Refresh"].exists)
 
-        let accountButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "codex.insights.account.")
-        ).firstMatch
-        XCTAssertTrue(accountButton.waitForExistence(timeout: 3))
-        accountButton.click()
+        let sidebarAccount = app.staticTexts["Demo Codex 1"].firstMatch
+        XCTAssertTrue(sidebarAccount.waitForExistence(timeout: 3))
+        sidebarAccount.click()
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.account-detail"].waitForExistence(timeout: 3))
         app.terminate()
     }

@@ -231,7 +231,7 @@ struct AccountsWindowView: View {
                         SidebarRowView(
                             icon: "chart.xyaxis.line",
                             title: L10n.tr("insights.overview.title"),
-                            subtitle: overviewRiskSubtitle,
+                            subtitle: nil,
                             trailing: overviewCreditsText,
                             accent: ProviderAccent.codex
                         )
@@ -347,9 +347,7 @@ struct AccountsWindowView: View {
                 } else if detailDestination == .currentClaudeCode {
                     CurrentClaudeDetailPane(model: model)
                 } else if detailDestination == .codexOverview {
-                    CodexOverviewPane(model: model) { accountID in
-                        sidebarSelectionRaw = AccountsSidebarSelection.codexAccount(accountID).rawValue
-                    }
+                    CodexOverviewPane(model: model)
                 } else {
                     CurrentCLIDetailPane(model: model)
                 }
@@ -368,20 +366,6 @@ struct AccountsWindowView: View {
 
     private var currentCLITrailingText: String? {
         model.currentCLIDisplaySidebarLimitSummary()?.compactLimitText()
-    }
-
-    private var overviewRiskSubtitle: String? {
-        guard let risk = CodexAnalyticsSelection.quota(in: model.codexInsights),
-              model.codexInsights.nearestRisk != nil else {
-            let forecasts = model.codexInsights.accounts.flatMap(\.quotaForecasts).map(\.forecast.state)
-            guard !forecasts.isEmpty else { return nil }
-            if forecasts.allSatisfy({ [.lastsUntilReset, .stable].contains($0) }) {
-                return L10n.tr("insights.risk.all_safe")
-            }
-            if forecasts.contains(.stale) { return L10n.tr("insights.forecast.stale") }
-            return L10n.tr("insights.forecast.collecting")
-        }
-        return "\(risk.account.label) · \(risk.quota.title)"
     }
 
     private var overviewCreditsText: String? {
@@ -565,7 +549,6 @@ private struct SidebarRowView: View {
 
 private struct CodexOverviewPane: View {
     @ObservedObject var model: AppModel
-    let openAccount: (UUID) -> Void
 
     private var snapshot: CodexInsightsSnapshot { model.codexInsights }
 
@@ -604,14 +587,12 @@ private struct CodexOverviewPane: View {
                     now: model.presentationNow
                 )
                 InsightsMetricsGrid(snapshot: snapshot)
-                WeeklyRiskCard(snapshot: snapshot, now: model.presentationNow)
                 ModelUsageStrip(models: snapshot.models)
                 UsageTrendChart(daily: snapshot.daily, period: snapshot.period, now: model.presentationNow)
                     .frame(height: 176)
                 if let work = snapshot.work {
                     WorkUsageBreakdown(insights: work)
                 }
-                InsightsAccountList(accounts: snapshot.accounts, openAccount: openAccount)
             }
 
             if let unattributed = snapshot.unattributed {
@@ -655,86 +636,6 @@ private struct PriceChangeNotice: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background(ProviderAccent.codex.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-}
-
-private struct WeeklyRiskCard: View {
-    let snapshot: CodexInsightsSnapshot
-    let now: Date
-
-    private var selection: (account: CodexAccountInsights, quota: CodexQuotaForecast)? {
-        CodexAnalyticsSelection.quota(in: snapshot)
-    }
-
-    private var allSafe: Bool {
-        snapshot.nearestRisk == nil
-            && snapshot.accounts.flatMap(\.quotaForecasts).allSatisfy {
-                [.lastsUntilReset, .stable].contains($0.forecast.state)
-            }
-    }
-
-    var body: some View {
-        if let selection {
-            HStack(spacing: 12) {
-                Image(systemName: selection.quota.forecast.state == .exhaustsBeforeReset ? "exclamationmark.triangle.fill" : "gauge.with.dots.needle.50percent")
-                    .font(.callout)
-                    .foregroundStyle(forecastColor(selection.quota.forecast.state))
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(riskHeading(for: selection.quota))
-                        .font(.caption.weight(.semibold))
-                    Text(L10n.tr("insights.risk.scope"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Divider().frame(height: 26)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(selection.account.label).font(.callout.weight(.semibold)).lineLimit(1)
-                    Text(selection.quota.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(CodexInsightsTextPresentation.forecast(selection.quota.forecast, now: now))
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(forecastColor(selection.quota.forecast.state))
-                        .lineLimit(1)
-                    if let reset = CodexInsightsTextPresentation.reset(selection.quota.forecast, now: now) {
-                        Text(reset).font(.caption2).foregroundStyle(.secondary)
-                    }
-                }
-                ForecastProgressBar(forecast: selection.quota.forecast)
-                    .frame(width: 210)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("codex.insights.weekly-risk")
-        }
-    }
-
-    private func riskHeading(for quota: CodexQuotaForecast) -> String {
-        if allSafe { return L10n.tr("insights.risk.all_safe") }
-        if quota.forecast.state == .exhaustsBeforeReset { return L10n.tr("insights.risk.nearest") }
-        return L10n.tr("insights.limit.weekly")
-    }
-}
-
-private struct ForecastProgressBar: View {
-    let forecast: LimitBurnForecast
-
-    var body: some View {
-        let remaining = forecast.remainingPercent.map { Double($0) / 100 }
-        HStack(spacing: 10) {
-            ProgressView(value: min(max(remaining ?? 0, 0), 1))
-                .progressViewStyle(.linear)
-                .tint(remaining == nil ? Color.secondary : forecastColor(forecast.state))
-                .opacity(remaining == nil ? 0.35 : 1)
-            Text(forecast.remainingPercent.map { L10n.tr("insights.remaining.percent", $0) } ?? "—")
-                .font(.callout.weight(.semibold))
-                .monospacedDigit()
-                .frame(width: 82, alignment: .trailing)
-        }
     }
 }
 
@@ -915,40 +816,6 @@ private struct ModelUsageBucket: Identifiable {
     }
 }
 
-private struct InsightsAccountList: View {
-    let accounts: [CodexAccountInsights]
-    let openAccount: (UUID) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(accounts) { account in
-                if let localID = account.localAccountID {
-                    Button { openAccount(localID) } label: {
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(account.label).font(.callout.weight(.semibold)).lineLimit(1)
-                                Text(account.planTitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            }
-                            Spacer(minLength: 8)
-                            if let quota = account.riskiestQuotaForecast {
-                                Text("\(quota.title) · \(CodexInsightsTextPresentation.forecast(quota.forecast))")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(forecastColor(quota.forecast.state))
-                                    .lineLimit(1)
-                            }
-                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.vertical, 4)
-                    .accessibilityIdentifier("codex.insights.account.\(localID.uuidString)")
-                }
-            }
-        }
-    }
-}
-
 private struct UnattributedInsightsCard: View {
     let insights: CodexUnattributedInsights
     let period: CodexUsagePeriod
@@ -1010,15 +877,6 @@ private struct UnattributedInsightsCard: View {
         case .last30Days: L10n.tr("insights.period.30_days")
         case .all: L10n.tr("insights.period.all")
         }
-    }
-}
-
-private func forecastColor(_ state: LimitBurnForecastState) -> Color {
-    switch state {
-    case .exhaustsBeforeReset: .orange
-    case .stale: .secondary
-    case .collecting: .secondary
-    case .stable, .lastsUntilReset: ProviderAccent.codex
     }
 }
 

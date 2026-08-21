@@ -234,10 +234,6 @@
 "insights.period.week" = "Неделя";
 "insights.period.30_days" = "30 дней";
 "insights.period.all" = "Всё";
-"insights.risk.nearest" = "Ближайший риск";
-"insights.risk.all_safe" = "Всем хватит до сброса";
-"insights.risk.scope" = "Среди всех аккаунтов";
-"insights.remaining.percent" = "Осталось %d%%";
 "insights.metric.tokens" = "Токены";
 "insights.metric.credits" = "Credits";
 "insights.metric.api_equivalent" = "Эквивалент API";
@@ -298,7 +294,6 @@
 "insights.price_change.usd_per_million" = "%@ / 1 млн";
 "insights.price_change.multiplier" = "%@×";
 "insights.account.title" = "Расход и эффективность";
-"insights.limit.weekly" = "Недельный лимит";
 "insights.forecast.collecting" = "Собираем темп";
 "insights.forecast.exhausted" = "Лимит исчерпан";
 "insights.forecast.exhausts_in" = "Закончится через %@";
