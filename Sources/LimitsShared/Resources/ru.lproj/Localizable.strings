@@ -178,6 +178,7 @@
 "tray.tooltip.five_hour.no_data" = "%@ · 5ч лимит пока без данных";
 
 "tray.availability.with_limits" = "%d/%d с лимитами";
+"action.apply" = "Применить";
 "action.cancel" = "Отмена";
 "delete.confirm.title" = "Удалить %@?";
 "delete.confirm.message" = "Сохранённые данные входа будут удалены с этого Mac.";
@@ -233,6 +234,11 @@
 "insights.period.label" = "Период";
 "insights.period.week" = "Неделя";
 "insights.period.30_days" = "30 дней";
+"insights.period.6_months" = "Полгода";
+"insights.period.year" = "Год";
+"insights.period.custom" = "Период";
+"insights.period.custom.start" = "С";
+"insights.period.custom.end" = "По";
 "insights.period.all" = "Всё";
 "insights.metric.tokens" = "Токены";
 "insights.metric.credits" = "Credits";
@@ -254,8 +260,6 @@
 "insights.chart.tokens" = "Токены";
 "insights.calendar.title" = "Активность токенов";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
-"insights.calendar.period" = "Период календаря";
-"insights.calendar.rolling_year" = "12 месяцев";
 "insights.calendar.selection" = "%@ · %@ токенов";
 "insights.calendar.less" = "Меньше";
 "insights.calendar.more" = "Больше";
@@ -327,5 +331,4 @@
 "insights.coverage.inconsistent" = "Локально %@, на сервере %@ — данные требуют сверки";
 "insights.unattributed.title" = "Локальная история без аккаунта";
 "insights.unattributed.subtitle" = "Эти события показаны отдельно от итогов сохранённых аккаунтов.";
-"insights.unattributed.period" = "Период: %@";
 "insights.unattributed.models" = "Модели: %@";

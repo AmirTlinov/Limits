@@ -178,6 +178,7 @@
 "tray.tooltip.five_hour.no_data" = "%@ · 5小时限额暂无数据";
 
 "tray.availability.with_limits" = "%d/%d 有限额数据";
+"action.apply" = "应用";
 "action.cancel" = "取消";
 "delete.confirm.title" = "删除 %@？";
 "delete.confirm.message" = "已保存的登录凭据将从这台 Mac 删除。";
@@ -233,6 +234,11 @@
 "insights.period.label" = "周期";
 "insights.period.week" = "本周";
 "insights.period.30_days" = "30 天";
+"insights.period.6_months" = "半年";
+"insights.period.year" = "一年";
+"insights.period.custom" = "自定义";
+"insights.period.custom.start" = "从";
+"insights.period.custom.end" = "到";
 "insights.period.all" = "全部";
 "insights.metric.tokens" = "Token";
 "insights.metric.credits" = "Credits";
@@ -254,8 +260,6 @@
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Token 活动";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
-"insights.calendar.period" = "日历范围";
-"insights.calendar.rolling_year" = "12 个月";
 "insights.calendar.selection" = "%@ · %@ tokens";
 "insights.calendar.less" = "少";
 "insights.calendar.more" = "多";
@@ -327,5 +331,4 @@
 "insights.coverage.inconsistent" = "本地 %@ 超过服务器 %@；数据需要核对";
 "insights.unattributed.title" = "未归属的本地历史";
 "insights.unattributed.subtitle" = "这些事件与已保存账户的汇总分开显示。";
-"insights.unattributed.period" = "周期：%@";
 "insights.unattributed.models" = "模型：%@";

@@ -178,6 +178,7 @@
 "tray.tooltip.five_hour.no_data" = "%@ · limite 5 h sans données";
 
 "tray.availability.with_limits" = "%d/%d avec limites";
+"action.apply" = "Appliquer";
 "action.cancel" = "Annuler";
 "delete.confirm.title" = "Supprimer %@ ?";
 "delete.confirm.message" = "Les identifiants enregistrés seront supprimés de ce Mac.";
@@ -233,6 +234,11 @@
 "insights.period.label" = "Période";
 "insights.period.week" = "Semaine";
 "insights.period.30_days" = "30 jours";
+"insights.period.6_months" = "6 mois";
+"insights.period.year" = "Un an";
+"insights.period.custom" = "Période";
+"insights.period.custom.start" = "Du";
+"insights.period.custom.end" = "Au";
 "insights.period.all" = "Tout";
 "insights.metric.tokens" = "Jetons";
 "insights.metric.credits" = "Crédits";
@@ -254,8 +260,6 @@
 "insights.chart.tokens" = "Jetons";
 "insights.calendar.title" = "Activité des jetons";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
-"insights.calendar.period" = "Période du calendrier";
-"insights.calendar.rolling_year" = "12 mois";
 "insights.calendar.selection" = "%@ · %@ jetons";
 "insights.calendar.less" = "Moins";
 "insights.calendar.more" = "Plus";
@@ -327,5 +331,4 @@
 "insights.coverage.inconsistent" = "Le total local %@ dépasse le serveur %@ ; les données doivent être rapprochées";
 "insights.unattributed.title" = "Historique local non attribué";
 "insights.unattributed.subtitle" = "Ces événements sont affichés séparément des totaux des comptes enregistrés.";
-"insights.unattributed.period" = "Période : %@";
 "insights.unattributed.models" = "Modèles : %@";

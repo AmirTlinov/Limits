@@ -178,6 +178,7 @@
 "tray.tooltip.five_hour.no_data" = "%@ · 5h limit has no data yet";
 
 "tray.availability.with_limits" = "%d/%d with limits";
+"action.apply" = "Apply";
 "action.cancel" = "Cancel";
 "delete.confirm.title" = "Delete %@?";
 "delete.confirm.message" = "The saved credential will be removed from this Mac.";
@@ -233,6 +234,11 @@
 "insights.period.label" = "Period";
 "insights.period.week" = "Week";
 "insights.period.30_days" = "30 days";
+"insights.period.6_months" = "6 months";
+"insights.period.year" = "Year";
+"insights.period.custom" = "Custom";
+"insights.period.custom.start" = "From";
+"insights.period.custom.end" = "To";
 "insights.period.all" = "All";
 "insights.metric.tokens" = "Tokens";
 "insights.metric.credits" = "Credits";
@@ -254,8 +260,6 @@
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Token activity";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
-"insights.calendar.period" = "Calendar range";
-"insights.calendar.rolling_year" = "12 months";
 "insights.calendar.selection" = "%@ · %@ tokens";
 "insights.calendar.less" = "Less";
 "insights.calendar.more" = "More";
@@ -327,5 +331,4 @@
 "insights.coverage.inconsistent" = "Local %@ exceeds server %@; data needs reconciliation";
 "insights.unattributed.title" = "Unattributed local history";
 "insights.unattributed.subtitle" = "These events are shown separately from saved-account totals.";
-"insights.unattributed.period" = "Period: %@";
 "insights.unattributed.models" = "Models: %@";

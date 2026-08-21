@@ -178,6 +178,7 @@
 "tray.tooltip.five_hour.no_data" = "%@ · límite 5 h sin datos";
 
 "tray.availability.with_limits" = "%d/%d con límites";
+"action.apply" = "Aplicar";
 "action.cancel" = "Cancelar";
 "delete.confirm.title" = "¿Eliminar %@?";
 "delete.confirm.message" = "La credencial guardada se eliminará de este Mac.";
@@ -233,6 +234,11 @@
 "insights.period.label" = "Periodo";
 "insights.period.week" = "Semana";
 "insights.period.30_days" = "30 días";
+"insights.period.6_months" = "6 meses";
+"insights.period.year" = "Un año";
+"insights.period.custom" = "Periodo";
+"insights.period.custom.start" = "Desde";
+"insights.period.custom.end" = "Hasta";
 "insights.period.all" = "Todo";
 "insights.metric.tokens" = "Tokens";
 "insights.metric.credits" = "Créditos";
@@ -254,8 +260,6 @@
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Actividad de tokens";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
-"insights.calendar.period" = "Intervalo del calendario";
-"insights.calendar.rolling_year" = "12 meses";
 "insights.calendar.selection" = "%@ · %@ tokens";
 "insights.calendar.less" = "Menos";
 "insights.calendar.more" = "Más";
@@ -327,5 +331,4 @@
 "insights.coverage.inconsistent" = "Local %@ supera al servidor %@; hay que conciliar los datos";
 "insights.unattributed.title" = "Historial local sin atribuir";
 "insights.unattributed.subtitle" = "Estos eventos se muestran aparte de los totales de cuentas guardadas.";
-"insights.unattributed.period" = "Periodo: %@";
 "insights.unattributed.models" = "Modelos: %@";

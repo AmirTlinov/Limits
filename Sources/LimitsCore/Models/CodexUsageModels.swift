@@ -520,6 +520,9 @@ public struct OpenAIRateCardRevision: Codable, Hashable, Identifiable, Sendable 
 @frozen public enum CodexUsagePeriod: String, Codable, Hashable, Sendable, CaseIterable {
     case currentWeek
     case last30Days
+    case last6Months
+    case lastYear
+    case custom
     case all
 }
 
@@ -773,6 +776,46 @@ public struct CodexUsageWindow: Codable, Hashable, Sendable {
         return dayStart < end && dayEnd > start
     }
 
+    /// Builds a half-open UTC window that includes both selected calendar days.
+    public static func inclusiveUTCDays(
+        from firstDate: Date,
+        through secondDate: Date,
+        calendar: Calendar = Self.utcCalendar
+    ) -> Self {
+        let lower = min(firstDate, secondDate)
+        let upper = max(firstDate, secondDate)
+        let start = calendar.startOfDay(for: lower)
+        let lastDay = calendar.startOfDay(for: upper)
+        let end = calendar.date(byAdding: .day, value: 1, to: lastDay)
+            ?? lastDay.addingTimeInterval(24 * 60 * 60)
+        return Self(start: start, end: end)
+    }
+
+    public var firstUTCDay: Date {
+        Self.utcCalendar.startOfDay(for: start)
+    }
+
+    public var lastIncludedUTCDay: Date {
+        let duration = end.timeIntervalSince(start)
+        guard duration > 0 else { return firstUTCDay }
+        let instantInsideWindow = end.addingTimeInterval(-min(1, duration / 2))
+        return Self.utcCalendar.startOfDay(for: instantInsideWindow)
+    }
+
+    /// Turns an analytical window into the finite UTC-day range shown by charts and calendars.
+    public func visibleUTCDayRange(observedDates: [Date], through now: Date) -> ClosedRange<Date> {
+        let calendar = Self.utcCalendar
+        let today = calendar.startOfDay(for: now)
+        let upperBound = min(lastIncludedUTCDay, today)
+        let requestedLowerBound: Date
+        if start == .distantPast {
+            requestedLowerBound = observedDates.map { calendar.startOfDay(for: $0) }.min() ?? upperBound
+        } else {
+            requestedLowerBound = firstUTCDay
+        }
+        return min(requestedLowerBound, upperBound)...upperBound
+    }
+
     public static var utcCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -813,6 +856,7 @@ public struct CodexQuotaRisk: Codable, Hashable, Sendable {
 
 public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
     public let id: String
+    public let window: CodexUsageWindow
     public let localAccountID: UUID?
     public let label: String
     public let email: String
@@ -828,6 +872,7 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
 
     public init(
         id: String,
+        window: CodexUsageWindow,
         localAccountID: UUID?,
         label: String,
         email: String,
@@ -842,6 +887,7 @@ public struct CodexAccountInsights: Codable, Hashable, Identifiable, Sendable {
         observedAt: Date?
     ) {
         self.id = id
+        self.window = window
         self.localAccountID = localAccountID
         self.label = label
         self.email = email
@@ -934,6 +980,7 @@ public struct OpenAIPriceChange: Codable, Hashable, Identifiable, Sendable {
 
 public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
     public let period: CodexUsagePeriod
+    public let window: CodexUsageWindow
     public let generatedAt: Date
     public let accounts: [CodexAccountInsights]
     public let totals: CodexUsageTotals
@@ -949,6 +996,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
 
     public init(
         period: CodexUsagePeriod,
+        window: CodexUsageWindow,
         generatedAt: Date,
         accounts: [CodexAccountInsights],
         totals: CodexUsageTotals,
@@ -963,6 +1011,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         priceChange: OpenAIPriceChange?
     ) {
         self.period = period
+        self.window = window
         self.generatedAt = generatedAt
         self.accounts = accounts
         self.totals = totals
@@ -977,9 +1026,14 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         self.priceChange = priceChange
     }
 
-    public static func empty(period: CodexUsagePeriod = .currentWeek, now: Date = .now) -> Self {
+    public static func empty(
+        period: CodexUsagePeriod = .currentWeek,
+        window: CodexUsageWindow? = nil,
+        now: Date = .now
+    ) -> Self {
         Self(
             period: period,
+            window: window ?? CodexUsageWindow.inclusiveUTCDays(from: now, through: now),
             generatedAt: now,
             accounts: [],
             totals: CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil),
@@ -1018,15 +1072,24 @@ public struct CodexUnattributedInsights: Codable, Hashable, Sendable {
 public struct CodexAnalyticsSnapshotSet: Codable, Hashable, Sendable {
     public let currentWeek: CodexInsightsSnapshot
     public let last30Days: CodexInsightsSnapshot
+    public let last6Months: CodexInsightsSnapshot
+    public let lastYear: CodexInsightsSnapshot
+    public let custom: CodexInsightsSnapshot
     public let all: CodexInsightsSnapshot
 
     public init(
         currentWeek: CodexInsightsSnapshot,
         last30Days: CodexInsightsSnapshot,
+        last6Months: CodexInsightsSnapshot,
+        lastYear: CodexInsightsSnapshot,
+        custom: CodexInsightsSnapshot,
         all: CodexInsightsSnapshot
     ) {
         self.currentWeek = currentWeek
         self.last30Days = last30Days
+        self.last6Months = last6Months
+        self.lastYear = lastYear
+        self.custom = custom
         self.all = all
     }
 
@@ -1034,6 +1097,9 @@ public struct CodexAnalyticsSnapshotSet: Codable, Hashable, Sendable {
         switch period {
         case .currentWeek: currentWeek
         case .last30Days: last30Days
+        case .last6Months: last6Months
+        case .lastYear: lastYear
+        case .custom: custom
         case .all: all
         }
     }
@@ -1042,6 +1108,9 @@ public struct CodexAnalyticsSnapshotSet: Codable, Hashable, Sendable {
         Self(
             currentWeek: .empty(period: .currentWeek, now: now),
             last30Days: .empty(period: .last30Days, now: now),
+            last6Months: .empty(period: .last6Months, now: now),
+            lastYear: .empty(period: .lastYear, now: now),
+            custom: .empty(period: .custom, now: now),
             all: .empty(period: .all, now: now)
         )
     }

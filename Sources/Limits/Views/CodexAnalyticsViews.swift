@@ -5,7 +5,7 @@ import LimitsShared
 
 struct UsageTrendChart: View {
     let daily: [CodexDailyUsage]
-    let period: CodexUsagePeriod
+    let window: CodexUsageWindow
     let now: Date
     @State private var selectedDate: Date?
 
@@ -19,17 +19,11 @@ struct UsageTrendChart: View {
     }
 
     private var calendar: Calendar { CodexUsageWindow.utcCalendar }
-    private var displayEnd: Date { calendar.startOfDay(for: now) }
-    private var displayStart: Date {
-        switch period {
-        case .currentWeek:
-            calendar.date(byAdding: .day, value: -6, to: displayEnd) ?? displayEnd
-        case .last30Days:
-            calendar.date(byAdding: .day, value: -29, to: displayEnd) ?? displayEnd
-        case .all:
-            daily.first.map { calendar.startOfDay(for: $0.date) } ?? displayEnd
-        }
+    private var displayRange: ClosedRange<Date> {
+        window.visibleUTCDayRange(observedDates: daily.map(\.date), through: now)
     }
+    private var displayStart: Date { displayRange.lowerBound }
+    private var displayEnd: Date { displayRange.upperBound }
     private var chartDaily: [CodexDailyUsage] {
         let totalsByDay = Dictionary(uniqueKeysWithValues: daily.map {
             (calendar.startOfDay(for: $0.date), $0.totals)
@@ -144,11 +138,6 @@ struct UsageTrendChart: View {
 }
 
 struct TokenActivityCalendar: View {
-    private enum PeriodSelection: Hashable {
-        case rollingYear
-        case calendarYear(Int)
-    }
-
     private struct Day: Identifiable {
         let date: Date
         let usage: CodexDailyUsage?
@@ -172,8 +161,8 @@ struct TokenActivityCalendar: View {
     }
 
     let daily: [CodexDailyUsage]
+    let window: CodexUsageWindow
     let now: Date
-    @State private var periodSelection = PeriodSelection.rollingYear
     @State private var presentedDate: Date?
     @State private var gridViewportWidth: CGFloat = 0
 
@@ -190,35 +179,11 @@ struct TokenActivityCalendar: View {
     }
 
     private var today: Date { calendar.startOfDay(for: now) }
-    private var currentYear: Int { calendar.component(.year, from: today) }
-    private var availableYears: [Int] {
-        Set(
-            daily.lazy
-                .map { calendar.startOfDay(for: $0.date) }
-                .filter { $0 <= today }
-                .map { calendar.component(.year, from: $0) }
-        )
-        .union([currentYear])
-        .sorted(by: >)
+    private var visibleRange: ClosedRange<Date> {
+        window.visibleUTCDayRange(observedDates: daily.map(\.date), through: now)
     }
-    private var start: Date {
-        switch periodSelection {
-        case .rollingYear:
-            calendar.date(byAdding: .day, value: -364, to: today) ?? today
-        case let .calendarYear(year):
-            calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? today
-        }
-    }
-    private var end: Date {
-        switch periodSelection {
-        case .rollingYear:
-            return today
-        case let .calendarYear(year):
-            let yearStart = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? today
-            let nextYear = calendar.date(byAdding: .year, value: 1, to: yearStart) ?? today
-            return calendar.date(byAdding: .day, value: -1, to: nextYear) ?? yearStart
-        }
-    }
+    private var start: Date { visibleRange.lowerBound }
+    private var end: Date { visibleRange.upperBound }
     private func cellSize(for weekCount: Int) -> CGFloat {
         guard gridViewportWidth > 0, weekCount > 0 else { return minimumCellSize }
         let columnGaps = CGFloat(max(0, weekCount - 1)) * cellSpacing
@@ -269,32 +234,17 @@ struct TokenActivityCalendar: View {
         let cellSize = cellSize(for: grid.weeks.count)
 
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
-                    Text(
-                        L10n.tr(
-                            "insights.calendar.year_range",
-                            L10n.shortDateWithYear(start),
-                            L10n.shortDateWithYear(end)
-                        )
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
+                Text(
+                    L10n.tr(
+                        "insights.calendar.year_range",
+                        L10n.shortDateWithYear(start),
+                        L10n.shortDateWithYear(end)
                     )
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Picker(L10n.tr("insights.calendar.period"), selection: $periodSelection) {
-                    Text(L10n.tr("insights.calendar.rolling_year"))
-                        .tag(PeriodSelection.rollingYear)
-                    Divider()
-                    ForEach(availableYears, id: \.self) { year in
-                        Text(L10n.localizedYear(year))
-                            .tag(PeriodSelection.calendarYear(year))
-                    }
-                }
-                .pickerStyle(.menu)
-                .fixedSize()
-                .accessibilityIdentifier("codex.insights.activity-calendar-period")
+                )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             ScrollView(.horizontal) {
@@ -378,13 +328,7 @@ struct TokenActivityCalendar: View {
             }
         }
         .accessibilityIdentifier("codex.insights.activity-calendar")
-        .onChange(of: availableYears) {
-            if case let .calendarYear(year) = periodSelection,
-               !availableYears.contains(year) {
-                periodSelection = .rollingYear
-            }
-        }
-        .onChange(of: periodSelection) {
+        .onChange(of: window) {
             presentedDate = nil
         }
     }

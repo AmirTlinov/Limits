@@ -67,7 +67,7 @@ final class AppModel: ObservableObject {
         rateCardRevisions: []
     )
     @Published private(set) var codexAnalyticsSnapshots = CodexAnalyticsSnapshotSet.empty()
-    @Published var codexUsagePeriod: CodexUsagePeriod = .currentWeek
+    @Published private(set) var codexUsagePeriod: CodexUsagePeriod = .currentWeek
     @Published private(set) var codexPriceChange: OpenAIPriceChange?
     @Published private(set) var claudeAccounts: [ClaudeStoredAccount] = []
     @Published private(set) var currentCLIState = CurrentCLIState()
@@ -102,11 +102,16 @@ final class AppModel: ObservableObject {
     private var currentValuesRefreshTask: Task<Void, Never>?
     private var currentValuesRefreshID: UUID?
     private var codexRateCard = OpenAIPricingCatalog.bundledRevision
+    private var customCodexUsageWindow: CodexUsageWindow?
     private var selectedCodexAccountID: UUID?
     private var codexPresentationRefreshDepth = 0
 
     var codexInsights: CodexInsightsSnapshot {
         codexAnalyticsSnapshots[codexUsagePeriod]
+    }
+
+    var currentCustomCodexUsageWindow: CodexUsageWindow {
+        codexAnalyticsSnapshots.custom.window
     }
 
     var canMutateDomain: Bool { accountsAccess == .readWrite }
@@ -239,8 +244,19 @@ final class AppModel: ObservableObject {
             repository: codexUsageData,
             rateCard: codexRateCard,
             priceChange: codexPriceChange,
+            customWindow: customCodexUsageWindow,
             now: presentationNow
         )
+    }
+
+    func selectCodexUsagePeriod(_ period: CodexUsagePeriod) {
+        codexUsagePeriod = period
+    }
+
+    func selectCustomCodexUsageWindow(_ window: CodexUsageWindow) {
+        customCodexUsageWindow = window
+        rebuildCodexInsights()
+        codexUsagePeriod = .custom
     }
 
     private func applyClaudeProbeResult(_ result: ClaudeSessionProbeResult) {

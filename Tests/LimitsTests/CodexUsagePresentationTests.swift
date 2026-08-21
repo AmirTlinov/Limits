@@ -211,6 +211,117 @@ import Testing
     #expect(snapshot.totals.apiEquivalentUSD == 8)
 }
 
+@Test func presetPeriodsOwnExactUTCWindowsAndFilterTheSameAccountEvidence() throws {
+    let calendar = CodexUsageWindow.utcCalendar
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 15)))
+    let rows: [(DateComponents, Int64)] = [
+        (DateComponents(year: 2025, month: 8, day: 20), 1),
+        (DateComponents(year: 2025, month: 8, day: 21), 2),
+        (DateComponents(year: 2026, month: 2, day: 20), 4),
+        (DateComponents(year: 2026, month: 2, day: 21), 8),
+        (DateComponents(year: 2026, month: 7, day: 22), 16),
+        (DateComponents(year: 2026, month: 7, day: 23), 32),
+        (DateComponents(year: 2026, month: 8, day: 21), 64),
+    ]
+    let repository = CodexUsageRepositorySnapshot(
+        accountUsage: [:],
+        dailyUsage: try rows.map { components, tokens in
+            storedDaily(
+                accountID: "acct_insights",
+                day: try #require(calendar.date(from: components)),
+                model: "gpt-5.6-sol",
+                tokens: tokens
+            )
+        },
+        limitObservations: [:],
+        latestLimits: [:],
+        rateCardRevisions: []
+    )
+    let snapshots = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [insightsAccount(now: now)],
+        repository: repository,
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    )
+
+    #expect(
+        snapshots.last30Days.window.firstUTCDay
+            == calendar.date(from: DateComponents(year: 2026, month: 7, day: 23))
+    )
+    #expect(
+        snapshots.last30Days.window.lastIncludedUTCDay
+            == calendar.date(from: DateComponents(year: 2026, month: 8, day: 21))
+    )
+    #expect(snapshots.last30Days.totals.usage.totalTokens == 96)
+    #expect(
+        snapshots.last6Months.window.firstUTCDay
+            == calendar.date(from: DateComponents(year: 2026, month: 2, day: 21))
+    )
+    #expect(snapshots.last6Months.totals.usage.totalTokens == 120)
+    #expect(
+        snapshots.lastYear.window.firstUTCDay
+            == calendar.date(from: DateComponents(year: 2025, month: 8, day: 21))
+    )
+    #expect(snapshots.lastYear.totals.usage.totalTokens == 126)
+    #expect(snapshots.all.totals.usage.totalTokens == 127)
+}
+
+@Test func customPeriodIncludesBothChosenDaysAndDrivesEverySnapshotSurface() throws {
+    let calendar = CodexUsageWindow.utcCalendar
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 15)))
+    let customStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 10, hour: 22)))
+    let customEnd = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 12, hour: 1)))
+    let customWindow = CodexUsageWindow.inclusiveUTCDays(from: customStart, through: customEnd)
+    let days = try (9...13).map { day in
+        try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: day)))
+    }
+    let repository = CodexUsageRepositorySnapshot(
+        accountUsage: [:],
+        dailyUsage: zip(days, [1, 10, 20, 30, 100]).map { day, tokens in
+            storedDaily(
+                accountID: "acct_insights",
+                day: day,
+                model: "gpt-5.6-sol",
+                tokens: Int64(tokens)
+            )
+        } + [
+            storedDaily(accountID: nil, day: days[1], model: "gpt-5.6-terra", tokens: 500),
+            storedDaily(accountID: nil, day: days[4], model: "gpt-5.6-terra", tokens: 1_000),
+        ],
+        limitObservations: [:],
+        latestLimits: [:],
+        rateCardRevisions: []
+    )
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [insightsAccount(now: now)],
+        repository: repository,
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        customWindow: customWindow,
+        now: now
+    ).custom
+    let account = try #require(snapshot.accounts.first)
+
+    #expect(snapshot.window == customWindow)
+    #expect(account.window == customWindow)
+    #expect(snapshot.daily.map(\.date) == Array(days[1...3]))
+    #expect(snapshot.totals.usage.totalTokens == 60)
+    #expect(snapshot.models == account.models)
+    #expect(snapshot.unattributed?.window == customWindow)
+    #expect(snapshot.unattributed?.totals.usage.totalTokens == 500)
+}
+
+@Test func analyticalWindowProvidesOneFiniteDayRangeToChartsAndCalendar() throws {
+    let calendar = CodexUsageWindow.utcCalendar
+    let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 15)))
+    let firstObservedDay = try #require(calendar.date(from: DateComponents(year: 2024, month: 3, day: 4)))
+    let window = CodexUsageWindow(start: .distantPast, end: now.addingTimeInterval(10 * 24 * 60 * 60))
+
+    let range = window.visibleUTCDayRange(observedDates: [firstObservedDay], through: now)
+
+    #expect(range.lowerBound == firstObservedDay)
+    #expect(range.upperBound == calendar.startOfDay(for: now))
+}
+
 @Test func everyPriceChangeMetricHasReadableTextInEverySupportedLanguage() {
     for language in L10n.supportedLocalizations {
         L10n.withLanguage(language) {
@@ -223,10 +334,14 @@ import Testing
     }
 }
 
-@Test func calendarYearsNeverUseNumberGrouping() {
+@Test func everyUsagePeriodHasReadableTextInEverySupportedLanguage() {
     for language in L10n.supportedLocalizations {
         L10n.withLanguage(language) {
-            #expect(L10n.localizedYear(2026) == "2026")
+            for period in CodexUsagePeriod.allCases {
+                let title = CodexInsightsTextPresentation.periodTitle(period)
+                #expect(!title.hasPrefix("insights.period."))
+                #expect(!title.isEmpty)
+            }
         }
     }
 }

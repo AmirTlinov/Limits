@@ -549,8 +549,27 @@ private struct SidebarRowView: View {
 
 private struct CodexOverviewPane: View {
     @ObservedObject var model: AppModel
+    @State private var isCustomPeriodPresented = false
+    @State private var customPeriodStart = Date(timeIntervalSince1970: 0)
+    @State private var customPeriodEnd = Date(timeIntervalSince1970: 0)
 
     private var snapshot: CodexInsightsSnapshot { model.codexInsights }
+    private var today: Date {
+        CodexUsageWindow.utcCalendar.startOfDay(for: model.presentationNow)
+    }
+    private var periodSelection: Binding<CodexUsagePeriod> {
+        Binding(
+            get: { model.codexUsagePeriod },
+            set: { period in
+                if period == .custom {
+                    presentCustomPeriodEditor()
+                } else {
+                    isCustomPeriodPresented = false
+                    model.selectCodexUsagePeriod(period)
+                }
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -559,15 +578,22 @@ private struct CodexOverviewPane: View {
                     .font(.largeTitle.weight(.semibold))
                     .accessibilityIdentifier("codex.insights.overview")
                 Spacer(minLength: 12)
-                Picker(L10n.tr("insights.period.label"), selection: $model.codexUsagePeriod) {
-                    Text(L10n.tr("insights.period.week")).tag(CodexUsagePeriod.currentWeek)
-                    Text(L10n.tr("insights.period.30_days")).tag(CodexUsagePeriod.last30Days)
-                    Text(L10n.tr("insights.period.all")).tag(CodexUsagePeriod.all)
+                Picker(L10n.tr("insights.period.label"), selection: periodSelection) {
+                    ForEach(CodexUsagePeriod.allCases, id: \.self) { period in
+                        Text(CodexInsightsTextPresentation.periodTitle(period)).tag(period)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 260)
+                .frame(minWidth: 380, idealWidth: 480, maxWidth: 480)
                 .accessibilityIdentifier("codex.insights.period")
+                .popover(
+                    isPresented: $isCustomPeriodPresented,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .top
+                ) {
+                    customPeriodEditor
+                }
             }
 
             if let change = snapshot.priceChange {
@@ -583,12 +609,13 @@ private struct CodexOverviewPane: View {
                 .frame(maxWidth: .infinity, minHeight: 360)
             } else {
                 TokenActivityCalendar(
-                    daily: model.codexAnalyticsSnapshots.all.daily,
+                    daily: snapshot.daily,
+                    window: snapshot.window,
                     now: model.presentationNow
                 )
                 InsightsMetricsGrid(snapshot: snapshot)
                 ModelUsageStrip(models: snapshot.models)
-                UsageTrendChart(daily: snapshot.daily, period: snapshot.period, now: model.presentationNow)
+                UsageTrendChart(daily: snapshot.daily, window: snapshot.window, now: model.presentationNow)
                     .frame(height: 176)
                 if let work = snapshot.work {
                     WorkUsageBreakdown(insights: work)
@@ -596,9 +623,66 @@ private struct CodexOverviewPane: View {
             }
 
             if let unattributed = snapshot.unattributed {
-                UnattributedInsightsCard(insights: unattributed, period: snapshot.period)
+                UnattributedInsightsCard(insights: unattributed)
             }
         }
+    }
+
+    private var customPeriodEditor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(L10n.tr("insights.period.custom"))
+                .font(.headline)
+
+            DatePicker(
+                L10n.tr("insights.period.custom.start"),
+                selection: $customPeriodStart,
+                in: Date.distantPast...today,
+                displayedComponents: .date
+            )
+            .accessibilityIdentifier("codex.insights.period.custom.start")
+            .onChange(of: customPeriodStart) {
+                if customPeriodEnd < customPeriodStart {
+                    customPeriodEnd = customPeriodStart
+                }
+            }
+
+            DatePicker(
+                L10n.tr("insights.period.custom.end"),
+                selection: $customPeriodEnd,
+                in: customPeriodStart...today,
+                displayedComponents: .date
+            )
+            .accessibilityIdentifier("codex.insights.period.custom.end")
+
+            HStack {
+                Spacer()
+                Button(L10n.tr("action.cancel")) {
+                    isCustomPeriodPresented = false
+                }
+                Button(L10n.tr("action.apply")) {
+                    let window = CodexUsageWindow.inclusiveUTCDays(
+                        from: customPeriodStart,
+                        through: customPeriodEnd
+                    )
+                    model.selectCustomCodexUsageWindow(window)
+                    isCustomPeriodPresented = false
+                }
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("codex.insights.period.custom.apply")
+            }
+        }
+        .padding(16)
+        .frame(width: 300)
+        .environment(\.calendar, CodexUsageWindow.utcCalendar)
+        .environment(\.timeZone, TimeZone(secondsFromGMT: 0)!)
+        .accessibilityIdentifier("codex.insights.period.custom.editor")
+    }
+
+    private func presentCustomPeriodEditor() {
+        let window = model.currentCustomCodexUsageWindow
+        customPeriodStart = min(window.firstUTCDay, today)
+        customPeriodEnd = min(window.lastIncludedUTCDay, today)
+        isCustomPeriodPresented = true
     }
 }
 
@@ -818,21 +902,14 @@ private struct ModelUsageBucket: Identifiable {
 
 private struct UnattributedInsightsCard: View {
     let insights: CodexUnattributedInsights
-    let period: CodexUsagePeriod
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.tr("insights.unattributed.title"))
-                        .font(.headline)
-                    Text(L10n.tr("insights.unattributed.subtitle"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 12)
-                Text(L10n.tr("insights.unattributed.period", periodTitle))
-                    .font(.caption.weight(.semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.tr("insights.unattributed.title"))
+                    .font(.headline)
+                Text(L10n.tr("insights.unattributed.subtitle"))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -869,14 +946,6 @@ private struct UnattributedInsightsCard: View {
         .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("codex.insights.unattributed")
-    }
-
-    private var periodTitle: String {
-        switch period {
-        case .currentWeek: L10n.tr("insights.period.week")
-        case .last30Days: L10n.tr("insights.period.30_days")
-        case .all: L10n.tr("insights.period.all")
-        }
     }
 }
 
@@ -1345,7 +1414,6 @@ private struct StoredAccountDetailPane: View {
                             : nil,
                         issue: accountIssue,
                         insights: insights,
-                        period: model.codexUsagePeriod,
                         now: model.presentationNow
                     )
                 }
@@ -1382,7 +1450,6 @@ private struct StoredAccountSummary: View {
     let emptyLimitsSummary: String?
     let issue: CodexAccountIssuePresentation?
     let insights: CodexAccountInsights?
-    let period: CodexUsagePeriod
     let now: Date
 
     var body: some View {
@@ -1407,7 +1474,7 @@ private struct StoredAccountSummary: View {
 
             if let insights {
                 MinimalSeparator()
-                AccountUsageSummary(insights: insights, period: period, now: now)
+                AccountUsageSummary(insights: insights, now: now)
             }
         }
     }
@@ -1415,7 +1482,6 @@ private struct StoredAccountSummary: View {
 
 private struct AccountUsageSummary: View {
     let insights: CodexAccountInsights
-    let period: CodexUsagePeriod
     let now: Date
 
     var body: some View {
@@ -1450,7 +1516,7 @@ private struct AccountUsageSummary: View {
             }
 
             ModelUsageStrip(models: insights.models)
-            UsageTrendChart(daily: insights.daily, period: period, now: now).frame(height: 130)
+            UsageTrendChart(daily: insights.daily, window: insights.window, now: now).frame(height: 130)
         }
     }
 

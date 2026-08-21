@@ -7,15 +7,19 @@ public enum CodexUsagePresentation {
         repository: CodexUsageRepositorySnapshot,
         rateCard: OpenAIRateCardRevision,
         priceChange: OpenAIPriceChange? = nil,
+        customWindow: CodexUsageWindow? = nil,
         now: Date = .now
     ) -> CodexAnalyticsSnapshotSet {
-        CodexAnalyticsSnapshotSet(
+        let resolvedCustomWindow = customWindow
+            ?? usageWindow(period: .last30Days, observations: [], customWindow: nil, now: now)
+        return CodexAnalyticsSnapshotSet(
             currentWeek: makeSnapshot(
                 accounts: accounts,
                 repository: repository,
                 period: .currentWeek,
                 rateCard: rateCard,
                 priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
                 now: now
             ),
             last30Days: makeSnapshot(
@@ -24,6 +28,34 @@ public enum CodexUsagePresentation {
                 period: .last30Days,
                 rateCard: rateCard,
                 priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
+                now: now
+            ),
+            last6Months: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .last6Months,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
+                now: now
+            ),
+            lastYear: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .lastYear,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
+                now: now
+            ),
+            custom: makeSnapshot(
+                accounts: accounts,
+                repository: repository,
+                period: .custom,
+                rateCard: rateCard,
+                priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
                 now: now
             ),
             all: makeSnapshot(
@@ -32,6 +64,7 @@ public enum CodexUsagePresentation {
                 period: .all,
                 rateCard: rateCard,
                 priceChange: priceChange,
+                customWindow: resolvedCustomWindow,
                 now: now
             )
         )
@@ -43,6 +76,7 @@ public enum CodexUsagePresentation {
         period: CodexUsagePeriod,
         rateCard: OpenAIRateCardRevision,
         priceChange: OpenAIPriceChange?,
+        customWindow: CodexUsageWindow,
         now: Date
     ) -> CodexInsightsSnapshot {
         var accountInsights: [CodexAccountInsights] = []
@@ -50,11 +84,18 @@ public enum CodexUsagePresentation {
         var knownSubscriptionTotal = Decimal.zero
         var hasKnownSubscription = false
         var accountWindows: [String: CodexUsageWindow] = [:]
+        var usageWindows: [CodexUsageWindow] = []
 
         for account in accounts {
             let accountID = account.accountId
             let observations = accountID.flatMap { repository.limitObservations[$0] } ?? []
-            let window = usageWindow(period: period, observations: observations, now: now)
+            let window = usageWindow(
+                period: period,
+                observations: observations,
+                customWindow: customWindow,
+                now: now
+            )
+            usageWindows.append(window)
             if let accountID { accountWindows[accountID] = window }
             let localRows = repository.dailyUsage.filter {
                 $0.accountID == accountID && window.containsUTCDay($0.date)
@@ -101,6 +142,7 @@ public enum CodexUsagePresentation {
             accountInsights.append(
                 CodexAccountInsights(
                     id: accountID ?? "local:\(account.id.uuidString)",
+                    window: window,
                     localAccountID: account.id,
                     label: account.label,
                     email: account.email,
@@ -132,7 +174,12 @@ public enum CodexUsagePresentation {
         )
         let nearestRisk = nearestQuotaRisk(in: accountInsights)
         let savedAccountIDs = Set(accounts.compactMap(\.accountId))
-        let unattributedWindow = usageWindow(period: period, observations: [], now: now)
+        let unattributedWindow = usageWindow(
+            period: period,
+            observations: [],
+            customWindow: customWindow,
+            now: now
+        )
         let unattributedRows = repository.dailyUsage.filter { row in
             let belongsToSavedAccount = row.accountID.map(savedAccountIDs.contains) ?? false
             return !belongsToSavedAccount && unattributedWindow.containsUTCDay(row.date)
@@ -153,6 +200,7 @@ public enum CodexUsagePresentation {
 
         return CodexInsightsSnapshot(
             period: period,
+            window: combinedWindow(usageWindows, fallback: unattributedWindow),
             generatedAt: now,
             accounts: accountInsights,
             totals: totals,
@@ -226,19 +274,46 @@ public enum CodexUsagePresentation {
     private static func usageWindow(
         period: CodexUsagePeriod,
         observations: [CodexLimitObservation],
+        customWindow: CodexUsageWindow?,
         now: Date
     ) -> CodexUsageWindow {
+        let calendar = CodexUsageWindow.utcCalendar
+        let today = calendar.startOfDay(for: now)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)
+            ?? today.addingTimeInterval(24 * 60 * 60)
         switch period {
         case .last30Days:
             return CodexUsageWindow(
-                start: now.addingTimeInterval(-30 * 24 * 60 * 60),
-                end: now.addingTimeInterval(1)
+                start: calendar.date(byAdding: .day, value: -29, to: today) ?? today,
+                end: tomorrow
             )
+        case .last6Months:
+            return CodexUsageWindow(
+                start: calendar.date(byAdding: .month, value: -6, to: today) ?? today,
+                end: tomorrow
+            )
+        case .lastYear:
+            return CodexUsageWindow(
+                start: calendar.date(byAdding: .year, value: -1, to: today) ?? today,
+                end: tomorrow
+            )
+        case .custom:
+            return customWindow
+                ?? CodexUsageWindow.inclusiveUTCDays(from: now, through: now)
         case .all:
-            return CodexUsageWindow(start: .distantPast, end: now.addingTimeInterval(1))
+            return CodexUsageWindow(start: .distantPast, end: tomorrow)
         case .currentWeek:
             return CodexQuotaAnalytics.baseUsageWindow(observations: observations, now: now)
         }
+    }
+
+    private static func combinedWindow(
+        _ windows: [CodexUsageWindow],
+        fallback: CodexUsageWindow
+    ) -> CodexUsageWindow {
+        guard let start = windows.map(\.start).min(),
+              let end = windows.map(\.end).max() else { return fallback }
+        return CodexUsageWindow(start: start, end: end)
     }
 
     private static func modelUsage(

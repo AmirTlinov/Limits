@@ -2,6 +2,17 @@ import Foundation
 import LimitsShared
 
 public enum CodexInsightsTextPresentation {
+    public static func periodTitle(_ period: CodexUsagePeriod) -> String {
+        switch period {
+        case .currentWeek: L10n.tr("insights.period.week")
+        case .last30Days: L10n.tr("insights.period.30_days")
+        case .last6Months: L10n.tr("insights.period.6_months")
+        case .lastYear: L10n.tr("insights.period.year")
+        case .custom: L10n.tr("insights.period.custom")
+        case .all: L10n.tr("insights.period.all")
+        }
+    }
+
     public static func forecast(_ forecast: LimitBurnForecast, now: Date = .now) -> String {
         switch forecast.state {
         case .collecting:

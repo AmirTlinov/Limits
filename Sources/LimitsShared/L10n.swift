@@ -251,10 +251,6 @@ public enum L10n {
         value.formatted(.number.locale(locale))
     }
 
-    public static func localizedYear(_ value: Int) -> String {
-        value.formatted(.number.grouping(.never).locale(locale))
-    }
-
     public static func shortTime(_ date: Date) -> String {
         shortTimeFormatter.string(from: date)
     }
