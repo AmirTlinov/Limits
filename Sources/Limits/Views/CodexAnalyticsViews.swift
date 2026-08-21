@@ -164,7 +164,7 @@ struct TokenActivityCalendar: View {
 
     private struct ActivityGrid {
         let weeks: [Week]
-        let maximumTokens: Int64
+        let intensityScale: TokenActivityIntensityScale
     }
 
     let daily: [CodexDailyUsage]
@@ -226,9 +226,9 @@ struct TokenActivityCalendar: View {
         let usageByDay = Dictionary(
             uniqueKeysWithValues: daily.map { (calendar.startOfDay(for: $0.date), $0) }
         )
-        let maximumTokens = usageByDay.reduce(Int64.zero) { currentMaximum, entry in
-            guard entry.key >= start, entry.key <= min(end, today) else { return currentMaximum }
-            return max(currentMaximum, entry.value.totals.usage.totalTokens)
+        let visibleTokens = usageByDay.compactMap { entry -> Int64? in
+            guard entry.key >= start, entry.key <= min(end, today) else { return nil }
+            return entry.value.totals.usage.totalTokens
         }
         let weekday = calendar.component(.weekday, from: start)
         let daysSinceMonday = (weekday - calendar.firstWeekday + 7) % 7
@@ -254,7 +254,10 @@ struct TokenActivityCalendar: View {
             result.append(Week(start: weekStart, monthLabel: monthLabel, days: days))
             weekStart = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? end.addingTimeInterval(1)
         }
-        return ActivityGrid(weeks: result, maximumTokens: maximumTokens)
+        return ActivityGrid(
+            weeks: result,
+            intensityScale: TokenActivityIntensityScale(tokens: visibleTokens)
+        )
     }
 
     var body: some View {
@@ -316,7 +319,7 @@ struct TokenActivityCalendar: View {
                                     if day.isInRange, !day.isFuture {
                                         Button { presentedDate = day.date } label: {
                                             RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                .fill(color(for: day.tokens, maximumTokens: grid.maximumTokens))
+                                                .fill(color(for: grid.intensityScale.intensity(for: day.tokens)))
                                                 .frame(width: cellSize, height: cellSize)
                                         }
                                         .buttonStyle(.plain)
@@ -364,9 +367,9 @@ struct TokenActivityCalendar: View {
             HStack(spacing: 4) {
                 Spacer()
                 Text(L10n.tr("insights.calendar.less")).font(.caption2).foregroundStyle(.secondary)
-                ForEach(0..<5, id: \.self) { level in
+                ForEach(TokenActivityIntensity.allCases, id: \.self) { intensity in
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(color(forLevel: level))
+                        .fill(color(for: intensity))
                         .frame(width: 9, height: 9)
                 }
                 Text(L10n.tr("insights.calendar.more")).font(.caption2).foregroundStyle(.secondary)
@@ -404,23 +407,13 @@ struct TokenActivityCalendar: View {
         }
     }
 
-    private func color(for tokens: Int64, maximumTokens: Int64) -> Color {
-        color(forLevel: level(for: tokens, maximumTokens: maximumTokens))
-    }
-
-    private func level(for tokens: Int64, maximumTokens: Int64) -> Int {
-        guard tokens > 0, maximumTokens > 0 else { return 0 }
-        let fraction = log1p(Double(tokens)) / log1p(Double(maximumTokens))
-        return min(4, max(1, Int(ceil(fraction * 4))))
-    }
-
-    private func color(forLevel level: Int) -> Color {
-        switch level {
-        case 1: ProviderAccent.codex.opacity(0.24)
-        case 2: ProviderAccent.codex.opacity(0.45)
-        case 3: ProviderAccent.codex.opacity(0.68)
-        case 4: ProviderAccent.codex
-        default: Color.secondary.opacity(0.12)
+    private func color(for intensity: TokenActivityIntensity) -> Color {
+        switch intensity {
+        case .firstQuartile: ProviderAccent.codex.opacity(0.24)
+        case .secondQuartile: ProviderAccent.codex.opacity(0.45)
+        case .thirdQuartile: ProviderAccent.codex.opacity(0.68)
+        case .fourthQuartile: ProviderAccent.codex
+        case .none: Color.secondary.opacity(0.12)
         }
     }
 

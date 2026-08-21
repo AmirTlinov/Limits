@@ -471,6 +471,18 @@ private func insightsRateRevision(
     #expect(snapshot.accounts.flatMap(\.daily).allSatisfy { !$0.models.isEmpty })
 }
 
+@Test func tokenActivityIntensityUsesRelativeQuartilesInsteadOfAbsoluteMagnitude() {
+    let scale = TokenActivityIntensityScale(tokens: [0, 10, 20, 30, 40, 50, 60, 70, 1_000_000])
+
+    #expect(scale.intensity(for: 0) == .none)
+    #expect(scale.intensity(for: 20) == .firstQuartile)
+    #expect(scale.intensity(for: 40) == .secondQuartile)
+    #expect(scale.intensity(for: 60) == .thirdQuartile)
+    #expect(scale.intensity(for: 70) == .fourthQuartile)
+    #expect(scale.intensity(for: 1_000_000) == .fourthQuartile)
+    #expect(TokenActivityIntensityScale(tokens: [42, 42]).intensity(for: 42) == .fourthQuartile)
+}
+
 @Test func coveragePreservesOverOneHundredPercentAsInconsistentEvidence() throws {
     let now = Date(timeIntervalSince1970: 7_000_000)
     let day = CodexUsageRepository.startOfUTCDay(now)

@@ -564,6 +564,51 @@ public struct CodexDailyUsage: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+@frozen public enum TokenActivityIntensity: Int, CaseIterable, Codable, Hashable, Sendable {
+    case none
+    case firstQuartile
+    case secondQuartile
+    case thirdQuartile
+    case fourthQuartile
+}
+
+/// Assigns every non-zero day to a quartile relative to the other visible days.
+public struct TokenActivityIntensityScale: Hashable, Sendable {
+    private let firstUpperBound: Int64
+    private let secondUpperBound: Int64
+    private let thirdUpperBound: Int64
+    private let maximumTokens: Int64
+
+    public init(tokens: [Int64]) {
+        let positive = tokens.filter { $0 > 0 }.sorted()
+        guard let maximum = positive.last else {
+            firstUpperBound = 0
+            secondUpperBound = 0
+            thirdUpperBound = 0
+            maximumTokens = 0
+            return
+        }
+        firstUpperBound = Self.quartileUpperBound(1, in: positive)
+        secondUpperBound = Self.quartileUpperBound(2, in: positive)
+        thirdUpperBound = Self.quartileUpperBound(3, in: positive)
+        maximumTokens = maximum
+    }
+
+    public func intensity(for tokens: Int64) -> TokenActivityIntensity {
+        guard tokens > 0, maximumTokens > 0 else { return .none }
+        if tokens >= maximumTokens { return .fourthQuartile }
+        if tokens <= firstUpperBound { return .firstQuartile }
+        if tokens <= secondUpperBound { return .secondQuartile }
+        if tokens <= thirdUpperBound { return .thirdQuartile }
+        return .fourthQuartile
+    }
+
+    private static func quartileUpperBound(_ quartile: Int, in sorted: [Int64]) -> Int64 {
+        let rank = (sorted.count * quartile + 3) / 4
+        return sorted[max(0, rank - 1)]
+    }
+}
+
 /// Local evidence that explains which Codex thread and project produced usage.
 /// The importer derives it from rollout metadata and the first user message;
 /// semantic labels are never guessed from prompt wording.
