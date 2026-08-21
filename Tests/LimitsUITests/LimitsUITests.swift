@@ -63,6 +63,9 @@ final class LimitsUITests: XCTestCase {
         let tray = app.dialogs.firstMatch
         XCTAssertTrue(tray.waitForExistence(timeout: 3))
         XCTAssertTrue(tray.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
+        let accountScroll = tray.scrollViews.firstMatch
+        XCTAssertTrue(accountScroll.waitForExistence(timeout: 3))
+        accountScroll.swipeUp()
         XCTAssertTrue(tray.staticTexts["Demo Codex 6"].waitForExistence(timeout: 3))
         app.terminate()
     }
