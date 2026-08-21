@@ -187,7 +187,6 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.models"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.trend"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.activity-calendar"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.activity-calendar-day-strip"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.period"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["codex.insights.activity-calendar-period"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.work"].exists)

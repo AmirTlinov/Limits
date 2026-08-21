@@ -322,7 +322,6 @@ struct TokenActivityCalendar: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("codex.insights.activity-calendar-day-strip")
     }
 
     private var weeklyGrid: some View {
@@ -358,7 +357,6 @@ struct TokenActivityCalendar: View {
             }
         }
         .scrollIndicators(.hidden)
-        .accessibilityIdentifier("codex.insights.activity-calendar-week-grid")
     }
 
     @ViewBuilder
