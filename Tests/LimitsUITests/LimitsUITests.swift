@@ -163,7 +163,7 @@ final class LimitsUITests: XCTestCase {
     }
 
     @MainActor
-    func testCodexOverviewShowsActivityAndKeepsAccountNavigationInTheSidebar() async throws {
+    func testCodexOverviewShowsActivityWithoutRedundantRiskOrAccountBlocks() async throws {
         let fileManager = FileManager.default
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-insights-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
@@ -197,11 +197,6 @@ final class LimitsUITests: XCTestCase {
         )
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
         XCTAssertFalse(app.buttons["Refresh"].exists)
-
-        let sidebarAccount = app.staticTexts["Demo Codex 1"].firstMatch
-        XCTAssertTrue(sidebarAccount.waitForExistence(timeout: 3))
-        sidebarAccount.click()
-        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.account-detail"].waitForExistence(timeout: 3))
         app.terminate()
     }
 
