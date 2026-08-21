@@ -24,7 +24,7 @@ final class LimitsUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["Codex"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["codex.insights.overview"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Demo Codex"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
 
@@ -60,10 +60,10 @@ final class LimitsUITests: XCTestCase {
         let statusItem = app.menuBars.statusItems.firstMatch
         XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
         statusItem.click()
-        XCTAssertTrue(app.dialogs.firstMatch.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Codex"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Demo Codex 6"].waitForExistence(timeout: 3))
+        let tray = app.dialogs.firstMatch
+        XCTAssertTrue(tray.waitForExistence(timeout: 3))
+        XCTAssertTrue(tray.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
+        XCTAssertTrue(tray.staticTexts["Demo Codex 6"].waitForExistence(timeout: 3))
         app.terminate()
     }
 
