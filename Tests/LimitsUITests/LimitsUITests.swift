@@ -44,6 +44,7 @@ final class LimitsUITests: XCTestCase {
         let isolatedRoot = fileManager.temporaryDirectory.appending(path: "limits-ui-scroll-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: isolatedRoot) }
         try await writeCodexFixture(to: isolatedRoot, accountCount: 6)
+        let lastAccountID = try XCTUnwrap(try codexAccounts(in: isolatedRoot).last?["id"] as? String)
 
         let app = XCUIApplication()
         app.launchEnvironment["LIMITS_UI_TEST"] = "1"
@@ -65,7 +66,7 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(tray.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
         let accountScroll = tray.scrollViews.firstMatch
         XCTAssertTrue(accountScroll.waitForExistence(timeout: 3))
-        let lastAccount = tray.staticTexts["Demo Codex 6"]
+        let lastAccount = tray.descendants(matching: .any)["tray.codex.account.\(lastAccountID)"]
         for _ in 0..<3 where !lastAccount.exists {
             accountScroll.swipeUp()
         }
@@ -395,11 +396,14 @@ final class LimitsUITests: XCTestCase {
     }
 
     private func firstCodexAccount(in root: URL) throws -> [String: Any] {
+        try XCTUnwrap(codexAccounts(in: root).first)
+    }
+
+    private func codexAccounts(in root: URL) throws -> [[String: Any]] {
         let stateURL = root.appending(path: "Application Support/Limits/state.json")
         let object = try JSONSerialization.jsonObject(with: Data(contentsOf: stateURL))
         let state = try XCTUnwrap(object as? [String: Any])
-        let accounts = try XCTUnwrap(state["accounts"] as? [[String: Any]])
-        return try XCTUnwrap(accounts.first)
+        return try XCTUnwrap(state["accounts"] as? [[String: Any]])
     }
 
     @MainActor

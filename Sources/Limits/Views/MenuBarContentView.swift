@@ -218,6 +218,7 @@ struct MenuBarContentView: View {
                         Task { await model.activateAccount(account) }
                     }
                     .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
+                    .accessibilityIdentifier("tray.codex.account.\(account.id.uuidString)")
                 }
             }
         }
@@ -269,6 +270,7 @@ struct MenuBarContentView: View {
                         Task { await model.activateClaudeAccount(account) }
                     }
                     .disabled(model.isProviderBusy(.claude) || !model.canMutateDomain)
+                    .accessibilityIdentifier("tray.claude.account.\(account.id.uuidString)")
                 }
             }
         }
