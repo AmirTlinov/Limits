@@ -37,24 +37,19 @@
 "action.show_all" = "Show all";
 "app.title" = "Limits";
 "settings.title" = "Settings";
-"settings.subtitle" = "Tune Limits for this Mac.";
 "settings.general.title" = "General";
 "settings.launch_at_login.title" = "Launch at login";
-"settings.launch_at_login.description" = "Keep Limits available in the menu bar after you sign in.";
 "settings.launch_at_login.requires_approval" = "Allow Limits in System Settings to finish enabling it.";
 "settings.launch_at_login.open_settings" = "Open Login Items";
 "settings.launch_at_login.unavailable" = "Launch at login is unavailable for this copy of Limits.";
 "settings.launch_at_login.error" = "Could not update the login setting: %@";
 "settings.updates.check" = "Check for Updates…";
 "settings.language.title" = "Language";
-"settings.language.description" = "Choose the language used by the tray, windows, and messages.";
 "settings.language.system" = "Use system language";
 "settings.tray_legend.title" = "Tray icon";
 "settings.tray_legend.description" = "Compact percentages show the current limit and how many visible accounts have usable limit data.";
 "settings.tray_legend.codex.title" = "Codex percentage";
-"settings.tray_legend.codex.subtitle" = "The count shows accounts with usable limits out of visible Codex accounts.";
 "settings.tray_legend.claude.title" = "Claude percentage";
-"settings.tray_legend.claude.subtitle" = "The count shows accounts with usable limits out of visible Claude accounts.";
 "busy.connecting_claude_live" = "Connecting Claude live limits…";
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";
@@ -235,7 +230,6 @@
 
 "action.dismiss" = "Dismiss";
 "insights.overview.title" = "Overview";
-"insights.overview.subtitle" = "Usage, cost, and weekly pace across every account.";
 "insights.period.label" = "Period";
 "insights.period.week" = "Week";
 "insights.period.30_days" = "30 days";
@@ -246,9 +240,7 @@
 "insights.remaining.percent" = "%d%% left";
 "insights.metric.tokens" = "Tokens";
 "insights.metric.credits" = "Credits";
-"insights.metric.credits.subtitle" = "Codex consumption";
 "insights.metric.api_equivalent" = "API equivalent";
-"insights.metric.api_equivalent.subtitle" = "Current standard rate";
 "insights.metric.subscriptions" = "Subscriptions";
 "insights.metric.effective_per_million" = "%@ / 1M observed";
 "insights.metric.effective.collecting" = "Collecting billing-period usage";
@@ -265,7 +257,6 @@
 "insights.chart.date" = "Date";
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Token activity";
-"insights.calendar.range" = "Last 12 months · %@ — %@ · UTC";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
 "insights.calendar.period" = "Calendar range";
 "insights.calendar.rolling_year" = "12 months";

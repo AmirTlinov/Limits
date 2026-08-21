@@ -37,24 +37,19 @@
 "action.show_all" = "Tout afficher";
 "app.title" = "Limits";
 "settings.title" = "Réglages";
-"settings.subtitle" = "Ajustez Limits pour ce Mac.";
 "settings.general.title" = "Général";
 "settings.launch_at_login.title" = "Ouvrir à la connexion";
-"settings.launch_at_login.description" = "Gardez Limits disponible dans la barre des menus après votre connexion.";
 "settings.launch_at_login.requires_approval" = "Autorisez Limits dans Réglages Système pour terminer l’activation.";
 "settings.launch_at_login.open_settings" = "Ouvrir les éléments d’ouverture";
 "settings.launch_at_login.unavailable" = "L’ouverture à la connexion est indisponible pour cette copie de Limits.";
 "settings.launch_at_login.error" = "Impossible de modifier le réglage d’ouverture : %@";
 "settings.updates.check" = "Rechercher les mises à jour…";
 "settings.language.title" = "Langue";
-"settings.language.description" = "Choisissez la langue de la barre de menus, des fenêtres et des messages.";
 "settings.language.system" = "Utiliser la langue du système";
 "settings.tray_legend.title" = "Icône de la barre de menus";
 "settings.tray_legend.description" = "Des pourcentages compacts affichent la limite actuelle et les comptes visibles avec des données de limites utilisables.";
 "settings.tray_legend.codex.title" = "Pourcentage Codex";
-"settings.tray_legend.codex.subtitle" = "Le compteur affiche les comptes avec limites utilisables parmi les comptes Codex visibles.";
 "settings.tray_legend.claude.title" = "Pourcentage Claude";
-"settings.tray_legend.claude.subtitle" = "Le compteur affiche les comptes avec limites utilisables parmi les comptes Claude visibles.";
 "busy.connecting_claude_live" = "Connexion aux limites en direct de Claude…";
 "busy.deleting" = "Suppression de %@…";
 "busy.disconnecting_claude_bridge" = "Déconnexion du pont Claude…";
@@ -235,7 +230,6 @@
 
 "action.dismiss" = "Fermer";
 "insights.overview.title" = "Vue d’ensemble";
-"insights.overview.subtitle" = "Usage, coût et rythme hebdomadaire de tous les comptes.";
 "insights.period.label" = "Période";
 "insights.period.week" = "Semaine";
 "insights.period.30_days" = "30 jours";
@@ -246,9 +240,7 @@
 "insights.remaining.percent" = "%d %% restants";
 "insights.metric.tokens" = "Jetons";
 "insights.metric.credits" = "Crédits";
-"insights.metric.credits.subtitle" = "Consommation Codex";
 "insights.metric.api_equivalent" = "Équivalent API";
-"insights.metric.api_equivalent.subtitle" = "Tarif standard actuel";
 "insights.metric.subscriptions" = "Abonnements";
 "insights.metric.effective_per_million" = "%@ / 1 M observé";
 "insights.metric.effective.collecting" = "Collecte de la période de facturation";
@@ -265,7 +257,6 @@
 "insights.chart.date" = "Date";
 "insights.chart.tokens" = "Jetons";
 "insights.calendar.title" = "Activité des jetons";
-"insights.calendar.range" = "12 derniers mois · %@ — %@ · UTC";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
 "insights.calendar.period" = "Période du calendrier";
 "insights.calendar.rolling_year" = "12 mois";

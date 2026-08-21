@@ -37,24 +37,19 @@
 "action.show_all" = "全部展开";
 "app.title" = "Limits";
 "settings.title" = "设置";
-"settings.subtitle" = "为这台 Mac 调整 Limits。";
 "settings.general.title" = "通用";
 "settings.launch_at_login.title" = "登录时启动";
-"settings.launch_at_login.description" = "登录后让 Limits 在菜单栏中保持可用。";
 "settings.launch_at_login.requires_approval" = "请在“系统设置”中允许 Limits，以完成启用。";
 "settings.launch_at_login.open_settings" = "打开登录项";
 "settings.launch_at_login.unavailable" = "此 Limits 副本无法设置登录时启动。";
 "settings.launch_at_login.error" = "无法更新登录设置：%@";
 "settings.updates.check" = "检查更新…";
 "settings.language.title" = "语言";
-"settings.language.description" = "选择菜单栏、窗口和消息使用的语言。";
 "settings.language.system" = "使用系统语言";
 "settings.tray_legend.title" = "菜单栏图标";
 "settings.tray_legend.description" = "紧凑百分比显示当前限额，以及可见账户中有可用限额数据的数量。";
 "settings.tray_legend.codex.title" = "Codex 百分比";
-"settings.tray_legend.codex.subtitle" = "计数显示可见 Codex 账户中有可用限额数据的账户数。";
 "settings.tray_legend.claude.title" = "Claude 百分比";
-"settings.tray_legend.claude.subtitle" = "计数显示可见 Claude 账户中有可用限额数据的账户数。";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";
@@ -235,7 +230,6 @@
 
 "action.dismiss" = "关闭";
 "insights.overview.title" = "概览";
-"insights.overview.subtitle" = "查看所有账户的用量、成本和每周消耗速度。";
 "insights.period.label" = "周期";
 "insights.period.week" = "本周";
 "insights.period.30_days" = "30 天";
@@ -246,9 +240,7 @@
 "insights.remaining.percent" = "剩余 %d%%";
 "insights.metric.tokens" = "Token";
 "insights.metric.credits" = "Credits";
-"insights.metric.credits.subtitle" = "Codex 消耗";
 "insights.metric.api_equivalent" = "API 等价成本";
-"insights.metric.api_equivalent.subtitle" = "当前标准费率";
 "insights.metric.subscriptions" = "订阅";
 "insights.metric.effective_per_million" = "每百万已观测 %@";
 "insights.metric.effective.collecting" = "正在收集计费周期用量";
@@ -265,7 +257,6 @@
 "insights.chart.date" = "日期";
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Token 活动";
-"insights.calendar.range" = "最近 12 个月 · %@ — %@ · UTC";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
 "insights.calendar.period" = "日历范围";
 "insights.calendar.rolling_year" = "12 个月";

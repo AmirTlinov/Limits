@@ -21,26 +21,14 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.tr("settings.title"))
-                    .font(.title2.weight(.semibold))
-                Text(L10n.tr("settings.subtitle"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            Text(L10n.tr("settings.title"))
+                .font(.title2.weight(.semibold))
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(L10n.tr("settings.general.title"))
                     .font(.headline)
 
-                Toggle(isOn: launchAtLoginBinding) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(L10n.tr("settings.launch_at_login.title"))
-                        Text(L10n.tr("settings.launch_at_login.description"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Toggle(L10n.tr("settings.launch_at_login.title"), isOn: launchAtLoginBinding)
                 .disabled(launchAtLogin.state == .unavailable)
 
                 if launchAtLogin.state == .requiresApproval {
@@ -90,10 +78,6 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(L10n.tr("settings.language.title"))
                     .font(.headline)
-                Text(L10n.tr("settings.language.description"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
                 Picker(L10n.tr("settings.language.title"), selection: languageBinding) {
                     Text(L10n.tr("settings.language.system")).tag("")
                     ForEach(L10n.supportedLocalizations, id: \.self) { language in
@@ -117,8 +101,7 @@ struct SettingsView: View {
                             provider: provider,
                             color: provider == .codex ? .blue : ProviderAccent.claude,
                             sample: provider == .codex ? "90% 2/8" : "95% 1/2",
-                            title: L10n.tr(provider == .codex ? "settings.tray_legend.codex.title" : "settings.tray_legend.claude.title"),
-                            subtitle: L10n.tr(provider == .codex ? "settings.tray_legend.codex.subtitle" : "settings.tray_legend.claude.subtitle")
+                            title: L10n.tr(provider == .codex ? "settings.tray_legend.codex.title" : "settings.tray_legend.claude.title")
                         )
                     }
                 }
@@ -171,7 +154,6 @@ private struct TrayLegendRow: View {
     let color: Color
     let sample: String
     let title: String
-    let subtitle: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -187,10 +169,7 @@ private struct TrayLegendRow: View {
             .background(color.opacity(0.10), in: Capsule())
             .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.callout.weight(.semibold))
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
+            Text(title).font(.callout.weight(.semibold))
         }
     }
 }

@@ -37,24 +37,19 @@
 "action.show_all" = "Показать всё";
 "app.title" = "Лимиты";
 "settings.title" = "Настройки";
-"settings.subtitle" = "Настройте Limits для этого Mac.";
 "settings.general.title" = "Основные";
 "settings.launch_at_login.title" = "Запускать при входе";
-"settings.launch_at_login.description" = "Оставлять Limits доступным в строке меню после входа в систему.";
 "settings.launch_at_login.requires_approval" = "Разрешите Limits в Системных настройках, чтобы завершить включение.";
 "settings.launch_at_login.open_settings" = "Открыть объекты входа";
 "settings.launch_at_login.unavailable" = "Для этой копии Limits запуск при входе недоступен.";
 "settings.launch_at_login.error" = "Не удалось изменить настройку запуска: %@";
 "settings.updates.check" = "Проверить обновления…";
 "settings.language.title" = "Язык";
-"settings.language.description" = "Выберите язык трея, окон и сообщений.";
 "settings.language.system" = "Как в системе";
 "settings.tray_legend.title" = "Иконка в трее";
 "settings.tray_legend.description" = "Компактные проценты показывают текущий лимит и сколько видимых аккаунтов имеют годные данные лимитов.";
 "settings.tray_legend.codex.title" = "Процент Codex";
-"settings.tray_legend.codex.subtitle" = "Счётчик показывает аккаунты с лимитами из всех видимых Codex-аккаунтов.";
 "settings.tray_legend.claude.title" = "Процент Claude";
-"settings.tray_legend.claude.subtitle" = "Счётчик показывает аккаунты с лимитами из всех видимых Claude-аккаунтов.";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";
@@ -235,7 +230,6 @@
 
 "action.dismiss" = "Закрыть";
 "insights.overview.title" = "Обзор";
-"insights.overview.subtitle" = "Расход, стоимость и недельный темп всех аккаунтов.";
 "insights.period.label" = "Период";
 "insights.period.week" = "Неделя";
 "insights.period.30_days" = "30 дней";
@@ -246,9 +240,7 @@
 "insights.remaining.percent" = "Осталось %d%%";
 "insights.metric.tokens" = "Токены";
 "insights.metric.credits" = "Credits";
-"insights.metric.credits.subtitle" = "Сгорание Codex";
 "insights.metric.api_equivalent" = "Эквивалент API";
-"insights.metric.api_equivalent.subtitle" = "Текущий стандартный тариф";
 "insights.metric.subscriptions" = "Подписки";
 "insights.metric.effective_per_million" = "%@ за 1 млн наблюдённых";
 "insights.metric.effective.collecting" = "Собираем платёжный период";
@@ -265,7 +257,6 @@
 "insights.chart.date" = "Дата";
 "insights.chart.tokens" = "Токены";
 "insights.calendar.title" = "Активность токенов";
-"insights.calendar.range" = "Последние 12 месяцев · %@ — %@ · UTC";
 "insights.calendar.year_range" = "%@ — %@ · UTC";
 "insights.calendar.period" = "Период календаря";
 "insights.calendar.rolling_year" = "12 месяцев";

@@ -86,6 +86,7 @@ struct UsageTrendChart: View {
                 .cornerRadius(2)
             }
             .chartXScale(domain: chartDomain)
+            .chartXScale(range: .plotDimension(padding: 8))
             .chartXAxis {
                 if chartDaily.count > 62 {
                     AxisMarks(values: .stride(by: .month)) { value in
@@ -117,6 +118,9 @@ struct UsageTrendChart: View {
                     }
                     .font(.caption2)
                 }
+            }
+            .chartPlotStyle { plot in
+                plot.clipped()
             }
             .chartXSelection(value: $selectedDate)
             .accessibilityRepresentation {
@@ -270,9 +274,7 @@ struct TokenActivityCalendar: View {
                     Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
                     Text(
                         L10n.tr(
-                            periodSelection == .rollingYear
-                                ? "insights.calendar.range"
-                                : "insights.calendar.year_range",
+                            "insights.calendar.year_range",
                             L10n.shortDateWithYear(start),
                             L10n.shortDateWithYear(end)
                         )

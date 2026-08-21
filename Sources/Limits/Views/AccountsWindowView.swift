@@ -568,14 +568,9 @@ private struct CodexOverviewPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.tr("insights.overview.title"))
-                        .font(.largeTitle.weight(.semibold))
-                        .accessibilityIdentifier("codex.insights.overview")
-                    Text(L10n.tr("insights.overview.subtitle"))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                Text(L10n.tr("insights.overview.title"))
+                    .font(.largeTitle.weight(.semibold))
+                    .accessibilityIdentifier("codex.insights.overview")
                 Spacer(minLength: 12)
                 Picker(L10n.tr("insights.period.label"), selection: $model.codexUsagePeriod) {
                     Text(L10n.tr("insights.period.week")).tag(CodexUsagePeriod.currentWeek)
@@ -755,13 +750,13 @@ private struct InsightsMetricsGrid: View {
                     identifier: "codex.insights.metric.credits",
                     title: L10n.tr("insights.metric.credits"),
                     value: snapshot.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    subtitle: L10n.tr("insights.metric.credits.subtitle")
+                    subtitle: nil
                 )
                 InsightsMetric(
                     identifier: "codex.insights.metric.api-equivalent",
                     title: L10n.tr("insights.metric.api_equivalent"),
                     value: snapshot.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
-                    subtitle: L10n.tr("insights.metric.api_equivalent.subtitle")
+                    subtitle: nil
                 )
                 InsightsMetric(
                     identifier: "codex.insights.metric.subscriptions",
@@ -793,13 +788,15 @@ private struct InsightsMetric: View {
     let identifier: String
     let title: String
     let value: String
-    let subtitle: String
+    let subtitle: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             Text(value).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
-            Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+            if let subtitle {
+                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
         .padding(.horizontal, 10)
@@ -1579,7 +1576,7 @@ private struct AccountUsageSummary: View {
                     identifier: "codex.insights.account.metric.credits",
                     title: L10n.tr("insights.metric.credits"),
                     value: insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
-                    subtitle: L10n.tr("insights.metric.credits.subtitle")
+                    subtitle: nil
                 )
                 Divider().frame(height: 48)
                 AccountSummaryMetric(
@@ -1616,13 +1613,15 @@ private struct AccountSummaryMetric: View {
     let identifier: String
     let title: String
     let value: String
-    let subtitle: String
+    let subtitle: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             Text(value).font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
-            Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+            if let subtitle {
+                Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -1810,6 +1809,8 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(plan.title)
@@ -1874,13 +1875,14 @@ private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            shape
                 .fill(.primary.opacity(0.035))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    shape
                         .stroke(.primary.opacity(0.07), lineWidth: 1)
                 }
         )
+        .clipShape(shape)
     }
 
     private func subscriptionTint(for cycle: ChatGPTSubscriptionCyclePresentation) -> Color {
