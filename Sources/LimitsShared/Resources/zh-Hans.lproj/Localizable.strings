@@ -234,7 +234,7 @@
 "accounts.repository.revision_exhausted" = "账户修订计数已用尽。请先导出状态以便恢复，再更改账户。";
 
 "action.dismiss" = "关闭";
-"insights.overview.title" = "Codex 概览";
+"insights.overview.title" = "概览";
 "insights.overview.subtitle" = "查看所有账户的用量、成本和每周消耗速度。";
 "insights.period.label" = "周期";
 "insights.period.week" = "本周";
@@ -266,12 +266,19 @@
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Token 活动";
 "insights.calendar.range" = "最近 12 个月 · %@ — %@ · UTC";
+"insights.calendar.year_range" = "%@ — %@ · UTC";
+"insights.calendar.period" = "日历范围";
+"insights.calendar.rolling_year" = "12 个月";
 "insights.calendar.selection" = "%@ · %@ tokens";
 "insights.calendar.less" = "少";
 "insights.calendar.more" = "多";
 "insights.calendar.monday" = "周一";
 "insights.calendar.wednesday" = "周三";
 "insights.calendar.friday" = "周五";
+"insights.calendar.details.models" = "模型";
+"insights.calendar.details.no_models" = "当天没有可用的模型明细。";
+"insights.calendar.details.model_coverage" = "模型明细：%@ / %@ tokens";
+"insights.calendar.details.more_models" = "其他模型：%d";
 "insights.work.title" = "Tokens 用在了哪里";
 "insights.work.mode" = "分类";
 "insights.work.projects" = "项目";

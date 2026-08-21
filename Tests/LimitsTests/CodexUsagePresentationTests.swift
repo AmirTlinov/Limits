@@ -51,6 +51,8 @@ import Testing
     #expect(snapshot.daily == accountSnapshot.daily)
     #expect(snapshot.totals.usage.totalTokens == 120_000)
     #expect(snapshot.daily.first?.totals.usage.totalTokens == 120_000)
+    #expect(snapshot.daily.first?.models == snapshot.models)
+    #expect(snapshot.daily.first?.modelAttributedTokens == 110_000)
     #expect(snapshot.coverage == UsageCoverage(observedTokens: 110_000, serverTokens: 120_000))
     #expect(snapshot.nearestRisk?.accountID == "acct_insights")
     #expect(snapshot.totalMonthlySubscriptionUSD == 200)
@@ -435,6 +437,38 @@ private func insightsRateRevision(
     #expect(snapshot.totals.usage == sum)
     #expect(snapshot.totals.usage.totalTokens == 579)
     #expect(snapshot.unattributed?.totals.usage.totalTokens == 10_000)
+}
+
+@Test func dailySnapshotCarriesTheSamePerModelEvidenceThroughOverviewAggregation() throws {
+    let now = Date(timeIntervalSince1970: 6_500_000)
+    let day = CodexUsageRepository.startOfUTCDay(now)
+    let accounts = [
+        insightsAccount(id: "account-a", label: "A", now: now),
+        insightsAccount(id: "account-b", label: "B", now: now),
+    ]
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: accounts,
+        repository: CodexUsageRepositorySnapshot(
+            accountUsage: [:],
+            dailyUsage: [
+                storedDaily(accountID: "account-a", day: day, model: "gpt-5.6-sol", tokens: 120),
+                storedDaily(accountID: "account-a", day: day, model: "gpt-5.6-terra", tokens: 30),
+                storedDaily(accountID: "account-b", day: day, model: "gpt-5.6-terra", tokens: 50),
+            ],
+            limitObservations: [:],
+            latestLimits: [:],
+            rateCardRevisions: []
+        ),
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).all
+
+    let daily = try #require(snapshot.daily.first)
+    #expect(daily.totals.usage.totalTokens == 200)
+    #expect(daily.modelAttributedTokens == 200)
+    #expect(daily.models.map(\.modelID) == ["gpt-5.6-sol", "gpt-5.6-terra"])
+    #expect(daily.models.map(\.totals.usage.totalTokens) == [120, 80])
+    #expect(snapshot.accounts.flatMap(\.daily).allSatisfy { !$0.models.isEmpty })
 }
 
 @Test func coveragePreservesOverOneHundredPercentAsInconsistentEvidence() throws {

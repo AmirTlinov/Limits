@@ -140,11 +140,19 @@ struct UsageTrendChart: View {
 }
 
 struct TokenActivityCalendar: View {
+    private enum PeriodSelection: Hashable {
+        case rollingYear
+        case calendarYear(Int)
+    }
+
     private struct Day: Identifiable {
         let date: Date
-        let tokens: Int64
+        let usage: CodexDailyUsage?
         let isInRange: Bool
+        let isFuture: Bool
+
         var id: Date { date }
+        var tokens: Int64 { usage?.totals.usage.totalTokens ?? 0 }
     }
 
     private struct Week: Identifiable {
@@ -154,9 +162,22 @@ struct TokenActivityCalendar: View {
         var id: Date { start }
     }
 
+    private struct ActivityGrid {
+        let weeks: [Week]
+        let maximumTokens: Int64
+    }
+
     let daily: [CodexDailyUsage]
     let now: Date
-    @State private var selectedDate: Date?
+    @State private var periodSelection = PeriodSelection.rollingYear
+    @State private var presentedDate: Date?
+    @State private var gridViewportWidth: CGFloat = 0
+
+    private let cellSpacing: CGFloat = 2
+    private let minimumCellSize: CGFloat = 9
+    private let maximumCellSize: CGFloat = 13
+    private let weekdayColumnWidth: CGFloat = 18
+    private let weekdayColumnSpacing: CGFloat = 6
 
     private var calendar: Calendar {
         var calendar = CodexUsageWindow.utcCalendar
@@ -164,19 +185,51 @@ struct TokenActivityCalendar: View {
         return calendar
     }
 
-    private var end: Date { calendar.startOfDay(for: now) }
-    private var start: Date { calendar.date(byAdding: .day, value: -364, to: end) ?? end }
-    private var tokensByDay: [Date: Int64] {
-        daily.reduce(into: [:]) { result, day in
-            result[calendar.startOfDay(for: day.date), default: 0] += day.totals.usage.totalTokens
+    private var today: Date { calendar.startOfDay(for: now) }
+    private var currentYear: Int { calendar.component(.year, from: today) }
+    private var availableYears: [Int] {
+        Set(
+            daily.lazy
+                .map { calendar.startOfDay(for: $0.date) }
+                .filter { $0 <= today }
+                .map { calendar.component(.year, from: $0) }
+        )
+        .union([currentYear])
+        .sorted(by: >)
+    }
+    private var start: Date {
+        switch periodSelection {
+        case .rollingYear:
+            calendar.date(byAdding: .day, value: -364, to: today) ?? today
+        case let .calendarYear(year):
+            calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? today
         }
     }
-    private var maximumTokens: Int64 { tokensByDay.values.max() ?? 0 }
-    private var selectedTokens: Int64? {
-        selectedDate.flatMap { tokensByDay[calendar.startOfDay(for: $0)] }
+    private var end: Date {
+        switch periodSelection {
+        case .rollingYear:
+            return today
+        case let .calendarYear(year):
+            let yearStart = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? today
+            let nextYear = calendar.date(byAdding: .year, value: 1, to: yearStart) ?? today
+            return calendar.date(byAdding: .day, value: -1, to: nextYear) ?? yearStart
+        }
+    }
+    private func cellSize(for weekCount: Int) -> CGFloat {
+        guard gridViewportWidth > 0, weekCount > 0 else { return minimumCellSize }
+        let columnGaps = CGFloat(max(0, weekCount - 1)) * cellSpacing
+        let available = gridViewportWidth - weekdayColumnWidth - weekdayColumnSpacing - columnGaps
+        return min(maximumCellSize, max(minimumCellSize, available / CGFloat(weekCount)))
     }
 
-    private var weeks: [Week] {
+    private var activityGrid: ActivityGrid {
+        let usageByDay = Dictionary(
+            uniqueKeysWithValues: daily.map { (calendar.startOfDay(for: $0.date), $0) }
+        )
+        let maximumTokens = usageByDay.reduce(Int64.zero) { currentMaximum, entry in
+            guard entry.key >= start, entry.key <= min(end, today) else { return currentMaximum }
+            return max(currentMaximum, entry.value.totals.usage.totalTokens)
+        }
         let weekday = calendar.component(.weekday, from: start)
         let daysSinceMonday = (weekday - calendar.firstWeekday + 7) % 7
         var weekStart = calendar.date(byAdding: .day, value: -daysSinceMonday, to: start) ?? start
@@ -187,8 +240,9 @@ struct TokenActivityCalendar: View {
                 guard let date = calendar.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
                 return Day(
                     date: date,
-                    tokens: tokensByDay[date] ?? 0,
-                    isInRange: date >= start && date <= end
+                    usage: usageByDay[date],
+                    isInRange: date >= start && date <= end,
+                    isFuture: date > today
                 )
             }
             let visibleDate = days.first(where: \.isInRange)?.date
@@ -200,17 +254,22 @@ struct TokenActivityCalendar: View {
             result.append(Week(start: weekStart, monthLabel: monthLabel, days: days))
             weekStart = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? end.addingTimeInterval(1)
         }
-        return result
+        return ActivityGrid(weeks: result, maximumTokens: maximumTokens)
     }
 
     var body: some View {
+        let grid = activityGrid
+        let cellSize = cellSize(for: grid.weeks.count)
+
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(L10n.tr("insights.calendar.title")).font(.caption.weight(.semibold))
                     Text(
                         L10n.tr(
-                            "insights.calendar.range",
+                            periodSelection == .rollingYear
+                                ? "insights.calendar.range"
+                                : "insights.calendar.year_range",
                             L10n.shortDateWithYear(start),
                             L10n.shortDateWithYear(end)
                         )
@@ -219,59 +278,73 @@ struct TokenActivityCalendar: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let selectedDate {
-                    Text(
-                        L10n.tr(
-                            "insights.calendar.selection",
-                            L10n.shortDate(selectedDate),
-                            CodexInsightsTextPresentation.compactTokens(selectedTokens ?? 0)
-                        )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                Picker(L10n.tr("insights.calendar.period"), selection: $periodSelection) {
+                    Text(L10n.tr("insights.calendar.rolling_year"))
+                        .tag(PeriodSelection.rollingYear)
+                    Divider()
+                    ForEach(availableYears, id: \.self) { year in
+                        Text(L10n.localizedInteger(Int64(year)))
+                            .tag(PeriodSelection.calendarYear(year))
+                    }
                 }
+                .pickerStyle(.menu)
+                .fixedSize()
+                .accessibilityIdentifier("codex.insights.activity-calendar-period")
             }
 
             ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 6) {
-                    VStack(alignment: .trailing, spacing: 2) {
+                HStack(alignment: .top, spacing: weekdayColumnSpacing) {
+                    VStack(alignment: .trailing, spacing: cellSpacing) {
                         Text("").frame(height: 13)
                         ForEach(0..<7, id: \.self) { index in
                             Text(weekdayLabel(index))
                                 .font(.system(size: 8))
                                 .foregroundStyle(.secondary)
-                                .frame(width: 18, height: 9, alignment: .trailing)
+                                .frame(width: weekdayColumnWidth, height: cellSize, alignment: .trailing)
                         }
                     }
-                    HStack(alignment: .top, spacing: 2) {
-                        ForEach(weeks) { week in
-                            VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .top, spacing: cellSpacing) {
+                        ForEach(grid.weeks) { week in
+                            VStack(alignment: .leading, spacing: cellSpacing) {
                                 Text(week.monthLabel ?? "")
                                     .font(.system(size: 8))
                                     .foregroundStyle(.secondary)
                                     .fixedSize()
-                                    .frame(width: 9, height: 13, alignment: .leading)
+                                    .frame(width: cellSize, height: 13, alignment: .leading)
                                     .zIndex(1)
                                 ForEach(week.days) { day in
-                                    if day.isInRange {
-                                        Button { selectedDate = day.date } label: {
+                                    if day.isInRange, !day.isFuture {
+                                        Button { presentedDate = day.date } label: {
                                             RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                .fill(color(for: day.tokens))
-                                                .frame(width: 9, height: 9)
+                                                .fill(color(for: day.tokens, maximumTokens: grid.maximumTokens))
+                                                .frame(width: cellSize, height: cellSize)
                                         }
                                         .buttonStyle(.plain)
-                                        .help(
-                                            L10n.tr(
-                                                "insights.calendar.selection",
-                                                L10n.shortDate(day.date),
-                                                CodexInsightsTextPresentation.compactTokens(day.tokens)
-                                            )
-                                        )
+                                        .onHover { isInside in
+                                            if isInside {
+                                                presentedDate = day.date
+                                            } else if presentedDate == day.date {
+                                                presentedDate = nil
+                                            }
+                                        }
+                                        .popover(
+                                            isPresented: presentationBinding(for: day.date),
+                                            attachmentAnchor: .rect(.bounds),
+                                            arrowEdge: .bottom
+                                        ) {
+                                            DayDetails(date: day.date, usage: day.usage)
+                                                .padding(12)
+                                                .frame(width: 280)
+                                        }
                                         .accessibilityLabel(L10n.shortDate(day.date))
                                         .accessibilityValue(CodexInsightsTextPresentation.compactTokens(day.tokens))
+                                    } else if day.isInRange {
+                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                            .fill(Color.secondary.opacity(0.05))
+                                            .frame(width: cellSize, height: cellSize)
+                                            .accessibilityHidden(true)
                                     } else {
-                                        Color.clear.frame(width: 9, height: 9)
+                                        Color.clear.frame(width: cellSize, height: cellSize)
                                     }
                                 }
                             }
@@ -280,6 +353,13 @@ struct TokenActivityCalendar: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                if abs(width - gridViewportWidth) > 0.5 {
+                    gridViewportWidth = width
+                }
+            }
 
             HStack(spacing: 4) {
                 Spacer()
@@ -293,6 +373,26 @@ struct TokenActivityCalendar: View {
             }
         }
         .accessibilityIdentifier("codex.insights.activity-calendar")
+        .onChange(of: availableYears) {
+            if case let .calendarYear(year) = periodSelection,
+               !availableYears.contains(year) {
+                periodSelection = .rollingYear
+            }
+        }
+        .onChange(of: periodSelection) {
+            presentedDate = nil
+        }
+    }
+
+    private func presentationBinding(for date: Date) -> Binding<Bool> {
+        Binding(
+            get: { presentedDate == date },
+            set: { isPresented in
+                if !isPresented, presentedDate == date {
+                    presentedDate = nil
+                }
+            }
+        )
     }
 
     private func weekdayLabel(_ index: Int) -> String {
@@ -304,11 +404,11 @@ struct TokenActivityCalendar: View {
         }
     }
 
-    private func color(for tokens: Int64) -> Color {
-        color(forLevel: level(for: tokens))
+    private func color(for tokens: Int64, maximumTokens: Int64) -> Color {
+        color(forLevel: level(for: tokens, maximumTokens: maximumTokens))
     }
 
-    private func level(for tokens: Int64) -> Int {
+    private func level(for tokens: Int64, maximumTokens: Int64) -> Int {
         guard tokens > 0, maximumTokens > 0 else { return 0 }
         let fraction = log1p(Double(tokens)) / log1p(Double(maximumTokens))
         return min(4, max(1, Int(ceil(fraction * 4))))
@@ -321,6 +421,94 @@ struct TokenActivityCalendar: View {
         case 3: ProviderAccent.codex.opacity(0.68)
         case 4: ProviderAccent.codex
         default: Color.secondary.opacity(0.12)
+        }
+    }
+
+    private struct DayDetails: View {
+        let date: Date
+        let usage: CodexDailyUsage?
+
+        private var totals: CodexUsageTotals {
+            usage?.totals ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
+        }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 9) {
+                Text(L10n.shortDateWithYear(date))
+                    .font(.headline)
+
+                detailRow(
+                    L10n.tr("insights.metric.tokens"),
+                    CodexInsightsTextPresentation.compactTokens(totals.usage.totalTokens)
+                )
+
+                Divider()
+
+                Text(L10n.tr("insights.calendar.details.models"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                if let usage, !usage.models.isEmpty {
+                    ForEach(Array(usage.models.prefix(5))) { model in
+                        detailRow(
+                            CodexInsightsTextPresentation.modelTitle(model.modelID),
+                            CodexInsightsTextPresentation.compactTokens(model.totals.usage.totalTokens)
+                        )
+                    }
+                    if usage.models.count > 5 {
+                        Text(L10n.tr("insights.calendar.details.more_models", usage.models.count - 5))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if usage.modelAttributedTokens != totals.usage.totalTokens {
+                        Text(
+                            L10n.tr(
+                                "insights.calendar.details.model_coverage",
+                                CodexInsightsTextPresentation.compactTokens(usage.modelAttributedTokens),
+                                CodexInsightsTextPresentation.compactTokens(totals.usage.totalTokens)
+                            )
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Text(L10n.tr("insights.calendar.details.no_models"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if totals.credits != nil || totals.apiEquivalentUSD != nil {
+                    Divider()
+                    if let credits = totals.credits {
+                        detailRow(
+                            L10n.tr("insights.metric.credits"),
+                            L10n.localizedDecimal(credits, maximumFractionDigits: 1)
+                        )
+                    }
+                    if let apiEquivalentUSD = totals.apiEquivalentUSD {
+                        detailRow(
+                            L10n.tr("insights.metric.api_equivalent"),
+                            L10n.localizedCurrencyUSD(apiEquivalentUSD)
+                        )
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+
+        private func detailRow(_ title: String, _ value: String) -> some View {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(title)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .font(.caption)
         }
     }
 }

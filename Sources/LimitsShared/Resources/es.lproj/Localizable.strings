@@ -234,7 +234,7 @@
 "accounts.repository.revision_exhausted" = "El contador de revisiones de cuentas se ha agotado. Exporta el estado para recuperarlo antes de hacer cambios.";
 
 "action.dismiss" = "Cerrar";
-"insights.overview.title" = "Resumen de Codex";
+"insights.overview.title" = "Resumen";
 "insights.overview.subtitle" = "Uso, coste y ritmo semanal de todas las cuentas.";
 "insights.period.label" = "Periodo";
 "insights.period.week" = "Semana";
@@ -266,12 +266,19 @@
 "insights.chart.tokens" = "Tokens";
 "insights.calendar.title" = "Actividad de tokens";
 "insights.calendar.range" = "Últimos 12 meses · %@ — %@ · UTC";
+"insights.calendar.year_range" = "%@ — %@ · UTC";
+"insights.calendar.period" = "Intervalo del calendario";
+"insights.calendar.rolling_year" = "12 meses";
 "insights.calendar.selection" = "%@ · %@ tokens";
 "insights.calendar.less" = "Menos";
 "insights.calendar.more" = "Más";
 "insights.calendar.monday" = "Lun";
 "insights.calendar.wednesday" = "Mié";
 "insights.calendar.friday" = "Vie";
+"insights.calendar.details.models" = "Modelos";
+"insights.calendar.details.no_models" = "El detalle por modelo no está disponible para este día.";
+"insights.calendar.details.model_coverage" = "Detalle por modelo: %@ de %@ tokens";
+"insights.calendar.details.more_models" = "Otros modelos: %d";
 "insights.work.title" = "Dónde se usaron los tokens";
 "insights.work.mode" = "Desglose";
 "insights.work.projects" = "Proyectos";

@@ -234,7 +234,7 @@
 "accounts.repository.revision_exhausted" = "Счётчик ревизий аккаунтов исчерпан. Экспортируйте состояние для восстановления перед следующими изменениями.";
 
 "action.dismiss" = "Закрыть";
-"insights.overview.title" = "Обзор Codex";
+"insights.overview.title" = "Обзор";
 "insights.overview.subtitle" = "Расход, стоимость и недельный темп всех аккаунтов.";
 "insights.period.label" = "Период";
 "insights.period.week" = "Неделя";
@@ -266,12 +266,19 @@
 "insights.chart.tokens" = "Токены";
 "insights.calendar.title" = "Активность токенов";
 "insights.calendar.range" = "Последние 12 месяцев · %@ — %@ · UTC";
+"insights.calendar.year_range" = "%@ — %@ · UTC";
+"insights.calendar.period" = "Период календаря";
+"insights.calendar.rolling_year" = "12 месяцев";
 "insights.calendar.selection" = "%@ · %@ токенов";
 "insights.calendar.less" = "Меньше";
 "insights.calendar.more" = "Больше";
 "insights.calendar.monday" = "Пн";
 "insights.calendar.wednesday" = "Ср";
 "insights.calendar.friday" = "Пт";
+"insights.calendar.details.models" = "Модели";
+"insights.calendar.details.no_models" = "Разбивка по моделям для этого дня недоступна.";
+"insights.calendar.details.model_coverage" = "Разбивка по моделям: %@ из %@ токенов";
+"insights.calendar.details.more_models" = "Другие модели: %d";
 "insights.work.title" = "Куда ушли токены";
 "insights.work.mode" = "Разрез";
 "insights.work.projects" = "Проекты";

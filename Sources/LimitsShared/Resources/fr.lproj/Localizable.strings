@@ -234,7 +234,7 @@
 "accounts.repository.revision_exhausted" = "Le compteur de révisions des comptes est épuisé. Exportez l’état pour récupération avant toute modification.";
 
 "action.dismiss" = "Fermer";
-"insights.overview.title" = "Vue d’ensemble Codex";
+"insights.overview.title" = "Vue d’ensemble";
 "insights.overview.subtitle" = "Usage, coût et rythme hebdomadaire de tous les comptes.";
 "insights.period.label" = "Période";
 "insights.period.week" = "Semaine";
@@ -266,12 +266,19 @@
 "insights.chart.tokens" = "Jetons";
 "insights.calendar.title" = "Activité des jetons";
 "insights.calendar.range" = "12 derniers mois · %@ — %@ · UTC";
+"insights.calendar.year_range" = "%@ — %@ · UTC";
+"insights.calendar.period" = "Période du calendrier";
+"insights.calendar.rolling_year" = "12 mois";
 "insights.calendar.selection" = "%@ · %@ jetons";
 "insights.calendar.less" = "Moins";
 "insights.calendar.more" = "Plus";
 "insights.calendar.monday" = "Lun";
 "insights.calendar.wednesday" = "Mer";
 "insights.calendar.friday" = "Ven";
+"insights.calendar.details.models" = "Modèles";
+"insights.calendar.details.no_models" = "Le détail par modèle est indisponible pour ce jour.";
+"insights.calendar.details.model_coverage" = "Détail par modèle : %@ sur %@ jetons";
+"insights.calendar.details.more_models" = "Autres modèles : %d";
 "insights.work.title" = "Où sont passés les jetons";
 "insights.work.mode" = "Répartition";
 "insights.work.projects" = "Projets";

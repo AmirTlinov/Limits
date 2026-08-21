@@ -550,13 +550,18 @@ public struct CodexModelUsage: Codable, Hashable, Identifiable, Sendable {
 public struct CodexDailyUsage: Codable, Hashable, Identifiable, Sendable {
     public let date: Date
     public let totals: CodexUsageTotals
+    public let models: [CodexModelUsage]
 
-    public init(date: Date, totals: CodexUsageTotals) {
+    public init(date: Date, totals: CodexUsageTotals, models: [CodexModelUsage] = []) {
         self.date = date
         self.totals = totals
+        self.models = models
     }
 
     public var id: Date { date }
+    public var modelAttributedTokens: Int64 {
+        models.reduce(0) { $0 + $1.totals.usage.totalTokens }
+    }
 }
 
 /// Local evidence that explains which Codex thread and project produced usage.

@@ -62,16 +62,12 @@ public enum CodexUsagePresentation {
             let server = accountID.flatMap { repository.accountUsage[$0] }
             let serverTokenCount = serverTokens(in: window, snapshot: server, period: period)
             let localTokens = localRows.reduce(Int64.zero) { $0 + $1.usage.totalTokens }
-            let models = modelUsage(
-                from: localRows,
-                currentRateCard: rateCard,
-                historicalRateCards: repository.rateCardRevisions
-            )
             let localDaily = dailyUsage(
                 from: localRows,
                 currentRateCard: rateCard,
                 historicalRateCards: repository.rateCardRevisions
             )
+            let models = aggregateModels(localDaily.flatMap(\.models))
             let daily = reconcileDailyUsage(local: localDaily, server: server, window: window)
             var totals = sum(models.map(\.totals))
             if let serverTokenCount {
@@ -123,7 +119,7 @@ public enum CodexUsagePresentation {
 
         accountInsights.sort(by: riskOrder)
         let totals = sum(accountInsights.map(\.totals))
-        let allModels = aggregateModels(from: accountInsights)
+        let allModels = aggregateModels(accountInsights.flatMap(\.models))
         let allDaily = aggregateDaily(from: accountInsights)
         let coverageValues = accountInsights.compactMap(\.coverage)
         let coverage = coverageValues.isEmpty ? nil : UsageCoverage(
@@ -271,20 +267,18 @@ public enum CodexUsagePresentation {
     ) -> [CodexDailyUsage] {
         Dictionary(grouping: rows, by: \.date)
             .map { date, rows in
-                let priced = rows.map {
-                    pricedTotals(
-                        for: $0,
-                        currentRateCard: currentRateCard,
-                        historicalRateCards: historicalRateCards
-                    )
-                }
-                return CodexDailyUsage(date: date, totals: sum(priced))
+                let models = modelUsage(
+                    from: rows,
+                    currentRateCard: currentRateCard,
+                    historicalRateCards: historicalRateCards
+                )
+                return CodexDailyUsage(date: date, totals: sum(models.map(\.totals)), models: models)
             }
             .sorted { $0.date < $1.date }
     }
 
-    private static func aggregateModels(from accounts: [CodexAccountInsights]) -> [CodexModelUsage] {
-        Dictionary(grouping: accounts.flatMap(\.models), by: \.modelID)
+    private static func aggregateModels(_ models: [CodexModelUsage]) -> [CodexModelUsage] {
+        Dictionary(grouping: models, by: \.modelID)
             .map { modelID, values in
                 CodexModelUsage(modelID: modelID, totals: sum(values.map(\.totals)))
             }
@@ -294,7 +288,11 @@ public enum CodexUsagePresentation {
     private static func aggregateDaily(from accounts: [CodexAccountInsights]) -> [CodexDailyUsage] {
         Dictionary(grouping: accounts.flatMap(\.daily), by: \.date)
             .map { date, values in
-                CodexDailyUsage(date: date, totals: sum(values.map(\.totals)))
+                CodexDailyUsage(
+                    date: date,
+                    totals: sum(values.map(\.totals)),
+                    models: aggregateModels(values.flatMap(\.models))
+                )
             }
             .sorted { $0.date < $1.date }
     }
@@ -310,18 +308,22 @@ public enum CodexUsagePresentation {
             .reduce(into: [Date: Int64]()) { result, bucket in
                 result[CodexUsageRepository.startOfUTCDay(bucket.date), default: 0] += bucket.tokens
             }
-        let localByDay = Dictionary(uniqueKeysWithValues: local.map { ($0.date, $0.totals) })
+        let localByDay = Dictionary(uniqueKeysWithValues: local.map { ($0.date, $0) })
         return Set(serverByDay.keys).union(localByDay.keys).sorted().map { date in
             guard let serverTokens = serverByDay[date] else {
-                return CodexDailyUsage(
-                    date: date,
-                    totals: localByDay[date] ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
-                )
+                return localByDay[date]
+                    ?? CodexDailyUsage(
+                        date: date,
+                        totals: CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
+                    )
             }
-            let localTotals = localByDay[date] ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
+            let localUsage = localByDay[date]
+            let localTotals = localUsage?.totals
+                ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
             return CodexDailyUsage(
                 date: date,
-                totals: replacingTotalTokens(localTotals, with: serverTokens)
+                totals: replacingTotalTokens(localTotals, with: serverTokens),
+                models: localUsage?.models ?? []
             )
         }
     }
