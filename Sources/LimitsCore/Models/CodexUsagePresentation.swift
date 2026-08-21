@@ -49,11 +49,13 @@ public enum CodexUsagePresentation {
         var billingPeriodTokens: Int64 = 0
         var knownSubscriptionTotal = Decimal.zero
         var hasKnownSubscription = false
+        var accountWindows: [String: CodexUsageWindow] = [:]
 
         for account in accounts {
             let accountID = account.accountId
             let observations = accountID.flatMap { repository.limitObservations[$0] } ?? []
             let window = usageWindow(period: period, observations: observations, now: now)
+            if let accountID { accountWindows[accountID] = window }
             let localRows = repository.dailyUsage.filter {
                 $0.accountID == accountID && window.containsUTCDay($0.date)
             }
@@ -65,11 +67,12 @@ public enum CodexUsagePresentation {
                 currentRateCard: rateCard,
                 historicalRateCards: repository.rateCardRevisions
             )
-            let daily = dailyUsage(
+            let localDaily = dailyUsage(
                 from: localRows,
                 currentRateCard: rateCard,
                 historicalRateCards: repository.rateCardRevisions
             )
+            let daily = reconcileDailyUsage(local: localDaily, server: server, window: window)
             var totals = sum(models.map(\.totals))
             if let serverTokenCount {
                 totals = replacingTotalTokens(totals, with: serverTokenCount)
@@ -144,6 +147,13 @@ public enum CodexUsagePresentation {
             rateCard: rateCard,
             historicalRateCards: repository.rateCardRevisions
         )
+        let work = makeWorkInsights(
+            rows: repository.workUsage,
+            savedAccountIDs: savedAccountIDs,
+            accountWindows: accountWindows,
+            period: period,
+            now: now
+        )
 
         return CodexInsightsSnapshot(
             period: period,
@@ -157,8 +167,64 @@ public enum CodexUsagePresentation {
             effectiveSubscriptionUSDPerMillionTokens: aggregateEffective,
             coverage: coverage,
             unattributed: unattributed,
+            work: work,
             priceChange: priceChange
         )
+    }
+
+    private static func makeWorkInsights(
+        rows: [CodexStoredWorkUsage],
+        savedAccountIDs: Set<String>,
+        accountWindows: [String: CodexUsageWindow],
+        period: CodexUsagePeriod,
+        now: Date
+    ) -> CodexWorkInsights? {
+        let retentionStart = now.addingTimeInterval(-CodexUsageRepository.rawEventRetention)
+        let retentionWindow = CodexUsageWindow(start: retentionStart, end: now.addingTimeInterval(1))
+        let visible = rows.filter { row in
+            guard let accountID = row.accountID,
+                  savedAccountIDs.contains(accountID),
+                  let window = accountWindows[accountID] else { return false }
+            return retentionWindow.containsUTCDay(row.date) && window.containsUTCDay(row.date)
+        }
+        guard !visible.isEmpty else { return nil }
+
+        let requestedStart = accountWindows.values.map(\.start).min() ?? retentionStart
+        let requestedEnd = min(accountWindows.values.map(\.end).max() ?? now, now.addingTimeInterval(1))
+        let window = CodexUsageWindow(start: max(requestedStart, retentionStart), end: requestedEnd)
+        let projects = Dictionary(grouping: visible) { row in row.projectID ?? "" }
+            .map { projectID, rows in
+                CodexWorkUsageItem(
+                    id: projectID.isEmpty ? "unknown-project" : projectID,
+                    title: rows.compactMap(\.projectTitle).first,
+                    subtitle: nil,
+                    tokens: rows.reduce(0) { $0 + $1.usage.totalTokens }
+                )
+            }
+            .sorted(by: workItemOrder)
+        let tasks = Dictionary(grouping: visible, by: \.threadID)
+            .map { threadID, rows in
+                let projects = Set(rows.compactMap(\.projectTitle)).sorted()
+                return CodexWorkUsageItem(
+                    id: threadID,
+                    title: rows.compactMap(\.taskTitle).first,
+                    subtitle: projects.isEmpty ? nil : projects.joined(separator: " · "),
+                    tokens: rows.reduce(0) { $0 + $1.usage.totalTokens }
+                )
+            }
+            .sorted(by: workItemOrder)
+        return CodexWorkInsights(
+            window: window,
+            observedTokens: visible.reduce(0) { $0 + $1.usage.totalTokens },
+            projects: projects,
+            tasks: tasks,
+            isRetentionLimited: requestedStart < retentionStart || period == .all
+        )
+    }
+
+    private static func workItemOrder(_ lhs: CodexWorkUsageItem, _ rhs: CodexWorkUsageItem) -> Bool {
+        if lhs.tokens != rhs.tokens { return lhs.tokens > rhs.tokens }
+        return lhs.id < rhs.id
     }
 
     private static func usageWindow(
@@ -231,6 +297,33 @@ public enum CodexUsagePresentation {
                 CodexDailyUsage(date: date, totals: sum(values.map(\.totals)))
             }
             .sorted { $0.date < $1.date }
+    }
+
+    private static func reconcileDailyUsage(
+        local: [CodexDailyUsage],
+        server: CodexAccountUsageSnapshot?,
+        window: CodexUsageWindow
+    ) -> [CodexDailyUsage] {
+        guard let server else { return local }
+        let serverByDay = server.dailyActivity
+            .filter { window.containsUTCDay($0.date) }
+            .reduce(into: [Date: Int64]()) { result, bucket in
+                result[CodexUsageRepository.startOfUTCDay(bucket.date), default: 0] += bucket.tokens
+            }
+        let localByDay = Dictionary(uniqueKeysWithValues: local.map { ($0.date, $0.totals) })
+        return Set(serverByDay.keys).union(localByDay.keys).sorted().map { date in
+            guard let serverTokens = serverByDay[date] else {
+                return CodexDailyUsage(
+                    date: date,
+                    totals: localByDay[date] ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
+                )
+            }
+            let localTotals = localByDay[date] ?? CodexUsageTotals(usage: .zero, credits: nil, apiEquivalentUSD: nil)
+            return CodexDailyUsage(
+                date: date,
+                totals: replacingTotalTokens(localTotals, with: serverTokens)
+            )
+        }
     }
 
     private static func makeUnattributedInsights(

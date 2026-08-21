@@ -50,6 +50,7 @@ import Testing
     #expect(snapshot.models == accountSnapshot.models)
     #expect(snapshot.daily == accountSnapshot.daily)
     #expect(snapshot.totals.usage.totalTokens == 120_000)
+    #expect(snapshot.daily.first?.totals.usage.totalTokens == 120_000)
     #expect(snapshot.coverage == UsageCoverage(observedTokens: 110_000, serverTokens: 120_000))
     #expect(snapshot.nearestRisk?.accountID == "acct_insights")
     #expect(snapshot.totalMonthlySubscriptionUSD == 200)
@@ -63,6 +64,52 @@ import Testing
     #expect(widget.weeklyCredits == snapshot.totals.credits)
     #expect(widget.remainingPercent == accountSnapshot.riskiestQuotaForecast?.forecast.remainingPercent)
     #expect(tray == "Codex · \(CodexInsightsTextPresentation.forecast(try #require(accountSnapshot.riskiestQuotaForecast).forecast, now: now))")
+}
+
+@Test func workBreakdownUsesOnlySavedAccountRowsAndKeepsRealProjectAndTaskNames() throws {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let day = CodexUsageRepository.startOfUTCDay(now.addingTimeInterval(-60 * 60))
+    let account = insightsAccount(now: now)
+    let repository = CodexUsageRepositorySnapshot(
+        accountUsage: [:],
+        dailyUsage: [storedDaily(accountID: "acct_insights", day: day, model: "gpt-5.6-sol", tokens: 100)],
+        workUsage: [
+            CodexStoredWorkUsage(
+                date: day,
+                accountID: "acct_insights",
+                threadID: "thread-limits",
+                projectID: "repo:limits",
+                projectTitle: "Limits",
+                taskTitle: "Repair analytics",
+                usage: CodexTokenUsage(inputTokens: 80, outputTokens: 20, totalTokens: 100)
+            ),
+            CodexStoredWorkUsage(
+                date: day,
+                accountID: nil,
+                threadID: "thread-unattributed",
+                projectID: "repo:other",
+                projectTitle: "Other",
+                taskTitle: "Unattributed work",
+                usage: CodexTokenUsage(inputTokens: 900, totalTokens: 900)
+            ),
+        ],
+        limitObservations: ["acct_insights": burnObservations(accountID: "acct_insights", now: now)],
+        latestLimits: [:],
+        rateCardRevisions: []
+    )
+
+    let snapshot = CodexUsagePresentation.makeSnapshotSet(
+        accounts: [account],
+        repository: repository,
+        rateCard: OpenAIPricingCatalog.bundledRevision,
+        now: now
+    ).currentWeek
+
+    let work = try #require(snapshot.work)
+    #expect(work.observedTokens == 100)
+    #expect(work.window.end == now.addingTimeInterval(1))
+    #expect(work.projects == [CodexWorkUsageItem(id: "repo:limits", title: "Limits", subtitle: nil, tokens: 100)])
+    #expect(work.tasks == [CodexWorkUsageItem(id: "thread-limits", title: "Repair analytics", subtitle: "Limits", tokens: 100)])
 }
 
 @Test func unknownModelsKeepTokensVisibleAndMarkMoneyAsUnavailable() {

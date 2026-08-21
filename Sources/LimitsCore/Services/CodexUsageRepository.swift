@@ -79,7 +79,7 @@ public struct CodexUsagePersistence: @unchecked Sendable {
 }
 
 public actor CodexUsageRepository {
-    public static let currentSchemaVersion = 10
+    public static let currentSchemaVersion = 11
     public static let rawEventRetention: TimeInterval = 90 * 24 * 60 * 60
 
     private let persistence: CodexUsagePersistence
@@ -138,60 +138,17 @@ public actor CodexUsageRepository {
 
         if version == 0 {
             try createSchema()
-        } else if version == 1 {
-            try migrateSchemaFromV1()
-            try migrateSchemaFromV2()
-            try migrateSchemaFromV3()
-            try migrateSchemaFromV4()
-            try migrateSchemaFromV5()
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 2 {
-            try migrateSchemaFromV2()
-            try migrateSchemaFromV3()
-            try migrateSchemaFromV4()
-            try migrateSchemaFromV5()
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 3 {
-            try migrateSchemaFromV3()
-            try migrateSchemaFromV4()
-            try migrateSchemaFromV5()
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 4 {
-            try migrateSchemaFromV4()
-            try migrateSchemaFromV5()
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 5 {
-            try migrateSchemaFromV5()
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 6 {
-            try migrateSchemaFromV6()
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 7 {
-            try migrateSchemaFromV7()
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 8 {
-            try migrateSchemaFromV8()
-            try migrateSchemaFromV9()
-        } else if version == 9 {
-            try migrateSchemaFromV9()
+        } else {
+            if version < 2 { try migrateSchemaFromV1() }
+            if version < 3 { try migrateSchemaFromV2() }
+            if version < 4 { try migrateSchemaFromV3() }
+            if version < 5 { try migrateSchemaFromV4() }
+            if version < 6 { try migrateSchemaFromV5() }
+            if version < 7 { try migrateSchemaFromV6() }
+            if version < 8 { try migrateSchemaFromV7() }
+            if version < 9 { try migrateSchemaFromV8() }
+            if version < 10 { try migrateSchemaFromV9() }
+            if version < 11 { try migrateSchemaFromV10() }
         }
         access = .readWrite
         persistence.secureDatabaseFiles()
@@ -208,6 +165,7 @@ public actor CodexUsageRepository {
         return CodexUsageRepositorySnapshot(
             accountUsage: try loadAccountUsage(),
             dailyUsage: try loadDailyUsage(),
+            workUsage: try loadWorkUsage(),
             limitObservations: try loadLimitObservations(),
             latestLimits: try loadLatestLimits(),
             endpointStatuses: try loadEndpointStatuses(),
@@ -522,7 +480,7 @@ public actor CodexUsageRepository {
     public func importCursor(for path: String) throws -> CodexImportCursor? {
         try requireOpen()
         let statement = try prepare(
-            "SELECT inode, byte_offset, modified_at, schema_adapter, parser_state FROM import_cursors WHERE path = ?"
+            "SELECT inode, byte_offset, modified_at, schema_adapter, metadata_adapter, parser_state FROM import_cursors WHERE path = ?"
         )
         defer { sqlite3_finalize(statement) }
         bind(path, to: 1, in: statement)
@@ -533,7 +491,8 @@ public actor CodexUsageRepository {
             byteOffset: UInt64(max(0, sqlite3_column_int64(statement, 1))),
             modifiedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 2)),
             schemaAdapter: Int(sqlite3_column_int64(statement, 3)),
-            parserState: columnData(statement, 4)
+            metadataAdapter: Int(sqlite3_column_int64(statement, 4)),
+            parserState: columnData(statement, 5)
         )
     }
 
@@ -541,13 +500,14 @@ public actor CodexUsageRepository {
         try requireWritable()
         let statement = try prepare(
             """
-            INSERT INTO import_cursors (path, inode, byte_offset, modified_at, schema_adapter, parser_state)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO import_cursors (path, inode, byte_offset, modified_at, schema_adapter, metadata_adapter, parser_state)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(path) DO UPDATE SET
                 inode = excluded.inode,
                 byte_offset = excluded.byte_offset,
                 modified_at = excluded.modified_at,
                 schema_adapter = excluded.schema_adapter,
+                metadata_adapter = excluded.metadata_adapter,
                 parser_state = excluded.parser_state
             """
         )
@@ -558,11 +518,42 @@ public actor CodexUsageRepository {
         bind(cursor.modifiedAt.timeIntervalSince1970, to: 4, in: statement)
         bind(Int64(cursor.schemaAdapter), to: 5, in: statement)
         if let parserState = cursor.parserState {
-            bind(parserState, to: 6, in: statement)
+            bind(Int64(cursor.metadataAdapter), to: 6, in: statement)
+            bind(parserState, to: 7, in: statement)
         } else {
-            sqlite3_bind_null(statement, 6)
+            bind(Int64(cursor.metadataAdapter), to: 6, in: statement)
+            sqlite3_bind_null(statement, 7)
         }
         try stepDone(statement)
+    }
+
+    public func recordRolloutContexts(_ contexts: [CodexRolloutContext]) throws {
+        guard !contexts.isEmpty else { return }
+        try requireWritable()
+        try transaction {
+            for context in contexts {
+                let statement = try prepare(
+                    """
+                    INSERT INTO rollout_contexts (
+                        thread_id, turn_id, project_id, project_title, task_title, observed_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(thread_id, turn_id) DO UPDATE SET
+                        project_id = COALESCE(excluded.project_id, rollout_contexts.project_id),
+                        project_title = COALESCE(excluded.project_title, rollout_contexts.project_title),
+                        task_title = COALESCE(excluded.task_title, rollout_contexts.task_title),
+                        observed_at = MAX(excluded.observed_at, rollout_contexts.observed_at)
+                    """
+                )
+                defer { sqlite3_finalize(statement) }
+                bind(context.threadID, to: 1, in: statement)
+                bind(context.turnID ?? "", to: 2, in: statement)
+                bind(context.projectID, to: 3, in: statement)
+                bind(context.projectTitle, to: 4, in: statement)
+                bind(context.taskTitle, to: 5, in: statement)
+                bind(context.observedAt.timeIntervalSince1970, to: 6, in: statement)
+                try stepDone(statement)
+            }
+        }
     }
 
     public func recordCurrentAuthIdentity(
@@ -844,7 +835,21 @@ public actor CodexUsageRepository {
                     byte_offset INTEGER NOT NULL,
                     modified_at REAL NOT NULL,
                     schema_adapter INTEGER NOT NULL,
+                    metadata_adapter INTEGER NOT NULL,
                     parser_state BLOB
+                )
+                """
+            )
+            try execute(
+                """
+                CREATE TABLE rollout_contexts (
+                    thread_id TEXT NOT NULL,
+                    turn_id TEXT NOT NULL,
+                    project_id TEXT,
+                    project_title TEXT,
+                    task_title TEXT,
+                    observed_at REAL NOT NULL,
+                    PRIMARY KEY(thread_id, turn_id)
                 )
                 """
             )
@@ -1085,6 +1090,26 @@ public actor CodexUsageRepository {
                     account_id TEXT PRIMARY KEY,
                     epoch_started_at REAL NOT NULL,
                     payload BLOB NOT NULL
+                )
+                """
+            )
+            try execute("PRAGMA user_version = 10")
+        }
+    }
+
+    private func migrateSchemaFromV10() throws {
+        try transaction {
+            try execute("ALTER TABLE import_cursors ADD COLUMN metadata_adapter INTEGER NOT NULL DEFAULT 0")
+            try execute(
+                """
+                CREATE TABLE rollout_contexts (
+                    thread_id TEXT NOT NULL,
+                    turn_id TEXT NOT NULL,
+                    project_id TEXT,
+                    project_title TEXT,
+                    task_title TEXT,
+                    observed_at REAL NOT NULL,
+                    PRIMARY KEY(thread_id, turn_id)
                 )
                 """
             )
@@ -1484,6 +1509,63 @@ public actor CodexUsageRepository {
                         outputTokens: sqlite3_column_int64(statement, 11),
                         reasoningOutputTokens: sqlite3_column_int64(statement, 12),
                         totalTokens: sqlite3_column_int64(statement, 13)
+                    )
+                )
+            )
+        }
+        return result
+    }
+
+    private func loadWorkUsage() throws -> [CodexStoredWorkUsage] {
+        let statement = try prepare(
+            """
+            SELECT
+                CAST(events.occurred_at / 86400 AS INTEGER) * 86400 AS day,
+                events.account_id,
+                events.thread_id,
+                COALESCE(turn_context.project_id, thread_context.project_id),
+                COALESCE(turn_context.project_title, thread_context.project_title),
+                COALESCE(turn_context.task_title, thread_context.task_title),
+                SUM(events.input_tokens),
+                SUM(events.cached_input_tokens),
+                SUM(events.cache_write_input_tokens),
+                SUM(events.output_tokens),
+                SUM(events.reasoning_output_tokens),
+                SUM(events.total_tokens)
+            FROM usage_events AS events
+            LEFT JOIN rollout_contexts AS turn_context
+              ON turn_context.thread_id = events.thread_id
+             AND turn_context.turn_id = events.turn_id
+            LEFT JOIN rollout_contexts AS thread_context
+              ON thread_context.thread_id = events.thread_id
+             AND thread_context.turn_id = ''
+            GROUP BY day, events.account_id, events.thread_id,
+                     COALESCE(turn_context.project_id, thread_context.project_id),
+                     COALESCE(turn_context.project_title, thread_context.project_title),
+                     COALESCE(turn_context.task_title, thread_context.task_title)
+            ORDER BY day, events.thread_id
+            """
+        )
+        defer { sqlite3_finalize(statement) }
+        var result: [CodexStoredWorkUsage] = []
+        while try stepRow(statement) {
+            guard let threadID = columnString(statement, 2) else { continue }
+            let accountID = columnString(statement, 1).flatMap { $0.isEmpty ? nil : $0 }
+            result.append(
+                CodexStoredWorkUsage(
+                    date: Date(timeIntervalSince1970: sqlite3_column_double(statement, 0)),
+                    accountID: accountID,
+                    threadID: threadID,
+                    projectID: columnString(statement, 3),
+                    projectTitle: columnString(statement, 4),
+                    taskTitle: columnString(statement, 5),
+                    usage: CodexTokenUsage(
+                        inputTokens: sqlite3_column_int64(statement, 6),
+                        cachedInputTokens: sqlite3_column_int64(statement, 7),
+                        cacheWriteInputTokens: sqlite3_column_int64(statement, 8),
+                        outputTokens: sqlite3_column_int64(statement, 9),
+                        reasoningOutputTokens: sqlite3_column_int64(statement, 10),
+                        totalTokens: sqlite3_column_int64(statement, 11)
                     )
                 )
             )

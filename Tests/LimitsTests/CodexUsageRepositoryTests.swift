@@ -98,6 +98,47 @@ import Testing
     await repository.close()
 }
 
+@Test func recentWorkUsageExplainsProjectAndTaskWithoutCreatingAnotherPermanentTotal() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repository = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await repository.open()
+    let occurredAt = Date(timeIntervalSince1970: 100_000)
+    try await repository.recordRolloutContexts([
+        CodexRolloutContext(
+            threadID: "thread-work",
+            turnID: "turn-work",
+            projectID: "https://github.com/AmirTlinov/Limits.git",
+            projectTitle: "Limits",
+            taskTitle: "Repair the overview",
+            observedAt: occurredAt
+        ),
+    ])
+    _ = try await repository.recordUsageEvents([
+        usageRepositoryEvent(
+            threadID: "thread-work",
+            turnID: "turn-work",
+            accountID: "acct",
+            occurredAt: occurredAt
+        ),
+    ])
+
+    var snapshot = try await repository.snapshot()
+    let work = try #require(snapshot.workUsage.first)
+    #expect(work.projectTitle == "Limits")
+    #expect(work.taskTitle == "Repair the overview")
+    #expect(work.usage.totalTokens == 120)
+    #expect(snapshot.dailyUsage.first?.usage.totalTokens == work.usage.totalTokens)
+
+    try await repository.purgeRawEvents(
+        now: occurredAt.addingTimeInterval(CodexUsageRepository.rawEventRetention + 1)
+    )
+    snapshot = try await repository.snapshot()
+    #expect(snapshot.workUsage.isEmpty)
+    #expect(snapshot.dailyUsage.first?.usage.totalTokens == 120)
+    await repository.close()
+}
+
 @Test func rateRevisionIsBoundToEachEventWithoutMergingChangedPrices() async throws {
     let root = usageRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -531,7 +572,7 @@ private func usageRateRevision(
     )
 }
 
-@Test func usageSchemaNineMigratesToAnalyticsEpochSchemaTen() async throws {
+@Test func usageSchemaNineMigratesThroughAnalyticsEpochToCurrentSchema() async throws {
     let root = usageRepositoryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let first = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
@@ -543,7 +584,24 @@ private func usageRateRevision(
     process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
     process.arguments = [
         database.path,
-        "DROP TABLE analytics_epoch; DROP TABLE account_usage_baselines; PRAGMA user_version = 9;",
+        """
+        DROP TABLE analytics_epoch;
+        DROP TABLE account_usage_baselines;
+        DROP TABLE rollout_contexts;
+        ALTER TABLE import_cursors RENAME TO import_cursors_v11;
+        CREATE TABLE import_cursors (
+            path TEXT PRIMARY KEY,
+            inode INTEGER NOT NULL,
+            byte_offset INTEGER NOT NULL,
+            modified_at REAL NOT NULL,
+            schema_adapter INTEGER NOT NULL,
+            parser_state BLOB
+        );
+        INSERT INTO import_cursors(path, inode, byte_offset, modified_at, schema_adapter, parser_state)
+        SELECT path, inode, byte_offset, modified_at, schema_adapter, parser_state FROM import_cursors_v11;
+        DROP TABLE import_cursors_v11;
+        PRAGMA user_version = 9;
+        """,
     ]
     try process.run()
     process.waitUntilExit()
@@ -554,6 +612,61 @@ private func usageRateRevision(
     let boundary = Date(timeIntervalSince1970: 10_000)
     try await migrated.beginAnalyticsEpoch(at: boundary, baselines: [])
     #expect(try await migrated.snapshot().analyticsEpochStartedAt == boundary)
+    await migrated.close()
+}
+
+@Test func usageSchemaTenAddsRolloutContextMetadataWithoutChangingUsage() async throws {
+    let root = usageRepositoryRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let first = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    _ = try await first.open()
+    _ = try await first.recordUsageEvents([
+        usageRepositoryEvent(threadID: "thread", turnID: "turn", accountID: "acct"),
+    ])
+    await first.close()
+
+    let database = root.appending(path: "usage.sqlite3")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+    process.arguments = [
+        database.path,
+        """
+        DROP TABLE rollout_contexts;
+        ALTER TABLE import_cursors RENAME TO import_cursors_v11;
+        CREATE TABLE import_cursors (
+            path TEXT PRIMARY KEY,
+            inode INTEGER NOT NULL,
+            byte_offset INTEGER NOT NULL,
+            modified_at REAL NOT NULL,
+            schema_adapter INTEGER NOT NULL,
+            parser_state BLOB
+        );
+        INSERT INTO import_cursors(path, inode, byte_offset, modified_at, schema_adapter, parser_state)
+        SELECT path, inode, byte_offset, modified_at, schema_adapter, parser_state FROM import_cursors_v11;
+        DROP TABLE import_cursors_v11;
+        PRAGMA user_version = 10;
+        """,
+    ]
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+
+    let migrated = CodexUsageRepository(persistence: CodexUsagePersistence(baseURL: root))
+    #expect(try await migrated.open() == .readWrite)
+    try await migrated.recordRolloutContexts([
+        CodexRolloutContext(
+            threadID: "thread",
+            turnID: "turn",
+            projectID: "project",
+            projectTitle: "Limits",
+            taskTitle: "Overview",
+            observedAt: .now
+        ),
+    ])
+    let snapshot = try await migrated.snapshot()
+    #expect(snapshot.dailyUsage.first?.usage.totalTokens == 120)
+    #expect(snapshot.workUsage.first?.projectTitle == "Limits")
+    #expect(snapshot.workUsage.first?.taskTitle == "Overview")
     await migrated.close()
 }
 

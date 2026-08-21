@@ -19,6 +19,7 @@ public protocol CodexRolloutImporting: Sendable {
 
 public actor CodexRolloutUsageImporter: CodexRolloutImporting {
     public static let schemaAdapter = 1
+    public static let metadataAdapter = 1
 
     private let repository: CodexUsageRepository
     private let roots: [URL]
@@ -98,6 +99,12 @@ public actor CodexRolloutUsageImporter: CodexRolloutImporting {
         let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
         let modifiedAt = (attributes[.modificationDate] as? Date) ?? .distantPast
         let storedCursor = try await repository.importCursor(for: file.path)
+        let metadataNeedsRefresh = storedCursor?.inode != inode
+            || storedCursor?.metadataAdapter != metadataAdapter
+        if metadataNeedsRefresh {
+            let contexts = try rolloutContexts(in: file)
+            try await repository.recordRolloutContexts(contexts)
+        }
         let canResume = storedCursor?.inode == inode
             && storedCursor?.schemaAdapter == schemaAdapter
             && (storedCursor?.byteOffset ?? 0) <= size
@@ -109,8 +116,22 @@ public actor CodexRolloutUsageImporter: CodexRolloutImporting {
         let handle = try FileHandle(forReadingFrom: file)
         defer { try? handle.close() }
         try handle.seek(toOffset: startOffset)
-        guard let data = try handle.readToEnd(), !data.isEmpty else { return 0 }
-        guard let lastNewline = data.lastIndex(of: 0x0A) else { return 0 }
+        guard let data = try handle.readToEnd(), !data.isEmpty,
+              let lastNewline = data.lastIndex(of: 0x0A) else {
+            let stateData = try JSONEncoder.limits.encode(state)
+            try await repository.saveImportCursor(
+                CodexImportCursor(
+                    path: file.path,
+                    inode: inode,
+                    byteOffset: startOffset,
+                    modifiedAt: modifiedAt,
+                    schemaAdapter: schemaAdapter,
+                    metadataAdapter: metadataAdapter,
+                    parserState: stateData
+                )
+            )
+            return 0
+        }
         let completeData = data[data.startIndex...lastNewline]
         let consumedBytes = UInt64(completeData.count)
         var pendingEvents: [ParsedEvent] = []
@@ -157,10 +178,15 @@ public actor CodexRolloutUsageImporter: CodexRolloutImporting {
                 byteOffset: startOffset + consumedBytes,
                 modifiedAt: modifiedAt,
                 schemaAdapter: schemaAdapter,
+                metadataAdapter: metadataAdapter,
                 parserState: stateData
             )
         )
         return inserted
+    }
+
+    private static func rolloutContexts(in file: URL) throws -> [CodexRolloutContext] {
+        try CodexRolloutContextParser.parse(file: file)
     }
 
     private static func parse(

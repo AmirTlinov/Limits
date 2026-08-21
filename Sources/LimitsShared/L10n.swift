@@ -259,6 +259,18 @@ public enum L10n {
         shortDayTimeFormatter.string(from: date)
     }
 
+    public static func shortDate(_ date: Date) -> String {
+        shortDayMonthFormatter.string(from: date)
+    }
+
+    public static func shortDateWithYear(_ date: Date) -> String {
+        shortDayMonthYearFormatter.string(from: date)
+    }
+
+    public static func shortMonth(_ date: Date) -> String {
+        shortMonthFormatter.string(from: date)
+    }
+
     public static func updatedAtShort(_ date: Date) -> String {
         updatedAt(shortTime(date))
     }
@@ -343,6 +355,20 @@ public enum L10n {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.setLocalizedDateFormatFromTemplate("dMMM")
+        return formatter
+    }
+
+    private static var shortMonthFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("MMM")
+        return formatter
+    }
+
+    private static var shortDayMonthYearFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("dMMMyyyy")
         return formatter
     }
 }

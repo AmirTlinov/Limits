@@ -358,6 +358,7 @@ struct AccountsWindowView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollIndicators(.hidden)
+        .accessibilityIdentifier("accounts.detail.scroll")
         .background(Color.clear)
     }
 
@@ -599,11 +600,18 @@ private struct CodexOverviewPane: View {
                 )
                 .frame(maxWidth: .infinity, minHeight: 360)
             } else {
-                WeeklyRiskCard(snapshot: snapshot, now: model.presentationNow)
                 InsightsMetricsGrid(snapshot: snapshot)
+                WeeklyRiskCard(snapshot: snapshot, now: model.presentationNow)
                 ModelUsageStrip(models: snapshot.models)
-                UsageTrendChart(daily: snapshot.daily)
-                    .frame(height: 118)
+                UsageTrendChart(daily: snapshot.daily, period: snapshot.period, now: model.presentationNow)
+                    .frame(height: 176)
+                TokenActivityCalendar(
+                    daily: model.codexAnalyticsSnapshots.all.daily,
+                    now: model.presentationNow
+                )
+                if let work = snapshot.work {
+                    WorkUsageBreakdown(insights: work)
+                }
                 InsightsAccountList(accounts: snapshot.accounts, openAccount: openAccount)
             }
 
@@ -668,29 +676,39 @@ private struct WeeklyRiskCard: View {
 
     var body: some View {
         if let selection {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: selection.quota.forecast.state == .exhaustsBeforeReset ? "exclamationmark.triangle.fill" : "gauge.with.dots.needle.50percent")
+                    .font(.callout)
+                    .foregroundStyle(forecastColor(selection.quota.forecast.state))
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 1) {
                     Text(riskHeading(for: selection.quota))
                         .font(.caption.weight(.semibold))
+                    Text(L10n.tr("insights.risk.scope"))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    if let reset = CodexInsightsTextPresentation.reset(selection.quota.forecast, now: now) {
-                        Text(reset).font(.caption).foregroundStyle(.secondary)
-                    }
                 }
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(selection.account.label).font(.title2.weight(.semibold)).lineLimit(1)
-                    Text(selection.quota.title).font(.callout).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer(minLength: 8)
+                Divider().frame(height: 26)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(selection.account.label).font(.callout.weight(.semibold)).lineLimit(1)
+                    Text(selection.quota.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 1) {
                     Text(CodexInsightsTextPresentation.forecast(selection.quota.forecast, now: now))
-                        .font(.headline)
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(forecastColor(selection.quota.forecast.state))
                         .lineLimit(1)
+                    if let reset = CodexInsightsTextPresentation.reset(selection.quota.forecast, now: now) {
+                        Text(reset).font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 ForecastProgressBar(forecast: selection.quota.forecast)
+                    .frame(width: 210)
             }
-            .padding(14)
-            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("codex.insights.weekly-risk")
         }
@@ -893,70 +911,6 @@ private struct ModelUsageBucket: Identifiable {
             return Self(kind: kind, usage: usage, credits: credits)
         }
         .sorted { Kind.allCases.firstIndex(of: $0.kind)! < Kind.allCases.firstIndex(of: $1.kind)! }
-    }
-}
-
-private struct UsageTrendChart: View {
-    let daily: [CodexDailyUsage]
-    @State private var selectedDate: Date?
-
-    private var selected: CodexDailyUsage? {
-        guard let selectedDate else { return nil }
-        return daily.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(L10n.tr("insights.trend.title")).font(.caption.weight(.semibold))
-                Spacer()
-                if let selected {
-                    Text(
-                        L10n.tr(
-                            "insights.trend.selection",
-                            L10n.shortDayTime(selected.date),
-                            CodexInsightsTextPresentation.compactTokens(selected.totals.usage.totalTokens),
-                            selected.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—"
-                        )
-                    )
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                }
-            }
-            Chart(daily) { day in
-                if let credits = day.totals.credits {
-                    BarMark(
-                        x: .value(L10n.tr("insights.chart.date"), day.date, unit: .day),
-                        y: .value(L10n.tr("insights.chart.credits"), NSDecimalNumber(decimal: credits).doubleValue)
-                    )
-                    .foregroundStyle(ProviderAccent.codex.gradient)
-                    .cornerRadius(3)
-                }
-            }
-            .chartXAxis(.hidden)
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) {
-                    AxisGridLine().foregroundStyle(.quaternary)
-                    AxisValueLabel().font(.caption2)
-                }
-            }
-            .chartXSelection(value: $selectedDate)
-            .accessibilityRepresentation {
-                VStack(alignment: .leading) {
-                    Text(L10n.tr("insights.trend.accessibility_summary", daily.count))
-                    ForEach(daily) { day in
-                        Text(
-                            L10n.tr(
-                                "insights.trend.accessibility_row",
-                                L10n.shortDayTime(day.date),
-                                CodexInsightsTextPresentation.compactTokens(day.totals.usage.totalTokens),
-                                day.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—"
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        .accessibilityIdentifier("codex.insights.trend")
     }
 }
 
@@ -1553,7 +1507,11 @@ private struct StoredAccountDetailPane: View {
 
             if let insights {
                 MinimalSeparator()
-                AccountAnalyticsPanel(insights: insights, now: model.presentationNow)
+                AccountAnalyticsPanel(
+                    insights: insights,
+                    period: model.codexUsagePeriod,
+                    now: model.presentationNow
+                )
             }
 
             if let accountIssue {
@@ -1586,6 +1544,7 @@ private struct StoredAccountDetailPane: View {
 
 private struct AccountAnalyticsPanel: View {
     let insights: CodexAccountInsights
+    let period: CodexUsagePeriod
     let now: Date
 
     var body: some View {
@@ -1636,7 +1595,7 @@ private struct AccountAnalyticsPanel: View {
             }
 
             ModelUsageStrip(models: insights.models)
-            UsageTrendChart(daily: insights.daily).frame(height: 130)
+            UsageTrendChart(daily: insights.daily, period: period, now: now).frame(height: 130)
         }
     }
 

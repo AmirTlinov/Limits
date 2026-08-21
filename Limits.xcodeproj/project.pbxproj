@@ -96,6 +96,7 @@
 		F43E2142BE2C9BD8925155F0 /* InterprocessFileLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */; };
 		F448771D5EA6D06181F0491B /* OpenAIPricingCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */; };
 		F48C73A1084A98F2E166EE42 /* CodexUsageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1F31B6DC996A5FF0E5A99E /* CodexUsageModels.swift */; };
+		F49C9DBC74D28E188436A80B /* CodexAnalyticsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DDC146A12ABFEAA0FA9559 /* CodexAnalyticsViews.swift */; };
 		F4DAD46B4CF73465200ECC39 /* SoftwareUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFDF243213BAD58C8C3B0B /* SoftwareUpdateController.swift */; };
 		F4EC3DF283AB612F399BEF9B /* CodexRolloutUsageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD77063EE9CDABDE02F06288 /* CodexRolloutUsageImporter.swift */; };
 		F536992662C110B2E48A5440 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D540EE018553DD225DFD4D /* L10n.swift */; };
@@ -115,10 +116,12 @@
 		F9351083F88241B95E0C4B91 /* SessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DE3A0471381FC3DB49FDF7 /* SessionCoordinatorTests.swift */; };
 		F9AB483AAE4DE322961C2172 /* CodexUsagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */; };
 		F9B22AF0BA2B8564021DE25F /* CodexUsageCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E345863F25F690211AE57E /* CodexUsageCoordinator.swift */; };
+		F9B2BCE3179D2C7A83CEAACD /* CodexRolloutContextParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE35C342BDC72BC6A32DD6F /* CodexRolloutContextParserTests.swift */; };
 		F9C05C474AA378CB65F8D0C0 /* CodexUsageCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */; };
 		FA45F942D3EAF5DC2CF5260E /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2437C292D5690E8A02E8D43 /* LaunchAtLoginController.swift */; };
 		FAEA8F82DE397252DED93A5A /* CodexSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */; };
 		FB334C164A7B40F03F66B7DF /* ProviderCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FA0A26034BFA2FB245C43B /* ProviderCatalogTests.swift */; };
+		FB410B9CC50ACD3A9D599AAF /* CodexRolloutContextParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAD57D4A54DF08CBE82B8CD1 /* CodexRolloutContextParser.swift */; };
 		FB51D48BAA1947F2639837E5 /* AccountsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */; };
 		FBAC5BC205E34455BB0A143B /* CodexUsageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */; };
 		FC4903B63F14F7DC7BB90B85 /* CodexAccountsPresentationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F3455CC8D369FCFA68B464 /* CodexAccountsPresentationPolicy.swift */; };
@@ -334,6 +337,7 @@
 		F30E5F072E73A6242AD6FE09 /* CodexAccountProbeRequest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountProbeRequest.swift; path = Models/CodexAccountProbeRequest.swift; sourceTree = "<group>"; };
 		F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexInsightsTextPresentation.swift; path = Models/CodexInsightsTextPresentation.swift; sourceTree = "<group>"; };
 		F38BE7692E5C0D305451ADB6 /* CodexUsageRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageRepository.swift; path = Services/CodexUsageRepository.swift; sourceTree = "<group>"; };
+		F3DDC146A12ABFEAA0FA9559 /* CodexAnalyticsViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAnalyticsViews.swift; path = Views/CodexAnalyticsViews.swift; sourceTree = "<group>"; };
 		F3F09E677CD9A9C02F9D1F34 /* CodexAccountIssuePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountIssuePresentation.swift; path = Models/CodexAccountIssuePresentation.swift; sourceTree = "<group>"; };
 		F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LimitsStorageLayoutTests.swift; sourceTree = "<group>"; };
 		F4501C172F0D6D7F2A0E8B1A /* ProviderOperationState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProviderOperationState.swift; path = Models/ProviderOperationState.swift; sourceTree = "<group>"; };
@@ -354,6 +358,7 @@
 		F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsageCoordinatorTests.swift; sourceTree = "<group>"; };
 		FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionCoordinator.swift; path = Services/CodexSessionCoordinator.swift; sourceTree = "<group>"; };
 		FAC8FA73192391699B33BCA8 /* CodexAccountValidationPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexAccountValidationPolicy.swift; path = Models/CodexAccountValidationPolicy.swift; sourceTree = "<group>"; };
+		FAD57D4A54DF08CBE82B8CD1 /* CodexRolloutContextParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexRolloutContextParser.swift; path = Services/CodexRolloutContextParser.swift; sourceTree = "<group>"; };
 		FB1F31B6DC996A5FF0E5A99E /* CodexUsageModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsageModels.swift; path = Models/CodexUsageModels.swift; sourceTree = "<group>"; };
 		FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexAccountUsageTests.swift; sourceTree = "<group>"; };
 		FC41EB0D5D32012BF21DE7F2 /* CodexUsagePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexUsagePresentation.swift; path = Models/CodexUsagePresentation.swift; sourceTree = "<group>"; };
@@ -363,6 +368,7 @@
 		FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CodexSessionPresentation.swift; path = Models/CodexSessionPresentation.swift; sourceTree = "<group>"; };
 		FE65D6215B485CBC6DFF8491 /* ChatGPTSubscriptionPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatGPTSubscriptionPresentation.swift; path = Models/ChatGPTSubscriptionPresentation.swift; sourceTree = "<group>"; };
 		FE79F29002F9324023AA0123 /* ApplicationSceneRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApplicationSceneRouter.swift; path = AppSupport/ApplicationSceneRouter.swift; sourceTree = "<group>"; };
+		FEE35C342BDC72BC6A32DD6F /* CodexRolloutContextParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexRolloutContextParserTests.swift; sourceTree = "<group>"; };
 		FF0253C29C0C32EDF4A97F2A /* AccountsRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountsRepositoryTests.swift; sourceTree = "<group>"; };
 		FFA5D132F0D179506EC3E8D8 /* OpenAIPricingCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenAIPricingCatalogTests.swift; sourceTree = "<group>"; };
 		FFFB2C22AC42AD1F96EA0CBB /* FirstLaunchPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FirstLaunchPolicy.swift; path = AppSupport/FirstLaunchPolicy.swift; sourceTree = "<group>"; };
@@ -513,6 +519,7 @@
 				D00000000000000000000059 /* AccountsWindowView.swift */,
 				D0000000000000000000004D /* AppModel.swift */,
 				D0000000000000000000005B /* CLIStateBadge.swift */,
+				F3DDC146A12ABFEAA0FA9559 /* CodexAnalyticsViews.swift */,
 				D0000000000000000000005D /* CompactLimitBarsView.swift */,
 				D0000000000000000000004F /* LimitsApp.swift */,
 				F762BEC11929F0A02993BED8 /* LimitsRuntimeEnvironment.swift */,
@@ -563,6 +570,7 @@
 				D0000000000000000000008B /* CodexExecutableLocator.swift */,
 				F33478AC2169845771AABBF1 /* CodexInsightsTextPresentation.swift */,
 				F73AB5BDBE9C562A00F71336 /* CodexRefreshPolicy.swift */,
+				FAD57D4A54DF08CBE82B8CD1 /* CodexRolloutContextParser.swift */,
 				FD77063EE9CDABDE02F06288 /* CodexRolloutUsageImporter.swift */,
 				FA0C9A697E454429339B69A0 /* CodexSessionCoordinator.swift */,
 				FDFEB917AE340B103BA64570 /* CodexSessionPresentation.swift */,
@@ -626,6 +634,7 @@
 				FB28EC62C9598407286D823A /* CodexAccountUsageTests.swift */,
 				D000000000000000000000A5 /* CodexAuthBlobTests.swift */,
 				D000000000000000000000A7 /* CodexAuthSwitchTransactionTests.swift */,
+				FEE35C342BDC72BC6A32DD6F /* CodexRolloutContextParserTests.swift */,
 				F53AA2BE3CB7DC62730A089E /* CodexRolloutUsageImporterTests.swift */,
 				D000000000000000000000A9 /* CodexRuntimeEnvironmentTests.swift */,
 				F9FB7B07D99917152DC7D573 /* CodexUsageCoordinatorTests.swift */,
@@ -959,6 +968,7 @@
 				D0000000000000000000005A /* AccountsWindowView.swift in Sources */,
 				D0000000000000000000004E /* AppModel.swift in Sources */,
 				D0000000000000000000005C /* CLIStateBadge.swift in Sources */,
+				F49C9DBC74D28E188436A80B /* CodexAnalyticsViews.swift in Sources */,
 				D0000000000000000000005E /* CompactLimitBarsView.swift in Sources */,
 				D00000000000000000000050 /* LimitsApp.swift in Sources */,
 				F7E909F7F9CF17918A4A4CAD /* LimitsRuntimeEnvironment.swift in Sources */,
@@ -1007,6 +1017,7 @@
 				D0000000000000000000008C /* CodexExecutableLocator.swift in Sources */,
 				F1C250476E90A6D8A3DC070F /* CodexInsightsTextPresentation.swift in Sources */,
 				FEB03F7BECF6767C713B7B79 /* CodexRefreshPolicy.swift in Sources */,
+				FB410B9CC50ACD3A9D599AAF /* CodexRolloutContextParser.swift in Sources */,
 				F4EC3DF283AB612F399BEF9B /* CodexRolloutUsageImporter.swift in Sources */,
 				FAEA8F82DE397252DED93A5A /* CodexSessionCoordinator.swift in Sources */,
 				F5BD731F8400D7330ED35612 /* CodexSessionPresentation.swift in Sources */,
@@ -1066,6 +1077,7 @@
 				F735FFC984FFA146419E15A3 /* CodexAccountUsageTests.swift in Sources */,
 				D000000000000000000000A6 /* CodexAuthBlobTests.swift in Sources */,
 				D000000000000000000000A8 /* CodexAuthSwitchTransactionTests.swift in Sources */,
+				F9B2BCE3179D2C7A83CEAACD /* CodexRolloutContextParserTests.swift in Sources */,
 				F69828C8577EC163C594E63D /* CodexRolloutUsageImporterTests.swift in Sources */,
 				D000000000000000000000AA /* CodexRuntimeEnvironmentTests.swift in Sources */,
 				F9C05C474AA378CB65F8D0C0 /* CodexUsageCoordinatorTests.swift in Sources */,

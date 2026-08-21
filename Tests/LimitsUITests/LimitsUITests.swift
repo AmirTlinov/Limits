@@ -179,12 +179,17 @@ final class LimitsUITests: XCTestCase {
         app.activate()
 
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.weekly-risk"].waitForExistence(timeout: 3))
+        let weeklyRisk = app.descendants(matching: .any)["codex.insights.weekly-risk"]
+        XCTAssertTrue(weeklyRisk.waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.tokens"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.credits"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.metric.api-equivalent"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.models"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["codex.insights.trend"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.activity-calendar"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["codex.insights.work"].exists)
+        XCTAssertTrue(app.staticTexts["Daily tokens"].exists)
+        XCTAssertTrue(weeklyRisk.label.contains("Across all accounts"))
         XCTAssertFalse(app.debugDescription.localizedCaseInsensitiveContains("Claude"))
         XCTAssertFalse(app.buttons["Refresh"].exists)
 
@@ -321,6 +326,14 @@ final class LimitsUITests: XCTestCase {
         windowAttachment.name = "limits-window.png"
         windowAttachment.lifetime = .keepAlways
         add(windowAttachment)
+
+        let detailScroll = lightApp.scrollViews["accounts.detail.scroll"]
+        XCTAssertTrue(detailScroll.waitForExistence(timeout: 3))
+        detailScroll.swipeUp()
+        let activityAttachment = XCTAttachment(screenshot: lightWindow.screenshot())
+        activityAttachment.name = "limits-window-activity.png"
+        activityAttachment.lifetime = .keepAlways
+        add(activityAttachment)
 
         let statusItem = lightApp.menuBars.statusItems.firstMatch
         if statusItem.waitForExistence(timeout: 3) {
@@ -473,7 +486,8 @@ final class LimitsUITests: XCTestCase {
         let directory = root.appending(path: "Codex/sessions/2026/08/21", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let lines = [
-            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_600)), "type": "session_meta", "payload": ["id": "fixture-thread"]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_600)), "type": "session_meta", "payload": ["id": "fixture-thread", "cwd": "/Users/fixture/Limits", "git": ["repository_url": "https://github.com/AmirTlinov/Limits.git"]]],
+            ["timestamp": formatter.string(from: now.addingTimeInterval(-3_550)), "type": "event_msg", "payload": ["type": "user_message", "message": "Repair the analytics overview"]],
             ["timestamp": formatter.string(from: now.addingTimeInterval(-3_500)), "type": "turn_context", "payload": ["turn_id": "fixture-turn-1", "model": "gpt-5.6-sol", "effort": "high"]],
             ["timestamp": formatter.string(from: now.addingTimeInterval(-3_000)), "type": "event_msg", "payload": ["type": "token_count", "info": ["total_token_usage": ["input_tokens": 2_000_000, "cached_input_tokens": 1_000_000, "cache_write_input_tokens": 100_000, "output_tokens": 100_000, "reasoning_output_tokens": 70_000, "total_tokens": 2_100_000]]]],
             ["timestamp": formatter.string(from: now.addingTimeInterval(-2_900)), "type": "turn_context", "payload": ["turn_id": "fixture-turn-2", "model": "gpt-5.6-terra", "effort": "medium"]],

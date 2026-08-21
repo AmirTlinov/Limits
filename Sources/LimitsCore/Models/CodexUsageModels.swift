@@ -559,6 +559,108 @@ public struct CodexDailyUsage: Codable, Hashable, Identifiable, Sendable {
     public var id: Date { date }
 }
 
+/// Local evidence that explains which Codex thread and project produced usage.
+/// The importer derives it from rollout metadata and the first user message;
+/// semantic labels are never guessed from prompt wording.
+public struct CodexRolloutContext: Codable, Hashable, Identifiable, Sendable {
+    public let threadID: String
+    public let turnID: String?
+    public let projectID: String?
+    public let projectTitle: String?
+    public let taskTitle: String?
+    public let observedAt: Date
+
+    public init(
+        threadID: String,
+        turnID: String? = nil,
+        projectID: String?,
+        projectTitle: String?,
+        taskTitle: String?,
+        observedAt: Date
+    ) {
+        self.threadID = threadID
+        self.turnID = turnID
+        self.projectID = projectID
+        self.projectTitle = projectTitle
+        self.taskTitle = taskTitle
+        self.observedAt = observedAt
+    }
+
+    public var id: String { "\(threadID)|\(turnID ?? "")" }
+}
+
+/// One UTC day of recent raw rollout usage, grouped by its real thread.
+/// This is queried from `usage_events`; it is not a second persisted token total.
+public struct CodexStoredWorkUsage: Hashable, Identifiable, Sendable {
+    public let date: Date
+    public let accountID: String?
+    public let threadID: String
+    public let projectID: String?
+    public let projectTitle: String?
+    public let taskTitle: String?
+    public let usage: CodexTokenUsage
+
+    public init(
+        date: Date,
+        accountID: String?,
+        threadID: String,
+        projectID: String?,
+        projectTitle: String?,
+        taskTitle: String?,
+        usage: CodexTokenUsage
+    ) {
+        self.date = date
+        self.accountID = accountID
+        self.threadID = threadID
+        self.projectID = projectID
+        self.projectTitle = projectTitle
+        self.taskTitle = taskTitle
+        self.usage = usage
+    }
+
+    public var id: String {
+        "\(Int64(date.timeIntervalSince1970))|\(accountID ?? "-")|\(threadID)"
+    }
+}
+
+public struct CodexWorkUsageItem: Codable, Hashable, Identifiable, Sendable {
+    public let id: String
+    public let title: String?
+    public let subtitle: String?
+    public let tokens: Int64
+
+    public init(id: String, title: String?, subtitle: String?, tokens: Int64) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.tokens = tokens
+    }
+}
+
+/// Best-effort local explanation of recent usage. Its window is explicit
+/// because raw rollout events have a shorter retention than headline totals.
+public struct CodexWorkInsights: Codable, Hashable, Sendable {
+    public let window: CodexUsageWindow
+    public let observedTokens: Int64
+    public let projects: [CodexWorkUsageItem]
+    public let tasks: [CodexWorkUsageItem]
+    public let isRetentionLimited: Bool
+
+    public init(
+        window: CodexUsageWindow,
+        observedTokens: Int64,
+        projects: [CodexWorkUsageItem],
+        tasks: [CodexWorkUsageItem],
+        isRetentionLimited: Bool
+    ) {
+        self.window = window
+        self.observedTokens = observedTokens
+        self.projects = projects
+        self.tasks = tasks
+        self.isRetentionLimited = isRetentionLimited
+    }
+}
+
 @frozen public enum LimitBurnForecastState: String, Codable, Hashable, Sendable {
     case collecting
     case stable
@@ -792,6 +894,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
     public let effectiveSubscriptionUSDPerMillionTokens: Decimal?
     public let coverage: UsageCoverage?
     public let unattributed: CodexUnattributedInsights?
+    public let work: CodexWorkInsights?
     public let priceChange: OpenAIPriceChange?
 
     public init(
@@ -806,6 +909,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         effectiveSubscriptionUSDPerMillionTokens: Decimal?,
         coverage: UsageCoverage?,
         unattributed: CodexUnattributedInsights?,
+        work: CodexWorkInsights? = nil,
         priceChange: OpenAIPriceChange?
     ) {
         self.period = period
@@ -819,6 +923,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
         self.effectiveSubscriptionUSDPerMillionTokens = effectiveSubscriptionUSDPerMillionTokens
         self.coverage = coverage
         self.unattributed = unattributed
+        self.work = work
         self.priceChange = priceChange
     }
 
@@ -835,6 +940,7 @@ public struct CodexInsightsSnapshot: Codable, Hashable, Sendable {
             effectiveSubscriptionUSDPerMillionTokens: nil,
             coverage: nil,
             unattributed: nil,
+            work: nil,
             priceChange: nil
         )
     }
@@ -982,6 +1088,7 @@ public struct CodexImportCursor: Codable, Hashable, Sendable {
     public let byteOffset: UInt64
     public let modifiedAt: Date
     public let schemaAdapter: Int
+    public let metadataAdapter: Int
     public let parserState: Data?
 
     public init(
@@ -990,6 +1097,7 @@ public struct CodexImportCursor: Codable, Hashable, Sendable {
         byteOffset: UInt64,
         modifiedAt: Date,
         schemaAdapter: Int,
+        metadataAdapter: Int = 0,
         parserState: Data? = nil
     ) {
         self.path = path
@@ -997,6 +1105,7 @@ public struct CodexImportCursor: Codable, Hashable, Sendable {
         self.byteOffset = byteOffset
         self.modifiedAt = modifiedAt
         self.schemaAdapter = schemaAdapter
+        self.metadataAdapter = metadataAdapter
         self.parserState = parserState
     }
 }
@@ -1004,6 +1113,7 @@ public struct CodexImportCursor: Codable, Hashable, Sendable {
 public struct CodexUsageRepositorySnapshot: Sendable {
     public let accountUsage: [String: CodexAccountUsageSnapshot]
     public let dailyUsage: [CodexStoredDailyUsage]
+    public let workUsage: [CodexStoredWorkUsage]
     public let limitObservations: [String: [CodexLimitObservation]]
     public let latestLimits: [String: CodexRateLimitsSnapshot]
     public let endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]]
@@ -1014,6 +1124,7 @@ public struct CodexUsageRepositorySnapshot: Sendable {
     public init(
         accountUsage: [String: CodexAccountUsageSnapshot],
         dailyUsage: [CodexStoredDailyUsage],
+        workUsage: [CodexStoredWorkUsage] = [],
         limitObservations: [String: [CodexLimitObservation]],
         latestLimits: [String: CodexRateLimitsSnapshot],
         endpointStatuses: [String: [CodexUsageEndpointKind: CodexUsageEndpointStatus]] = [:],
@@ -1023,6 +1134,7 @@ public struct CodexUsageRepositorySnapshot: Sendable {
     ) {
         self.accountUsage = accountUsage
         self.dailyUsage = dailyUsage
+        self.workUsage = workUsage
         self.limitObservations = limitObservations
         self.latestLimits = latestLimits
         self.endpointStatuses = endpointStatuses

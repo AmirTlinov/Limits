@@ -32,6 +32,11 @@ import Testing
     #expect(snapshot.dailyUsage.reduce(0) { $0 + $1.usage.totalTokens } == 225)
     #expect(snapshot.dailyUsage.allSatisfy { $0.accountID == "acct_confirmed" })
     #expect(Set(snapshot.dailyUsage.map(\.modelID)) == ["gpt-5.6-sol", "gpt-5.6-terra"])
+    #expect(snapshot.workUsage.count == 1)
+    #expect(snapshot.workUsage.first?.projectID == "https://github.com/AmirTlinov/Limits.git")
+    #expect(snapshot.workUsage.first?.projectTitle == "Limits")
+    #expect(snapshot.workUsage.first?.taskTitle == "Repair the analytics overview")
+    #expect(snapshot.workUsage.first?.usage.totalTokens == 225)
     let sol = try #require(snapshot.dailyUsage.first { $0.modelID == "gpt-5.6-sol" })
     #expect(sol.usage.inputTokens == 180)
     #expect(sol.usage.cachedInputTokens == 40)
@@ -159,7 +164,8 @@ import Testing
 
 private func fixtureLines() -> String {
     """
-    {"timestamp":"2026-08-21T00:00:00Z","type":"session_meta","payload":{"session_id":"thread-1"}}
+    {"timestamp":"2026-08-21T00:00:00Z","type":"session_meta","payload":{"session_id":"thread-1","cwd":"/Users/amir/Documents/projects/Limits","git":{"repository_url":"https://github.com/AmirTlinov/Limits.git"}}}
+    {"timestamp":"2026-08-21T00:00:30Z","type":"event_msg","payload":{"type":"user_message","message":"Repair the analytics overview\\nKeep the evidence honest."}}
     {"timestamp":"2026-08-21T00:01:00Z","type":"turn_context","payload":{"turn_id":"turn-1","model":"gpt-5.6-sol","effort":"high"}}
     {"timestamp":"2026-08-21T00:10:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"cache_write_input_tokens":0,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":110}}}}
     {"timestamp":"2026-08-21T00:20:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":180,"cached_input_tokens":40,"cache_write_input_tokens":0,"output_tokens":20,"reasoning_output_tokens":8,"total_tokens":200}}}}
