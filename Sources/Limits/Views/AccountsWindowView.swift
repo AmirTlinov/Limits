@@ -1945,45 +1945,79 @@ private struct StoredAccountLimitsGrid: View {
     let tint: Color
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             ForEach(sections) { section in
-                ForEach(Array(section.rows.enumerated()), id: \.element.id) { index, row in
-                    GridRow(alignment: .center) {
-                        Text(index == 0 ? section.title : "")
-                            .font(.callout.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(width: 160, alignment: .leading)
-                            .help(section.title)
-                            .accessibilityHidden(index != 0)
+                HStack(alignment: .top, spacing: 14) {
+                    Text(section.title)
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .frame(width: 160, alignment: .leading)
+                        .help(section.title)
 
-                        Text(row.title)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(width: 118, alignment: .leading)
-
-                        LimitProgressBar(progress: row.remainingProgressValue, tint: resolvedTint(for: row))
-                            .frame(maxWidth: .infinity)
-
-                        LimitRemainingValue(row: row, valueFont: .callout.weight(.semibold))
-                            .frame(width: 174, alignment: .trailing)
+                    LazyVGrid(columns: columns(for: section.rows.count), alignment: .leading, spacing: 10) {
+                        ForEach(Array(section.rows.enumerated()), id: \.element.id) { index, row in
+                            StoredAccountLimitWindow(
+                                quotaTitle: section.title,
+                                row: row,
+                                tint: resolvedTint(for: row)
+                            )
+                            .padding(.leading, index % 2 == 1 ? 12 : 0)
+                            .overlay(alignment: .leading) {
+                                if index % 2 == 1 {
+                                    Rectangle()
+                                        .fill(.primary.opacity(0.08))
+                                        .frame(width: 1)
+                                }
+                            }
+                        }
                     }
-                    .padding(.top, index == 0 && section.id != sections.first?.id ? 4 : 0)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(accessibilityLabel(section: section, row: row))
                 }
+                .padding(.top, section.id != sections.first?.id ? 4 : 0)
             }
         }
+    }
+
+    private func columns(for rowCount: Int) -> [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
+            count: min(max(rowCount, 1), 2)
+        )
     }
 
     private func resolvedTint(for row: RateLimitDisplayRow) -> Color {
         row.remainingPercent <= 9 ? .red : tint
     }
+}
 
-    private func accessibilityLabel(section: RateLimitDisplaySection, row: RateLimitDisplayRow) -> String {
-        [section.title, row.title, L10n.percentRemaining(row.remainingPercent), row.resetText]
+private struct StoredAccountLimitWindow: View {
+    let quotaTitle: String
+    let row: RateLimitDisplayRow
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(row.title)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Spacer(minLength: 4)
+
+                LimitRemainingValue(row: row, valueFont: .callout.weight(.semibold))
+            }
+
+            LimitProgressBar(progress: row.remainingProgressValue, tint: tint)
+                .frame(maxWidth: .infinity)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        [quotaTitle, row.title, L10n.percentRemaining(row.remainingPercent), row.resetText]
             .compactMap { $0 }
             .joined(separator: ". ")
     }
@@ -2029,11 +2063,15 @@ private struct LimitRemainingValue: View {
             Text(L10n.percentRemaining(row.remainingPercent))
                 .font(valueFont)
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
 
             if let resetText = row.resetText {
                 Text(resetText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
         }
     }
