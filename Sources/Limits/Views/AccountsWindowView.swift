@@ -1064,7 +1064,7 @@ private struct CurrentCLIDetailPane: View {
                 },
                 details: {
                     if let plan {
-                        ChatGPTSubscriptionCard(plan: plan, cycle: subscriptionCycle)
+                        ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle)
                     }
                 },
                 actions: {
@@ -1464,127 +1464,125 @@ private struct StoredAccountDetailPane: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            DetailHeroCard(
-                title: account.label,
-                subtitle: account.email,
-                note: nil,
-                metaLine: nil,
-                renameTitle: model.canMutateDomain ? { title in
-                    Task { await model.renameAccount(account, to: title) }
-                } : nil,
-                subtitleIsCopyable: true,
-                stateBadge: {
-                    AccountStatusBadge(status: account.status, isCurrent: isCurrent)
-                },
-                details: {
-                    ChatGPTSubscriptionCard(plan: plan, cycle: subscriptionCycle)
-                },
-                actions: {
-                    if !isCurrent {
-                        Button(L10n.tr("action.make_current")) {
-                            Task { await model.activateAccount(account) }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
+        DetailHeroCard(
+            title: account.label,
+            subtitle: account.email,
+            note: nil,
+            metaLine: nil,
+            renameTitle: model.canMutateDomain ? { title in
+                Task { await model.renameAccount(account, to: title) }
+            } : nil,
+            subtitleIsCopyable: true,
+            stateBadge: {
+                AccountStatusBadge(status: account.status, isCurrent: isCurrent)
+            },
+            details: {
+                ChatGPTAccountPanel(plan: plan, cycle: subscriptionCycle) {
+                    StoredAccountSummary(
+                        sections: sections,
+                        emptyLimitsSummary: accountIssue == nil
+                            ? model.storedRateLimitSummary(for: account)
+                                ?? L10n.tr("limits.empty.account.subtitle")
+                            : nil,
+                        issue: accountIssue,
+                        insights: insights,
+                        period: model.codexUsagePeriod,
+                        now: model.presentationNow
+                    )
+                }
+            },
+            actions: {
+                if !isCurrent {
+                    Button(L10n.tr("action.make_current")) {
+                        Task { await model.activateAccount(account) }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
+                }
 
-                    if accountIssue?.recommendedAction == .reauthenticate {
-                        Button(L10n.tr("action.reauthenticate")) {
-                            Task { await model.reauthenticateAccount(account) }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
-                    }
-
-                    Button(L10n.tr("action.delete"), role: .destructive) {
-                        model.requestDeleteAccount(account)
+                if accountIssue?.recommendedAction == .reauthenticate {
+                    Button(L10n.tr("action.reauthenticate")) {
+                        Task { await model.reauthenticateAccount(account) }
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
                 }
-            )
 
-            if let insights {
-                MinimalSeparator()
-                AccountAnalyticsPanel(
-                    insights: insights,
-                    period: model.codexUsagePeriod,
-                    now: model.presentationNow
-                )
+                Button(L10n.tr("action.delete"), role: .destructive) {
+                    model.requestDeleteAccount(account)
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isProviderBusy(.codex) || !model.canMutateDomain)
             }
+        )
+    }
+}
 
-            if let accountIssue {
+private struct StoredAccountSummary: View {
+    let sections: [RateLimitDisplaySection]
+    let emptyLimitsSummary: String?
+    let issue: CodexAccountIssuePresentation?
+    let insights: CodexAccountInsights?
+    let period: CodexUsagePeriod
+    let now: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let issue {
                 MinimalSeparator()
-                CodexAccountIssueCard(issue: accountIssue)
+                CodexAccountIssueCard(issue: issue)
             }
 
             if sections.isEmpty {
-                if accountIssue == nil {
+                if let emptyLimitsSummary {
                     MinimalSeparator()
                     EmptyLimitsCard(
                         title: L10n.tr("limits.empty.title"),
-                        subtitle: model.storedRateLimitSummary(for: account)
-                            ?? L10n.tr("limits.empty.account.subtitle")
+                        subtitle: emptyLimitsSummary
                     )
                 }
             } else {
-                MinimalSeparator()
-                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                ForEach(sections) { section in
+                    MinimalSeparator()
                     LimitSectionCard(section: section, tint: ProviderAccent.codex)
-
-                    if index < sections.count - 1 {
-                        MinimalSeparator()
-                    }
                 }
+            }
+
+            if let insights {
+                MinimalSeparator()
+                AccountUsageSummary(insights: insights, period: period, now: now)
             }
         }
     }
 }
 
-private struct AccountAnalyticsPanel: View {
+private struct AccountUsageSummary: View {
     let insights: CodexAccountInsights
     let period: CodexUsagePeriod
     let now: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(L10n.tr("insights.account.title"))
-                .font(.title2.weight(.semibold))
+                .font(.title3.weight(.semibold))
                 .accessibilityIdentifier("codex.insights.account-detail")
 
-            if let quota = insights.riskiestQuotaForecast {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack {
-                        Text(quota.title).font(.headline)
-                        Spacer()
-                        Text(CodexInsightsTextPresentation.forecast(quota.forecast, now: now))
-                            .font(.headline)
-                            .foregroundStyle(forecastColor(quota.forecast.state))
-                    }
-                    ForecastProgressBar(forecast: quota.forecast)
-                    if let reset = CodexInsightsTextPresentation.reset(quota.forecast, now: now) {
-                        Text(reset).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .padding(12)
-                .background(.quaternary.opacity(0.32), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-
-            HStack(spacing: 8) {
-                InsightsMetric(
+            HStack(alignment: .top, spacing: 14) {
+                AccountSummaryMetric(
                     identifier: "codex.insights.account.metric.tokens",
                     title: L10n.tr("insights.metric.tokens"),
                     value: CodexInsightsTextPresentation.compactTokens(insights.totals.usage.totalTokens),
                     subtitle: accountCoverageText
                 )
-                InsightsMetric(
+                Divider().frame(height: 48)
+                AccountSummaryMetric(
                     identifier: "codex.insights.account.metric.credits",
                     title: L10n.tr("insights.metric.credits"),
                     value: insights.totals.credits.map { L10n.localizedDecimal($0, maximumFractionDigits: 1) } ?? "—",
                     subtitle: L10n.tr("insights.metric.credits.subtitle")
                 )
-                InsightsMetric(
+                Divider().frame(height: 48)
+                AccountSummaryMetric(
                     identifier: "codex.insights.account.metric.api-equivalent",
                     title: L10n.tr("insights.metric.api_equivalent"),
                     value: insights.totals.apiEquivalentUSD.map { L10n.localizedCurrencyUSD($0) } ?? "—",
@@ -1611,6 +1609,24 @@ private struct AccountAnalyticsPanel: View {
             )
         }
         return L10n.tr("insights.coverage.percent", Int((fraction * 100).rounded()))
+    }
+}
+
+private struct AccountSummaryMetric: View {
+    let identifier: String
+    let title: String
+    let value: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(value).font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+            Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 }
 
@@ -1778,9 +1794,20 @@ private struct DetailHeroCard<StateBadge: View, Details: View, Actions: View>: V
     }
 }
 
-private struct ChatGPTSubscriptionCard: View {
+private struct ChatGPTAccountPanel<AdditionalContent: View>: View {
     let plan: ChatGPTPlanPresentation
     let cycle: ChatGPTSubscriptionCyclePresentation?
+    let additionalContent: AdditionalContent
+
+    init(
+        plan: ChatGPTPlanPresentation,
+        cycle: ChatGPTSubscriptionCyclePresentation?,
+        @ViewBuilder additionalContent: () -> AdditionalContent
+    ) {
+        self.plan = plan
+        self.cycle = cycle
+        self.additionalContent = additionalContent()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1841,6 +1868,8 @@ private struct ChatGPTSubscriptionCard: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            additionalContent
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1858,6 +1887,12 @@ private struct ChatGPTSubscriptionCard: View {
         if cycle.isExpired { return .red }
         if let progress = cycle.remainingProgress, progress <= 0.1 { return .orange }
         return ProviderAccent.codex
+    }
+}
+
+private extension ChatGPTAccountPanel where AdditionalContent == EmptyView {
+    init(plan: ChatGPTPlanPresentation, cycle: ChatGPTSubscriptionCyclePresentation?) {
+        self.init(plan: plan, cycle: cycle) { EmptyView() }
     }
 }
 
