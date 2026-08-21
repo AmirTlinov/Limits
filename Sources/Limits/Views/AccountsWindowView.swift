@@ -2006,11 +2006,18 @@ private struct StoredAccountLimitWindow: View {
 
                 Spacer(minLength: 4)
 
-                LimitRemainingValue(row: row, valueFont: .callout.weight(.semibold))
+                LimitRemainingValue(
+                    row: row,
+                    valueFont: .callout.weight(.semibold),
+                    showsReset: false
+                )
             }
 
             LimitProgressBar(progress: row.remainingProgressValue, tint: tint)
                 .frame(maxWidth: .infinity)
+
+            LimitResetLabel(row: row)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
@@ -2052,10 +2059,16 @@ private struct LimitProgressRowView: View {
 private struct LimitRemainingValue: View {
     let row: RateLimitDisplayRow
     let valueFont: Font
+    let showsReset: Bool
 
-    init(row: RateLimitDisplayRow, valueFont: Font = .headline) {
+    init(
+        row: RateLimitDisplayRow,
+        valueFont: Font = .headline,
+        showsReset: Bool = true
+    ) {
         self.row = row
         self.valueFont = valueFont
+        self.showsReset = showsReset
     }
 
     var body: some View {
@@ -2066,13 +2079,23 @@ private struct LimitRemainingValue: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            if let resetText = row.resetText {
-                Text(resetText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+            if showsReset {
+                LimitResetLabel(row: row)
             }
+        }
+    }
+}
+
+private struct LimitResetLabel: View {
+    let row: RateLimitDisplayRow
+
+    var body: some View {
+        if let resetText = row.resetText {
+            Text(resetText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
     }
 }
