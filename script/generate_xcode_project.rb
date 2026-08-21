@@ -311,4 +311,8 @@ scheme.configure_with_targets(app, unit_tests, launch_target: app)
 scheme.add_test_target(ui_tests)
 scheme.save_as(PROJECT_PATH, "Limits", true)
 
+unit_test_scheme = Xcodeproj::XCScheme.new
+unit_test_scheme.configure_with_targets(nil, unit_tests)
+unit_test_scheme.save_as(PROJECT_PATH, "LimitsUnitTests", true)
+
 puts PROJECT_PATH

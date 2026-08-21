@@ -19,8 +19,9 @@ Limits keeps the important thing close: which account is most likely to run out 
 
 ## What it does
 
-- Opens on a Codex overview with the nearest weekly-limit risk across all saved accounts.
+- Opens on one overview of saved-account usage with a shared period for activity, totals, models, trend, projects, and tasks.
 - Shows weekly tokens, Codex credits, the current API-price equivalent, subscription cost, model mix, and daily usage.
+- Keeps each account's plan, reset windows, quota bars, and usage on one continuous account surface.
 - Forecasts “runs out before reset”, “lasts until reset”, “collecting pace”, and stale evidence from observed server limits.
 - Shows Codex limits in the menu bar panel, native macOS window, and WidgetKit widgets.
 - Shows Claude only when a saved Claude account exists or Claude Code reports a live, stable signed-in identity.
@@ -55,6 +56,14 @@ The app is Developer ID signed. Widget Gallery discovery requires the shipped ap
 ./script/ci_gate.sh
 ./script/build_and_run.sh
 ```
+
+Focused model and persistence checks use the hostless `LimitsUnitTests` scheme. It contains no UI-test target, so a narrow test does not start the app or request UI Automation:
+
+```bash
+xcodebuild test -project Limits.xcodeproj -scheme LimitsUnitTests -destination 'platform=macOS,arch=arm64' -only-testing:'LimitsTests/accountIdentityShowsEmailOnlyWhenItAddsASecondIdentity()'
+```
+
+`./script/ci_gate.sh` remains the complete delivery gate and intentionally includes UI tests.
 
 Limits targets macOS 26 on Apple silicon. `AccountsRepository` owns account identities and credential references. `CodexUsageRepository` owns usage history in SQLite. Provider coordinators own authenticated operations and refresh queues. The app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
 
