@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+"$ROOT_DIR/script/require_isolated_ui_session.sh"
 OUTPUT_DIR="${1:-$ROOT_DIR/docs/images}"
 REQUEST_FILE="$ROOT_DIR/.build/documentation-screenshot-output"
 RESULT_BUNDLE="$ROOT_DIR/.build/screenshots/Documentation.xcresult"
@@ -15,12 +16,13 @@ rm -rf "$RESULT_BUNDLE" "$ATTACHMENTS_DIR"
 
 xcodebuild test \
   -project "$ROOT_DIR/Limits.xcodeproj" \
-  -scheme Limits \
+  -scheme LimitsUITests \
   -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$ROOT_DIR/.build/screenshots" \
   -clonedSourcePackagesDirPath "$ROOT_DIR/.build/SourcePackages" \
   -resultBundlePath "$RESULT_BUNDLE" \
+  LIMITS_ISOLATED_UI_SESSION=1 \
   -only-testing:LimitsUITests/LimitsUITests/testCaptureDocumentationScreenshots
 
 xcrun xcresulttool export attachments \

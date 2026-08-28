@@ -2,16 +2,24 @@
 set -euo pipefail
 
 APP_NAME="Limits"
+MODE="runtime"
+
+if [[ "${1:-}" == "--static-only" ]]; then
+  MODE="static"
+  shift
+fi
+
 APP_BUNDLE="${1:-}"
 EXPECTED_FEED_URL="https://amirtlinov.github.io/Limits/appcast.xml"
 EXPECTED_PUBLIC_KEY="t+to52jjoiebTJ/XWpzF4jc3pngvi+W+hkrYuVUqLhQ="
 
 usage() {
   cat <<USAGE
-Usage: $0 /path/to/Limits.app
+Usage: $0 [--static-only] /path/to/Limits.app
 
-Launches the exact app bundle and proves the native lifecycle end to end:
-foreground first launch, tray-only survival after close, and URL-driven reopen.
+The static mode verifies the bundle without launching it. Runtime mode proves
+foreground first launch, tray-only survival after close, and URL-driven reopen
+inside a dedicated macOS session.
 USAGE
 }
 
@@ -59,6 +67,13 @@ plist_value() {
 [[ "$(plist_value SUFeedURL)" == "$EXPECTED_FEED_URL" ]] || fail "unexpected Sparkle feed URL"
 [[ "$(plist_value SUPublicEDKey)" == "$EXPECTED_PUBLIC_KEY" ]] || fail "unexpected Sparkle public key"
 echo "bundle contract: foreground-capable, limits:// registered, Sparkle feed pinned"
+
+if [[ "$MODE" == "static" ]]; then
+  echo "static runtime contract passed"
+  exit 0
+fi
+
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/require_isolated_ui_session.sh"
 
 cat >"$TEMP_DIR/presented-window-count.swift" <<'SWIFT'
 import CoreGraphics

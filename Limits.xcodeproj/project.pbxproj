@@ -846,6 +846,7 @@
 				D00000000000000000000049 /* Frameworks */,
 				D0000000000000000000004A /* Resources */,
 				D000000000000000000000EB /* Embed Test Frameworks */,
+				D000000000000000000000F8 /* Require isolated UI session */,
 			);
 			buildRules = (
 			);
@@ -978,6 +979,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		D000000000000000000000F8 /* Require isolated UI session */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Require isolated UI session";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${LIMITS_ISOLATED_UI_SESSION:-}\" != \"1\" ]; then\n  echo \"error: Limits UI tests require a dedicated macOS session. Run ./script/ci_gate.sh locally and let GitHub Actions run UI automation.\" >&2\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D00000000000000000000017 /* Sources */ = {

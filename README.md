@@ -70,13 +70,20 @@ gem install xcodeproj -v 1.27.0 --no-document --user-install
 ./script/build_and_run.sh
 ```
 
+The local gate builds the app, runs every hostless test, and checks the bundle
+without launching UI automation. GitHub Actions adds the same UI and lifecycle
+tests in a dedicated macOS session, so testing does not take over the
+developer's keyboard, pointer, windows, or menu bar.
+
 Focused model and persistence checks use the hostless `LimitsUnitTests` scheme. It contains no UI-test target, so a narrow test does not start the app or request UI Automation:
 
 ```bash
 xcodebuild test -project Limits.xcodeproj -scheme LimitsUnitTests -destination 'platform=macOS,arch=arm64' -only-testing:'LimitsTests/accountIdentityShowsEmailOnlyWhenItAddsASecondIdentity()'
 ```
 
-`./script/ci_gate.sh` remains the complete delivery gate and intentionally includes UI tests.
+The remote CI result is the complete delivery gate. Its isolated runner invokes
+`./script/ci_gate.sh --isolated-ui`; the ordinary local command remains
+non-interactive.
 
 Limits targets macOS 26 on Apple silicon. `AccountsRepository` owns account identities and credential references. `CodexUsageRepository` owns usage history in SQLite. Provider coordinators own authenticated operations and refresh queues. The app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
 

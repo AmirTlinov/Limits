@@ -28,6 +28,10 @@ GitHub Pages publishes the `gh-pages` branch at <https://amirtlinov.github.io/Li
 ./script/generate_appcast.sh 1.0.0 --existing-appcast site/appcast.xml
 ```
 
+The local gate is non-interactive. The required GitHub Actions CI run adds the
+UI and lifecycle gate on its dedicated macOS runner before a release tag is
+accepted.
+
 The packaging script requires the `Developer ID Application` identity for team `M94V58FCVP`. Add `--notarize` after storing a working `LimitsNotary` profile, or provide the App Store Connect API environment documented by `./script/package_release.sh --help`.
 
 ## Publish
@@ -39,7 +43,12 @@ git tag -a v1.0.0 -m "Limits 1.0.0"
 git push origin v1.0.0
 ```
 
-The `Release` workflow checks out the exact tagged commit, repeats `ci_gate.sh`, imports the Developer ID identity, archives the app, notarizes and staples it, signs the Sparkle appcast, updates the GitHub release, and publishes the public binary channel on GitHub Pages. A manual dispatch also requires an existing annotated tag and builds that tag rather than the current branch head.
+The `Release` workflow checks out the exact tagged commit, repeats
+`ci_gate.sh --isolated-ui` in its dedicated macOS session, imports the Developer
+ID identity, archives the app, notarizes and staples it, signs the Sparkle
+appcast, updates the GitHub release, and publishes the public binary channel on
+GitHub Pages. A manual dispatch also requires an existing annotated tag and
+builds that tag rather than the current branch head.
 
 The release is accepted only after all public receipts agree:
 

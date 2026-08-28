@@ -28,9 +28,9 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D0000000000000000000003A"
-               BuildableName = "LimitsTests.xctest"
-               BlueprintName = "LimitsTests"
+               BlueprintIdentifier = "D00000000000000000000043"
+               BuildableName = "LimitsUITests.xctest"
+               BlueprintName = "LimitsUITests"
                ReferencedContainer = "container:Limits.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -55,9 +55,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D0000000000000000000003A"
-               BuildableName = "LimitsTests.xctest"
-               BlueprintName = "LimitsTests"
+               BlueprintIdentifier = "D00000000000000000000043"
+               BuildableName = "LimitsUITests.xctest"
+               BlueprintName = "LimitsUITests"
                ReferencedContainer = "container:Limits.xcodeproj">
             </BuildableReference>
          </TestableReference>

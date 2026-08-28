@@ -67,7 +67,9 @@ jobs:
           echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
 
       - name: Repeat complete release gate
-        run: ./script/ci_gate.sh
+        env:
+          LIMITS_ISOLATED_UI_SESSION: "1"
+        run: ./script/ci_gate.sh --isolated-ui
 
       - name: Require signing secrets
         shell: bash

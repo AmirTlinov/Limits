@@ -32,29 +32,39 @@ open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+stop_running_app() {
+  pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+}
+
 build_app
 
 case "$MODE" in
   run)
+    stop_running_app
     open_app
     ;;
   --debug|debug)
+    stop_running_app
     lldb -- "$APP_BINARY"
     ;;
   --logs|logs)
+    stop_running_app
     open_app
     /usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
     ;;
   --telemetry|telemetry)
+    stop_running_app
     open_app
     /usr/bin/log stream --info --style compact --predicate 'subsystem == "com.amir.Limits"'
     ;;
   --verify|verify)
+    "$ROOT_DIR/script/verify_runtime.sh" --static-only "$APP_BUNDLE"
+    ;;
+  --verify-ui|verify-ui)
     "$ROOT_DIR/script/verify_runtime.sh" "$APP_BUNDLE"
     ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify|--verify-ui]" >&2
     exit 2
     ;;
 esac

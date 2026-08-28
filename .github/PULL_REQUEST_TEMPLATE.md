@@ -12,4 +12,4 @@ List the exact commands and observed results. Add sanitized before-and-after scr
 - [ ] `PRIVACY.md` and the in-app Settings disclosure still match every field the app reads, stores, or sends.
 - [ ] Fixtures and logs contain no real credentials, account identifiers, email addresses, prompts, responses, or private project paths.
 - [ ] `./script/generate_xcode_project.rb` was run when sources or resources changed.
-- [ ] `./script/ci_gate.sh` passes, or the omitted part and reason are stated above.
+- [ ] Non-interactive `./script/ci_gate.sh` and the isolated GitHub Actions CI pass, or the omitted part and reason are stated above.

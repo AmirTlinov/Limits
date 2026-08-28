@@ -13,7 +13,7 @@ gem install xcodeproj -v 1.27.0 --no-document --user-install
 
 If Ruby installs executables outside `PATH`, add `$(ruby -e 'print Gem.user_dir')/bin` for the current shell. Xcode resolves the exact Sparkle revision recorded in `Package.resolved`.
 
-The complete gate regenerates the Xcode project, builds the app, runs hostless unit tests, runs isolated UI tests, and verifies the real app lifecycle. It opens and closes a test build of Limits. Use the focused `LimitsUnitTests` scheme while iterating on model or persistence code:
+The local gate regenerates the Xcode project, builds the app, runs hostless unit tests, and verifies the static bundle contract. It does not activate an app, control the pointer, or use the keyboard. GitHub Actions runs the remaining UI and lifecycle contracts in a dedicated macOS session. Use the focused `LimitsUnitTests` scheme while iterating on model or persistence code:
 
 ```bash
 xcodebuild test \
@@ -21,6 +21,14 @@ xcodebuild test \
   -scheme LimitsUnitTests \
   -destination 'platform=macOS,arch=arm64' \
   -only-testing:'LimitsTests/testName'
+```
+
+The `LimitsUITests` scheme is guarded against execution in an ordinary login
+session. Maintainers may run the complete gate only inside a disposable runner
+or separate macOS login session:
+
+```bash
+LIMITS_ISOLATED_UI_SESSION=1 ./script/ci_gate.sh --isolated-ui
 ```
 
 ## Change contract

@@ -32,4 +32,6 @@ jobs:
           echo "$USER_GEM_BIN" >> "$GITHUB_PATH"
 
       - name: Run deterministic build, hostless tests, UI tests, and isolated runtime
-        run: ./script/ci_gate.sh
+        env:
+          LIMITS_ISOLATED_UI_SESSION: "1"
+        run: ./script/ci_gate.sh --isolated-ui

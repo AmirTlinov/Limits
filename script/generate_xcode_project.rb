@@ -304,6 +304,15 @@ project.root_object.attributes["TargetAttributes"] = targets.to_h do |target|
   [target.uuid, { "CreatedOnToolsVersion" => "26.0", "DevelopmentTeam" => "M94V58FCVP", "ProvisioningStyle" => "Automatic" }]
 end
 
+ui_isolation_guard = ui_tests.new_shell_script_build_phase("Require isolated UI session")
+ui_isolation_guard.shell_script = <<~'SCRIPT'
+  if [ "${LIMITS_ISOLATED_UI_SESSION:-}" != "1" ]; then
+    echo "error: Limits UI tests require a dedicated macOS session. Run ./script/ci_gate.sh locally and let GitHub Actions run UI automation." >&2
+    exit 1
+  fi
+SCRIPT
+ui_isolation_guard.always_out_of_date = "1"
+
 project.sort
 project.save
 
@@ -314,11 +323,14 @@ end
 
 scheme = Xcodeproj::XCScheme.new
 scheme.configure_with_targets(app, unit_tests, launch_target: app)
-scheme.add_test_target(ui_tests)
 scheme.save_as(PROJECT_PATH, "Limits", true)
 
 unit_test_scheme = Xcodeproj::XCScheme.new
 unit_test_scheme.configure_with_targets(nil, unit_tests)
 unit_test_scheme.save_as(PROJECT_PATH, "LimitsUnitTests", true)
+
+ui_test_scheme = Xcodeproj::XCScheme.new
+ui_test_scheme.configure_with_targets(app, ui_tests, launch_target: app)
+ui_test_scheme.save_as(PROJECT_PATH, "LimitsUITests", true)
 
 puts PROJECT_PATH
