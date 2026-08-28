@@ -27,12 +27,14 @@ def select_previous_release(releases: Iterable[dict[str, Any]], current_tag: str
         ):
             continue
 
+        expected_archive = f"Limits-{tag}-macOS-arm64.zip"
         archive = next(
             (
                 asset.get("name")
                 for asset in release.get("assets", [])
                 if isinstance(asset, dict)
                 and isinstance(asset.get("name"), str)
+                and asset["name"] == expected_archive
                 and ARCHIVE_NAME.fullmatch(asset["name"])
             ),
             None,

@@ -66,7 +66,11 @@ class PreviousReleaseSelectionTests(unittest.TestCase):
                 "2026-08-28T10:00:00Z",
                 "Limits-v1.0.1-macOS-arm64.zip",
             ),
-            release("v1.0.0", "2026-08-27T10:00:00Z", "source.zip"),
+            release(
+                "v1.0.0",
+                "2026-08-27T10:00:00Z",
+                "Limits-v0.9.0-macOS-arm64.zip",
+            ),
             release(
                 "v0.1.44",
                 "2026-05-27T01:22:16Z",
