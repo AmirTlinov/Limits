@@ -331,7 +331,6 @@ final class LimitsUITests: XCTestCase {
         yearPeriod.click()
         XCTAssertTrue(waitForText("Year", on: periodMenu, timeout: 3))
         overviewTitle.hover()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         let lightWindow = lightApp.windows.firstMatch
         XCTAssertTrue(lightWindow.waitForExistence(timeout: 8))
         let windowAttachment = XCTAttachment(screenshot: lightWindow.screenshot())
