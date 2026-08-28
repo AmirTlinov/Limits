@@ -1,120 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
   <title id="title">Limits logo</title>
-  <desc id="description">A transparent, glossy circular mark formed by violet, cyan, and orange segments around a rounded letter L.</desc>
+  <desc id="description">A minimal black circle with a half-torus limit channel and a solid black center on a transparent background.</desc>
 
   <defs>
-    <linearGradient id="violetBody" x1="142" y1="162" x2="660" y2="911" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f34cff"/>
-      <stop offset="0.18" stop-color="#9e42ff"/>
-      <stop offset="0.48" stop-color="#4c22e8"/>
-      <stop offset="0.76" stop-color="#5a20d8"/>
-      <stop offset="1" stop-color="#ff3f91"/>
-    </linearGradient>
-    <radialGradient id="violetLight" cx="0" cy="0" r="1" gradientTransform="translate(254 254) rotate(44) scale(616 521)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ff78ff" stop-opacity="0.72"/>
-      <stop offset="0.31" stop-color="#8e4dff" stop-opacity="0.16"/>
-      <stop offset="0.7" stop-color="#171060" stop-opacity="0.52"/>
-      <stop offset="1" stop-color="#160a52" stop-opacity="0"/>
-    </radialGradient>
-
-    <linearGradient id="orangeBody" x1="611" y1="168" x2="699" y2="908" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffbb45"/>
-      <stop offset="0.24" stop-color="#ff922d"/>
-      <stop offset="0.65" stop-color="#ff6825"/>
-      <stop offset="1" stop-color="#ff2f49"/>
-    </linearGradient>
-    <radialGradient id="orangeLight" cx="0" cy="0" r="1" gradientTransform="translate(765 304) rotate(107) scale(491 291)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffd05c" stop-opacity="0.9"/>
-      <stop offset="0.54" stop-color="#ff8d27" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#f52b48" stop-opacity="0"/>
-    </radialGradient>
-
-    <linearGradient id="cyanBody" x1="284" y1="114" x2="894" y2="170" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#354be5"/>
-      <stop offset="0.22" stop-color="#278bed"/>
-      <stop offset="0.58" stop-color="#18d5f5"/>
-      <stop offset="1" stop-color="#0ccfe6"/>
-    </linearGradient>
-
-    <linearGradient id="letterBody" x1="345" y1="291" x2="680" y2="667" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7e3ff4"/>
-      <stop offset="0.39" stop-color="#6731f3"/>
-      <stop offset="0.73" stop-color="#a63ad7"/>
-      <stop offset="1" stop-color="#ff7955"/>
-    </linearGradient>
-    <radialGradient id="letterLight" cx="0" cy="0" r="1" gradientTransform="translate(390 314) rotate(54) scale(441 288)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#c376ff" stop-opacity="0.72"/>
-      <stop offset="0.48" stop-color="#7847ff" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#ff8b61" stop-opacity="0.32"/>
-    </radialGradient>
-
-    <linearGradient id="violetEdge" x1="130" y1="170" x2="563" y2="817" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ff9cff"/>
-      <stop offset="0.43" stop-color="#d27dff"/>
-      <stop offset="0.8" stop-color="#a866ff"/>
-      <stop offset="1" stop-color="#ff78c8"/>
-    </linearGradient>
-    <linearGradient id="warmEdge" x1="584" y1="174" x2="630" y2="828" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffe4a0"/>
-      <stop offset="0.49" stop-color="#fff0ad"/>
-      <stop offset="1" stop-color="#ffbd59"/>
-    </linearGradient>
-    <linearGradient id="cyanEdge" x1="335" y1="72" x2="835" y2="197" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#75a6ff"/>
-      <stop offset="0.44" stop-color="#8bf5ff"/>
-      <stop offset="1" stop-color="#74f7ff"/>
-    </linearGradient>
-
-    <filter id="pieceShadow" x="-25%" y="-25%" width="150%" height="165%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="17" flood-color="#14072f" flood-opacity="0.48"/>
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#1a0b56" flood-opacity="0.54"/>
-    </filter>
-    <filter id="letterShadow" x="-35%" y="-30%" width="175%" height="180%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="15" flood-color="#13082d" flood-opacity="0.5"/>
-      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ba40ff" flood-opacity="0.28"/>
-    </filter>
-    <clipPath id="violetClip">
-      <path d="M523 169C430 94 307 83 210 137C75 212 21 376 47 533C75 705 192 845 348 906C444 944 551 950 649 912L590 797L487 745C377 725 291 632 285 515C278 397 350 287 458 242C478 233 499 226 521 222Z"/>
-    </clipPath>
-    <clipPath id="orangeClip">
-      <path d="M548 165C710 139 863 242 919 399C980 570 921 758 781 864C742 894 698 916 650 928C594 919 520 882 476 816L469 773C468 757 477 747 494 745C614 736 705 652 742 535C755 493 746 465 713 454C691 447 678 435 675 416C660 313 611 241 548 207C531 198 527 178 548 165Z"/>
-    </clipPath>
-    <clipPath id="letterClip">
-      <path d="M390 264C353 264 325 293 325 331V574C325 640 376 691 442 691H634C675 691 706 661 706 622C706 584 677 555 638 555H514C469 555 444 530 444 486V332C444 293 420 264 390 264Z"/>
-    </clipPath>
+    <mask id="limit-channel" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="white"/>
+      <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="black" stroke-width="128" stroke-linecap="round"/>
+    </mask>
   </defs>
 
-  <g id="outer-mark">
-    <g id="violet-segment" filter="url(#pieceShadow)">
-      <path d="M523 169C430 94 307 83 210 137C75 212 21 376 47 533C75 705 192 845 348 906C444 944 551 950 649 912L590 797L487 745C377 725 291 632 285 515C278 397 350 287 458 242C478 233 499 226 521 222Z" fill="url(#violetBody)" stroke="#5e28f1" stroke-width="4" stroke-linejoin="round"/>
-      <rect x="22" y="75" width="670" height="880" fill="url(#violetLight)" clip-path="url(#violetClip)"/>
-      <path d="M509 181C424 116 317 108 225 156C102 220 49 371 69 515C92 680 205 819 355 880C432 912 519 923 599 899" fill="none" stroke="url(#violetEdge)" stroke-width="8" stroke-linecap="round" opacity="0.92"/>
-      <path d="M505 224C388 238 297 333 278 451C255 594 341 721 471 756L586 814" fill="none" stroke="#f09cff" stroke-width="6" stroke-linecap="round" opacity="0.82"/>
-      <path d="M82 563C111 724 237 848 392 891" fill="none" stroke="#5b52ff" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
-    </g>
-
-    <g id="cyan-segment" filter="url(#pieceShadow)">
-      <path d="M267 115C415 21 606 13 765 75C835 102 892 145 934 194C940 201 935 210 927 206C826 155 706 128 592 145L551 152C538 154 528 151 518 140C458 75 363 72 267 115Z" fill="url(#cyanBody)" stroke="#2476dc" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M301 104C437 31 604 29 751 82C822 108 879 146 920 190" fill="none" stroke="url(#cyanEdge)" stroke-width="7" stroke-linecap="round" opacity="0.95"/>
-      <path d="M552 151C676 122 814 149 927 206" fill="none" stroke="#4bf6ff" stroke-width="5" stroke-linecap="round" opacity="0.76"/>
-    </g>
-
-    <g id="orange-segment" filter="url(#pieceShadow)">
-      <path d="M548 165C710 139 863 242 919 399C980 570 921 758 781 864C742 894 698 916 650 928C594 919 520 882 476 816L469 773C468 757 477 747 494 745C614 736 705 652 742 535C755 493 746 465 713 454C691 447 678 435 675 416C660 313 611 241 548 207C531 198 527 178 548 165Z" fill="url(#orangeBody)" stroke="#f24037" stroke-width="4" stroke-linejoin="round"/>
-      <rect x="465" y="135" width="492" height="806" fill="url(#orangeLight)" clip-path="url(#orangeClip)"/>
-      <path d="M560 176C704 158 835 253 889 397C948 554 896 730 767 837C731 867 692 889 651 903" fill="none" stroke="url(#warmEdge)" stroke-width="8" stroke-linecap="round" opacity="0.94"/>
-      <path d="M550 207C620 242 667 322 683 414C688 436 700 443 724 451C762 465 779 501 766 545C728 670 625 755 495 767" fill="none" stroke="#ffd36c" stroke-width="6" stroke-linecap="round" opacity="0.88"/>
-      <path d="M523 837C561 874 606 897 649 906" fill="none" stroke="#ff5d68" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
-    </g>
-  </g>
-
-  <g id="letter-l" filter="url(#letterShadow)">
-    <path d="M390 264C353 264 325 293 325 331V574C325 640 376 691 442 691H634C675 691 706 661 706 622C706 584 677 555 638 555H514C469 555 444 530 444 486V332C444 293 420 264 390 264Z" fill="url(#letterBody)" stroke="#7e42f3" stroke-width="4" stroke-linejoin="round"/>
-    <rect x="320" y="258" width="394" height="440" fill="url(#letterLight)" clip-path="url(#letterClip)"/>
-    <path d="M390 273C357 273 334 298 334 332V571C334 635 380 681 444 681H632C666 681 693 657 696 626" fill="none" stroke="#dfa3ff" stroke-width="7" stroke-linecap="round" opacity="0.86"/>
-    <path d="M444 477V331C444 301 427 276 402 268" fill="none" stroke="#ffe6ff" stroke-width="5" stroke-linecap="round" opacity="0.78"/>
-    <path d="M457 562C471 580 489 588 517 588H635C661 588 680 603 686 623" fill="none" stroke="#ffd5bc" stroke-width="6" stroke-linecap="round" opacity="0.82"/>
-  </g>
-
+  <circle cx="512" cy="512" r="390" fill="#050505" mask="url(#limit-channel)"/>
 </svg>
