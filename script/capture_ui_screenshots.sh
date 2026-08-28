@@ -23,6 +23,7 @@ xcodebuild test \
   -clonedSourcePackagesDirPath "$ROOT_DIR/.build/SourcePackages" \
   -resultBundlePath "$RESULT_BUNDLE" \
   LIMITS_ISOLATED_UI_SESSION=1 \
+  CODE_SIGNING_ALLOWED=NO \
   -only-testing:LimitsUITests/LimitsUITests/testCaptureDocumentationScreenshots
 
 xcrun xcresulttool export attachments \
