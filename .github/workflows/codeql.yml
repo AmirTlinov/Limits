@@ -43,15 +43,17 @@ jobs:
 
       - name: Build the analyzed app
         run: |
+          ARCH="$(uname -m)"
+          [[ "$ARCH" == "arm64" || "$ARCH" == "x86_64" ]]
           xcodebuild \
             -project Limits.xcodeproj \
             -scheme Limits \
             -configuration Debug \
-            -destination 'generic/platform=macOS' \
+            -destination "platform=macOS,arch=$ARCH" \
             -derivedDataPath "$RUNNER_TEMP/Limits-CodeQL" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -disableAutomaticPackageResolution \
-            ARCHS=arm64 \
+            ARCHS="$ARCH" \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             build
