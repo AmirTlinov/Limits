@@ -47,8 +47,10 @@ The `Release` workflow checks out the exact tagged commit, repeats
 `ci_gate.sh --isolated-ui` in its dedicated macOS session, imports the Developer
 ID identity, archives the app, notarizes and staples it, signs the Sparkle
 appcast, updates the GitHub release, and publishes the public binary channel on
-GitHub Pages. A manual dispatch also requires an existing annotated tag and
-builds that tag rather than the current branch head.
+GitHub Pages. The update court starts from the newest earlier GitHub Release
+that actually contains a signed macOS archive, so an abandoned tag cannot
+replace the upgrade source. A manual dispatch also requires an existing
+annotated tag and builds that tag rather than the current branch head.
 
 The release is accepted only after all public receipts agree:
 

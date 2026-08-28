@@ -37,6 +37,21 @@ import Testing
     #expect(store.readCount == 2)
 }
 
+@Test func keychainVaultSerializesConcurrentStoreAccess() {
+    let store = ConcurrentAccessObservingKeychainStore()
+    let vault = KeychainAuthVault(store: store)
+
+    DispatchQueue.concurrentPerform(iterations: 32) { index in
+        try! vault.save(
+            Data("secret-\(index)".utf8),
+            account: "account.\(index)",
+            label: "Account \(index)"
+        )
+    }
+
+    #expect(store.maximumConcurrentCalls == 1)
+}
+
 private final class CountingKeychainAuthStore: KeychainAuthDataStore {
     private let readData: Data
     private(set) var readCount = 0
@@ -58,5 +73,45 @@ private final class CountingKeychainAuthStore: KeychainAuthDataStore {
 
     func delete(account: String) throws {
         deleteCount += 1
+    }
+}
+
+private final class ConcurrentAccessObservingKeychainStore: KeychainAuthDataStore {
+    private let lock = NSLock()
+    private var activeCalls = 0
+    private var observedMaximumConcurrentCalls = 0
+
+    var maximumConcurrentCalls: Int {
+        lock.withLock { observedMaximumConcurrentCalls }
+    }
+
+    func save(_ data: Data, account: String, label: String) throws {
+        beginCall()
+        Thread.sleep(forTimeInterval: 0.002)
+        endCall()
+    }
+
+    func read(account: String) throws -> Data {
+        beginCall()
+        defer { endCall() }
+        return Data()
+    }
+
+    func delete(account: String) throws {
+        beginCall()
+        endCall()
+    }
+
+    private func beginCall() {
+        lock.withLock {
+            activeCalls += 1
+            observedMaximumConcurrentCalls = max(observedMaximumConcurrentCalls, activeCalls)
+        }
+    }
+
+    private func endCall() {
+        lock.withLock {
+            activeCalls -= 1
+        }
     }
 }

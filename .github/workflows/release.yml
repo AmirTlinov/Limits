@@ -121,13 +121,17 @@ jobs:
         shell: bash
         run: |
           CURRENT_TAG="${{ steps.version.outputs.tag }}"
-          PREVIOUS_TAG="$(git tag --list 'v*' --sort=-v:refname | awk -v current="$CURRENT_TAG" '$0 != current { print; exit }')"
-          [[ -n "$PREVIOUS_TAG" ]] || { echo "No previous release tag exists." >&2; exit 1; }
+          PREVIOUS_RELEASE="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              | ./script/select_previous_release.py "$CURRENT_TAG"
+          )"
+          PREVIOUS_TAG="$(jq -r '.tag' <<< "$PREVIOUS_RELEASE")"
+          PREVIOUS_ASSET="$(jq -r '.asset' <<< "$PREVIOUS_RELEASE")"
           PREVIOUS_DIR="$RUNNER_TEMP/previous-release"
           mkdir -p "$PREVIOUS_DIR"
-          gh release download "$PREVIOUS_TAG" --dir "$PREVIOUS_DIR" --pattern 'Limits-v*-macOS-arm64.zip'
-          PREVIOUS_ARCHIVE="$(find "$PREVIOUS_DIR" -maxdepth 1 -type f -name 'Limits-v*-macOS-arm64.zip' -print -quit)"
-          [[ -n "$PREVIOUS_ARCHIVE" ]] || { echo "No signed archive found for $PREVIOUS_TAG." >&2; exit 1; }
+          gh release download "$PREVIOUS_TAG" --dir "$PREVIOUS_DIR" --pattern "$PREVIOUS_ASSET"
+          PREVIOUS_ARCHIVE="$PREVIOUS_DIR/$PREVIOUS_ASSET"
+          [[ -s "$PREVIOUS_ARCHIVE" ]] || { echo "No signed archive found for $PREVIOUS_TAG." >&2; exit 1; }
           echo "tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
           echo "archive=$PREVIOUS_ARCHIVE" >> "$GITHUB_OUTPUT"
 
