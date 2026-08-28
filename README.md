@@ -40,7 +40,7 @@ shasum -a 256 -c ./*.zip.sha256
 
 Unzip the archive, move `Limits.app` to `/Applications`, and open it. Add the **Limits** widget from the macOS widget gallery if you also want current limits on the desktop or in Notification Center.
 
-> The latest public release is Developer ID signed but predates the repository's notarization gate. macOS may ask for manual approval, and Widget Gallery may decline to index that historical build. The current release pipeline requires notarization and a stapled ticket before publishing a new build.
+> Release v0.1.44 is a historical Developer ID-signed build that predates the repository's notarization gate. macOS may ask for manual approval, and Widget Gallery may decline to index it. Releases from v1.0.1 onward pass notarization and stapling before publication.
 
 <br />
 
