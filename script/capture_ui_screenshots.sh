@@ -73,4 +73,8 @@ PY
 test -s "$OUTPUT_DIR/limits-window.png"
 test -s "$OUTPUT_DIR/limits-window-dark.png"
 test -s "$OUTPUT_DIR/limits-tray.png"
+xcrun swift "$ROOT_DIR/script/mask_screenshot_corners.swift" \
+  "$OUTPUT_DIR/limits-window.png" \
+  "$OUTPUT_DIR/limits-window-dark.png" \
+  "$OUTPUT_DIR/limits-tray.png"
 printf '%s\n' "$OUTPUT_DIR/limits-window.png" "$OUTPUT_DIR/limits-window-dark.png" "$OUTPUT_DIR/limits-tray.png"

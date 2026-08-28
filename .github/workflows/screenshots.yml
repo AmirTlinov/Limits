@@ -1,0 +1,35 @@
+name: Capture documentation screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
+
+      - name: Install deterministic project generator
+        run: |
+          gem install xcodeproj -v 1.27.0 --no-document --user-install
+          USER_GEM_BIN="$(ruby -e 'print Gem.user_dir')/bin"
+          echo "$USER_GEM_BIN" >> "$GITHUB_PATH"
+
+      - name: Capture current isolated fixtures
+        env:
+          LIMITS_ISOLATED_UI_SESSION: "1"
+        run: ./script/capture_ui_screenshots.sh "$RUNNER_TEMP/limits-screenshots"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: limits-documentation-screenshots
+          path: ${{ runner.temp }}/limits-screenshots/*.png
+          if-no-files-found: error
