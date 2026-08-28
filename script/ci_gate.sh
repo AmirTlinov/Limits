@@ -58,6 +58,7 @@ project_receipt() {
 
 cd "$ROOT_DIR"
 ./script/verify_localizations.py
+python3 Tests/ReleaseSelectionTests.py
 plutil -lint Config/*.plist Config/*.entitlements Sources/LimitsShared/Resources/*.lproj/Localizable.strings >/dev/null
 for script in script/*.sh; do bash -n "$script"; done
 ./script/generate_app_icon.sh --check
