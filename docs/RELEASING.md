@@ -17,15 +17,17 @@ The repository uses these Actions secrets:
 
 The matching Sparkle public key is committed as `SUPublicEDKey` in `Config/Limits-Info.plist`. The private key stays in the macOS Keychain and GitHub Actions secret; it never belongs in git or release artifacts.
 
-GitHub Pages publishes the `gh-pages` branch at <https://amirtlinov.github.io/Limits/>. Immutable artifacts live under `releases/v1.0.0/`; `releases/latest/` mirrors the newest build. Published version directories remain available because existing appcasts can refer to them. The source repository, GitHub Releases, and Pages download channel are public.
+GitHub Pages publishes the `gh-pages` branch at <https://amirtlinov.github.io/Limits/>. Immutable artifacts live under `releases/v<version>/`; `releases/latest/` mirrors the newest build. Published version directories remain available because existing appcasts can refer to them. The source repository, GitHub Releases, and Pages download channel are public.
 
 ## Local proof before tagging
 
 ```bash
+VERSION=1.0.1
+
 ./script/ci_gate.sh
 
-./script/package_release.sh 1.0.0 --no-notarize
-./script/generate_appcast.sh 1.0.0 --existing-appcast site/appcast.xml
+./script/package_release.sh "$VERSION" --no-notarize
+./script/generate_appcast.sh "$VERSION" --existing-appcast site/appcast.xml
 ```
 
 The local gate is non-interactive. The required GitHub Actions CI run adds the
@@ -39,8 +41,10 @@ The packaging script requires the `Developer ID Application` identity for team `
 Create and push an annotated tag from the reviewed release commit:
 
 ```bash
-git tag -a v1.0.0 -m "Limits 1.0.0"
-git push origin v1.0.0
+VERSION=1.0.1
+
+git tag -a "v$VERSION" -m "Limits $VERSION"
+git push origin "v$VERSION"
 ```
 
 The `Release` workflow checks out the exact tagged commit, repeats
