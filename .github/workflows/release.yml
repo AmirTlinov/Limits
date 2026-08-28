@@ -160,7 +160,7 @@ jobs:
           mkdir -p "$VERSION_DIR" "$LATEST_DIR"
           cp site/index.html site/.nojekyll site/favicon.png site/logo.svg "$PAGES/"
           mkdir -p "$PAGES/images"
-          cp docs/images/limits-window.png docs/images/limits-window-dark.png docs/images/limits-tray.png "$PAGES/images/"
+          cp docs/images/limits-window.png docs/images/limits-tray.png "$PAGES/images/"
           cp dist/appcast.xml "$PAGES/appcast.xml"
           cp dist/appcast.xml "$VERSION_DIR/appcast.xml"
           cp "dist/Limits-v$VERSION-macOS-arm64.zip" "dist/Limits-v$VERSION-macOS-arm64.zip.sha256" "$VERSION_DIR/"

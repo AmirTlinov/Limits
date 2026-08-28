@@ -9,10 +9,7 @@ Native macOS app for people who switch between several **Codex** and **Claude Co
 Limits keeps the important thing close: which account is most likely to run out first, whether it will last until reset, how many tokens and credits were used, the current API-price equivalent, and quick switching between saved accounts.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/limits-window-dark.png">
-    <img src="docs/images/limits-window.png" alt="Limits Codex overview with sanitized demo accounts" width="820">
-  </picture>
+  <img src="docs/images/limits-window.png" alt="Limits Codex overview with sanitized demo accounts" width="820">
 </p>
 
 <p align="center">

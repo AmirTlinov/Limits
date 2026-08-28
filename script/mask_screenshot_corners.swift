@@ -6,7 +6,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 let cornerRadius: CGFloat = 18
-let transparentFrame = 3
+let edgeTrim = 3
 var arguments = Array(CommandLine.arguments.dropFirst())
 let checkOnly = arguments.first == "--check"
 if checkOnly {
@@ -53,18 +53,26 @@ for path in paths {
         let isTransparent: (Int, Int) -> Bool = { x, y in
             bytes[(y * context.bytesPerRow) + (x * 4) + 3] == 0
         }
-        let horizontalFrameIsTransparent = (0..<transparentFrame).allSatisfy { y in
-            (0..<image.width).allSatisfy { x in
-                isTransparent(x, y) && isTransparent(x, image.height - 1 - y)
-            }
+        let corners = [
+            (0, 0),
+            (image.width - 1, 0),
+            (0, image.height - 1),
+            (image.width - 1, image.height - 1),
+        ]
+        let edgeMidpoints = [
+            (image.width / 2, 0),
+            (image.width / 2, image.height - 1),
+            (0, image.height / 2),
+            (image.width - 1, image.height / 2),
+        ]
+        let hasTransparentCorners = corners.allSatisfy { x, y in
+            isTransparent(x, y)
         }
-        let verticalFrameIsTransparent = (0..<transparentFrame).allSatisfy { x in
-            (transparentFrame..<(image.height - transparentFrame)).allSatisfy { y in
-                isTransparent(x, y) && isTransparent(image.width - 1 - x, y)
-            }
+        let hasOpaqueWindowEdges = edgeMidpoints.allSatisfy { x, y in
+            !isTransparent(x, y)
         }
-        guard horizontalFrameIsTransparent && verticalFrameIsTransparent else {
-            FileHandle.standardError.write(Data("Screenshot background reaches its outer frame: \(path)\n".utf8))
+        guard hasTransparentCorners && hasOpaqueWindowEdges else {
+            FileHandle.standardError.write(Data("Screenshot does not contain one clean rounded window: \(path)\n".utf8))
             exit(1)
         }
         continue
@@ -72,7 +80,7 @@ for path in paths {
 
     context.setAllowsAntialiasing(true)
     context.setShouldAntialias(true)
-    let cleanBounds = bounds.insetBy(dx: CGFloat(transparentFrame), dy: CGFloat(transparentFrame))
+    let cleanBounds = bounds.insetBy(dx: CGFloat(edgeTrim), dy: CGFloat(edgeTrim))
     context.addPath(CGPath(
         roundedRect: cleanBounds,
         cornerWidth: cornerRadius,
@@ -82,7 +90,10 @@ for path in paths {
     context.clip()
     context.draw(image, in: bounds)
 
-    guard let maskedImage = context.makeImage() else {
+    guard
+        let fullImage = context.makeImage(),
+        let maskedImage = fullImage.cropping(to: cleanBounds)
+    else {
         FileHandle.standardError.write(Data("Cannot mask PNG: \(path)\n".utf8))
         exit(1)
     }

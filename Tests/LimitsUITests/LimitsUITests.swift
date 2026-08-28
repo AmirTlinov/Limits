@@ -322,6 +322,13 @@ final class LimitsUITests: XCTestCase {
         lightApp.activate()
         XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
         XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.models"].waitForExistence(timeout: 3))
+        let periodMenu = lightApp.descendants(matching: .any)["codex.insights.period"]
+        XCTAssertTrue(periodMenu.waitForExistence(timeout: 3))
+        periodMenu.click()
+        let yearPeriod = lightApp.menuItems["Year"]
+        XCTAssertTrue(yearPeriod.waitForExistence(timeout: 3))
+        yearPeriod.click()
+        XCTAssertTrue(waitForText("Year", on: periodMenu, timeout: 3))
         let lightWindow = lightApp.windows.firstMatch
         XCTAssertTrue(lightWindow.waitForExistence(timeout: 8))
         let windowAttachment = XCTAttachment(screenshot: lightWindow.screenshot())
@@ -351,18 +358,6 @@ final class LimitsUITests: XCTestCase {
         }
         lightApp.terminate()
 
-        let darkApp = documentationApp(root: isolatedRoot, colorScheme: "dark")
-        darkApp.launch()
-        darkApp.activate()
-        XCTAssertTrue(darkApp.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
-        XCTAssertTrue(darkApp.descendants(matching: .any)["codex.insights.models"].waitForExistence(timeout: 3))
-        let darkWindow = darkApp.windows.firstMatch
-        XCTAssertTrue(darkWindow.waitForExistence(timeout: 8))
-        let darkAttachment = XCTAttachment(screenshot: darkWindow.screenshot())
-        darkAttachment.name = "limits-window-dark.png"
-        darkAttachment.lifetime = .keepAlways
-        add(darkAttachment)
-        darkApp.terminate()
     }
 
     @MainActor

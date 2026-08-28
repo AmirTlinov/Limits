@@ -31,7 +31,7 @@ jobs:
           git clone --branch gh-pages "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$PAGES"
           install -m 0644 site/index.html site/.nojekyll site/favicon.png site/logo.svg "$PAGES/"
           mkdir -p "$PAGES/images"
-          install -m 0644 docs/images/limits-window.png docs/images/limits-window-dark.png docs/images/limits-tray.png "$PAGES/images/"
+          install -m 0644 docs/images/limits-window.png docs/images/limits-tray.png "$PAGES/images/"
           cd "$PAGES"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
