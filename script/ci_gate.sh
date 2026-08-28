@@ -61,6 +61,10 @@ cd "$ROOT_DIR"
 plutil -lint Config/*.plist Config/*.entitlements Sources/LimitsShared/Resources/*.lproj/Localizable.strings >/dev/null
 for script in script/*.sh; do bash -n "$script"; done
 ./script/generate_app_icon.sh --check
+xcrun swift ./script/mask_screenshot_corners.swift --check \
+  docs/images/limits-window.png \
+  docs/images/limits-window-dark.png \
+  docs/images/limits-tray.png
 PROJECT_BEFORE="$(project_receipt)"
 ./script/generate_xcode_project.rb
 PROJECT_AFTER="$(project_receipt)"

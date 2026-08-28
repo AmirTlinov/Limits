@@ -5,11 +5,17 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-let cornerRadius: CGFloat = 13
-let paths = CommandLine.arguments.dropFirst()
+let cornerRadius: CGFloat = 18
+let transparentFrame = 3
+var arguments = Array(CommandLine.arguments.dropFirst())
+let checkOnly = arguments.first == "--check"
+if checkOnly {
+    arguments.removeFirst()
+}
+let paths = arguments
 
 guard !paths.isEmpty else {
-    FileHandle.standardError.write(Data("Usage: mask_screenshot_corners.swift <png> [...]\n".utf8))
+    FileHandle.standardError.write(Data("Usage: mask_screenshot_corners.swift [--check] <png> [...]\n".utf8))
     exit(2)
 }
 
@@ -35,9 +41,38 @@ for path in paths {
 
     let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
     context.clear(bounds)
+    context.setBlendMode(.copy)
+
+    if checkOnly {
+        context.draw(image, in: bounds)
+        guard let data = context.data else {
+            FileHandle.standardError.write(Data("Cannot inspect PNG: \(path)\n".utf8))
+            exit(1)
+        }
+        let bytes = data.assumingMemoryBound(to: UInt8.self)
+        let isTransparent: (Int, Int) -> Bool = { x, y in
+            bytes[(y * context.bytesPerRow) + (x * 4) + 3] == 0
+        }
+        let horizontalFrameIsTransparent = (0..<transparentFrame).allSatisfy { y in
+            (0..<image.width).allSatisfy { x in
+                isTransparent(x, y) && isTransparent(x, image.height - 1 - y)
+            }
+        }
+        let verticalFrameIsTransparent = (0..<transparentFrame).allSatisfy { x in
+            (transparentFrame..<(image.height - transparentFrame)).allSatisfy { y in
+                isTransparent(x, y) && isTransparent(image.width - 1 - x, y)
+            }
+        }
+        guard horizontalFrameIsTransparent && verticalFrameIsTransparent else {
+            FileHandle.standardError.write(Data("Screenshot background reaches its outer frame: \(path)\n".utf8))
+            exit(1)
+        }
+        continue
+    }
+
     context.setAllowsAntialiasing(true)
     context.setShouldAntialias(true)
-    let cleanBounds = bounds.insetBy(dx: 1, dy: 1)
+    let cleanBounds = bounds.insetBy(dx: CGFloat(transparentFrame), dy: CGFloat(transparentFrame))
     context.addPath(CGPath(
         roundedRect: cleanBounds,
         cornerWidth: cornerRadius,

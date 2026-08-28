@@ -28,7 +28,7 @@ jobs:
         run: ./script/capture_ui_screenshots.sh "$RUNNER_TEMP/limits-screenshots"
 
       - name: Upload screenshots
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: limits-documentation-screenshots
           path: ${{ runner.temp }}/limits-screenshots/*.png
