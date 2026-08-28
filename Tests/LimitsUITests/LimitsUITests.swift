@@ -320,7 +320,8 @@ final class LimitsUITests: XCTestCase {
         let lightApp = documentationApp(root: isolatedRoot, colorScheme: "light")
         lightApp.launch()
         lightApp.activate()
-        XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.overview"].waitForExistence(timeout: 8))
+        let overviewTitle = lightApp.descendants(matching: .any)["codex.insights.overview"]
+        XCTAssertTrue(overviewTitle.waitForExistence(timeout: 8))
         XCTAssertTrue(lightApp.descendants(matching: .any)["codex.insights.models"].waitForExistence(timeout: 3))
         let periodMenu = lightApp.descendants(matching: .any)["codex.insights.period"]
         XCTAssertTrue(periodMenu.waitForExistence(timeout: 3))
@@ -329,6 +330,8 @@ final class LimitsUITests: XCTestCase {
         XCTAssertTrue(yearPeriod.waitForExistence(timeout: 3))
         yearPeriod.click()
         XCTAssertTrue(waitForText("Year", on: periodMenu, timeout: 3))
+        overviewTitle.hover()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         let lightWindow = lightApp.windows.firstMatch
         XCTAssertTrue(lightWindow.waitForExistence(timeout: 8))
         let windowAttachment = XCTAttachment(screenshot: lightWindow.screenshot())
