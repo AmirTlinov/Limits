@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
   <title id="title">Limits logo</title>
-  <desc id="description">A minimal black circle containing a white center and a separate white half-torus limit mark.</desc>
+  <desc id="description">A black circle containing a pearl-gray center and a separate pearl-gray half-torus limit mark.</desc>
+
+  <defs>
+    <linearGradient id="pearl" x1="304" y1="244" x2="738" y2="782" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f2f1ed"/>
+      <stop offset="0.34" stop-color="#d7d8db"/>
+      <stop offset="0.58" stop-color="#eeede9"/>
+      <stop offset="0.8" stop-color="#c9cbd0"/>
+      <stop offset="1" stop-color="#e5e4e0"/>
+    </linearGradient>
+  </defs>
 
   <circle cx="512" cy="512" r="390" fill="#050505"/>
-  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="#fff" stroke-width="128" stroke-linecap="round"/>
-  <circle cx="512" cy="512" r="136" fill="#fff"/>
+  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="url(#pearl)" stroke-width="128" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="136" fill="url(#pearl)"/>
 </svg>
