@@ -567,6 +567,7 @@ private struct CodexOverviewPane: View {
                 .focusable(false)
                 .fixedSize()
                 .accessibilityIdentifier("codex.insights.period")
+                .accessibilityValue(CodexInsightsTextPresentation.periodTitle(model.codexUsagePeriod))
                 .popover(
                     isPresented: $isCustomPeriodPresented,
                     attachmentAnchor: .rect(.bounds),
