@@ -24,6 +24,7 @@ public protocol KeychainAuthDataStore {
 
 public final class KeychainAuthVault: @unchecked Sendable {
     private let store: KeychainAuthDataStore
+    private let lock = NSLock()
     /// Process-local only. The durable secret stays in Keychain.
     /// This prevents repeated macOS consent dialogs for the same saved account
     /// after the user has already approved one access in the current app run.
@@ -38,23 +39,29 @@ public final class KeychainAuthVault: @unchecked Sendable {
     }
 
     public func save(_ data: Data, account: String, label: String) throws {
-        try store.save(data, account: account, label: label)
-        cachedDataByAccount[account] = data
+        try lock.withLock {
+            try store.save(data, account: account, label: label)
+            cachedDataByAccount[account] = data
+        }
     }
 
     public func read(account: String) throws -> Data {
-        if let cachedData = cachedDataByAccount[account] {
-            return cachedData
-        }
+        try lock.withLock {
+            if let cachedData = cachedDataByAccount[account] {
+                return cachedData
+            }
 
-        let data = try store.read(account: account)
-        cachedDataByAccount[account] = data
-        return data
+            let data = try store.read(account: account)
+            cachedDataByAccount[account] = data
+            return data
+        }
     }
 
     public func delete(account: String) throws {
-        try store.delete(account: account)
-        cachedDataByAccount.removeValue(forKey: account)
+        try lock.withLock {
+            try store.delete(account: account)
+            cachedDataByAccount.removeValue(forKey: account)
+        }
     }
 }
 
