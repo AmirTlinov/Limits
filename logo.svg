@@ -12,6 +12,6 @@
   </defs>
 
   <rect x="72" y="72" width="880" height="880" rx="210" fill="url(#porcelain)" stroke="#d4d5d8" stroke-width="3"/>
-  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="#222326" stroke-width="128" stroke-linecap="round"/>
-  <circle cx="512" cy="512" r="136" fill="#222326"/>
+  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="#46484d" stroke-width="128" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="136" fill="#46484d"/>
 </svg>
