@@ -51,10 +51,19 @@
     }
 
     .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
       font-size: 19px;
       font-weight: 760;
       letter-spacing: -0.03em;
       text-decoration: none;
+    }
+
+    .brand-mark {
+      display: block;
+      width: 30px;
+      height: 30px;
     }
 
     .nav-links {
@@ -255,6 +264,8 @@
         --coral: #ff806a;
         --shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
       }
+
+      .brand-mark { filter: invert(1); }
     }
 
     @media (max-width: 760px) {
@@ -279,7 +290,7 @@
 <body>
   <header class="shell">
     <nav aria-label="Primary navigation">
-      <a class="brand" href="./">Limits</a>
+      <a class="brand" href="./"><img class="brand-mark" src="logo.svg" width="30" height="30" alt="">Limits</a>
       <div class="nav-links">
         <a href="https://github.com/AmirTlinov/Limits#what-it-does">Features</a>
         <a href="https://github.com/AmirTlinov/Limits/blob/main/PRIVACY.md">Privacy</a>
