@@ -27,6 +27,14 @@ jobs:
       - name: Select Xcode 26.4.1
         run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
 
+      - name: Resolve the pinned dependency graph
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project Limits.xcodeproj \
+            -scheme Limits \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
@@ -42,6 +50,7 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath "$RUNNER_TEMP/Limits-CodeQL" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -disableAutomaticPackageResolution \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
