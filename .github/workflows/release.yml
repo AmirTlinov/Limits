@@ -156,7 +156,7 @@ jobs:
           VERSION_DIR="$PAGES/releases/v$VERSION"
           LATEST_DIR="$PAGES/releases/latest"
           mkdir -p "$VERSION_DIR" "$LATEST_DIR"
-          cp site/index.html site/.nojekyll site/favicon.png "$PAGES/"
+          cp site/index.html site/.nojekyll site/favicon.png site/logo.svg "$PAGES/"
           mkdir -p "$PAGES/images"
           cp docs/images/limits-window.png docs/images/limits-window-dark.png docs/images/limits-tray.png "$PAGES/images/"
           cp dist/appcast.xml "$PAGES/appcast.xml"
@@ -177,7 +177,7 @@ jobs:
           cd "$PAGES"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add --all index.html .nojekyll favicon.png images appcast.xml releases
+          git add --all index.html .nojekyll favicon.png logo.svg images appcast.xml releases
           if ! git diff --cached --quiet; then
             git commit -m "release: publish Limits ${{ steps.version.outputs.version }} appcast"
             git push origin gh-pages
