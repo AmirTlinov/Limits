@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
   <title id="title">Limits logo</title>
-  <desc id="description">A white rounded app tile containing the graphite Limits center and separate graphite half-torus mark.</desc>
+  <desc id="description">A white rounded app tile containing a black circle with the white Limits center and separate white half-torus mark.</desc>
 
   <defs>
     <linearGradient id="porcelain" x1="166" y1="132" x2="874" y2="918" gradientUnits="userSpaceOnUse">
@@ -12,6 +12,7 @@
   </defs>
 
   <rect x="72" y="72" width="880" height="880" rx="210" fill="url(#porcelain)" stroke="#d4d5d8" stroke-width="3"/>
-  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="#46484d" stroke-width="128" stroke-linecap="round"/>
-  <circle cx="512" cy="512" r="136" fill="#46484d"/>
+  <circle cx="512" cy="512" r="350" fill="#0b0b0c"/>
+  <path d="M394 309A235 235 0 0 1 630 716" fill="none" stroke="#f7f7f5" stroke-width="128" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="136" fill="#f7f7f5"/>
 </svg>
