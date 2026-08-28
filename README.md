@@ -46,7 +46,7 @@ shasum -a 256 -c ./*.zip.sha256
 
 Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it. After first launch, add the **Limits** widget from macOS widget gallery if you want limits on the desktop or Notification Center.
 
-Published builds are Developer ID signed. The current stable-release workflow also requires Apple notarization and a stapled ticket; older preview releases predate that gate. If a release note says a build is unnotarized, macOS may require manual approval and the widget extension can stay invisible.
+Published builds are Developer ID signed. The current release workflow also requires Apple notarization and a stapled ticket; earlier releases predate that gate. If a release note says a build is unnotarized, macOS may require manual approval and the widget extension can stay invisible.
 
 ## Notes
 
