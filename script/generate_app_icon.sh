@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE="$ROOT_DIR/Assets/LimitsLogo.svg"
-PNG="$ROOT_DIR/Assets/AppIcon.png"
 ICNS="$ROOT_DIR/Assets/AppIcon.icns"
 FAVICON="$ROOT_DIR/site/favicon.png"
 SITE_LOGO="$ROOT_DIR/site/logo.svg"
@@ -63,7 +62,6 @@ install -m 0644 "$SOURCE" "$generated_site_logo"
 
 if [[ "$MODE" == "check" ]]; then
   for pair in \
-    "$generated_png:$PNG" \
     "$generated_icns:$ICNS" \
     "$generated_favicon:$FAVICON" \
     "$generated_site_logo:$SITE_LOGO"; do
@@ -79,12 +77,10 @@ if [[ "$MODE" == "check" ]]; then
   exit 0
 fi
 
-install -m 0644 "$generated_png" "$PNG"
 install -m 0644 "$generated_icns" "$ICNS"
 install -m 0644 "$generated_favicon" "$FAVICON"
 install -m 0644 "$generated_site_logo" "$SITE_LOGO"
 echo "$SOURCE"
-echo "$PNG"
 echo "$ICNS"
 echo "$FAVICON"
 echo "$SITE_LOGO"
