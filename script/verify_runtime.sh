@@ -26,8 +26,12 @@ fail() {
 APP_BUNDLE="$(cd "$APP_BUNDLE" && pwd -P)"
 INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
 EXPECTED_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+EXPECTED_LICENSE="$APP_BUNDLE/Contents/Resources/LICENSE"
+EXPECTED_THIRD_PARTY_NOTICES="$APP_BUNDLE/Contents/Resources/THIRD_PARTY_NOTICES.md"
 [[ -f "$INFO_PLIST" ]] || fail "missing Info.plist: $INFO_PLIST"
 [[ -x "$EXPECTED_BINARY" ]] || fail "missing executable: $EXPECTED_BINARY"
+[[ -s "$EXPECTED_LICENSE" ]] || fail "missing MIT license in app resources"
+[[ -s "$EXPECTED_THIRD_PARTY_NOTICES" ]] || fail "missing third-party notices in app resources"
 
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/limits-runtime.XXXXXX")"
 WINDOW_PROBE="$TEMP_DIR/presented-window-count"

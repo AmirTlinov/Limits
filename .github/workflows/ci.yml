@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, codex/limits-v1]
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -14,7 +14,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Select Xcode 26.4.1
         run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
@@ -27,8 +27,9 @@ jobs:
       - name: Install deterministic project generator
         run: |
           gem install xcodeproj -v 1.27.0 --no-document --user-install
-          export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
-          echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
+          USER_GEM_BIN="$(ruby -e 'print Gem.user_dir')/bin"
+          export PATH="$USER_GEM_BIN:$PATH"
+          echo "$USER_GEM_BIN" >> "$GITHUB_PATH"
 
       - name: Run deterministic build, hostless tests, UI tests, and isolated runtime
         run: ./script/ci_gate.sh

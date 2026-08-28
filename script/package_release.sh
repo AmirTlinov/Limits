@@ -94,7 +94,8 @@ find_developer_id_identity() {
     return
   fi
   security find-identity -p codesigning -v 2>/dev/null \
-    | awk -F '"' '/Developer ID Application:/ { print $2; exit }'
+    | awk -F '"' -v team="($APP_TEAM_ID)" \
+        '/Developer ID Application:/ && index($0, team) { print $2; exit }'
 }
 
 create_zip() {
@@ -173,11 +174,15 @@ xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
 WIDGET="$APP_BUNDLE/Contents/PlugIns/LimitsWidgetExtension.appex"
 SPARKLE="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+LICENSE_FILE="$APP_BUNDLE/Contents/Resources/LICENSE"
+THIRD_PARTY_NOTICES="$APP_BUNDLE/Contents/Resources/THIRD_PARTY_NOTICES.md"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" == "$VERSION" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")" == "$BUILD_NUMBER" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$INFO_PLIST")" == "https://amirtlinov.github.io/Limits/appcast.xml" ]]
 [[ -d "$WIDGET" ]] || { echo "Widget extension is missing from release app." >&2; exit 1; }
 [[ -d "$SPARKLE" ]] || { echo "Sparkle.framework is missing from release app." >&2; exit 1; }
+[[ -s "$LICENSE_FILE" ]] || { echo "MIT license is missing from release app." >&2; exit 1; }
+[[ -s "$THIRD_PARTY_NOTICES" ]] || { echo "Third-party notices are missing from release app." >&2; exit 1; }
 [[ "$(lipo -archs "$APP_BUNDLE/Contents/MacOS/$APP_NAME")" == "arm64" ]]
 [[ "$(lipo -archs "$WIDGET/Contents/MacOS/LimitsWidgetExtension")" == "arm64" ]]
 

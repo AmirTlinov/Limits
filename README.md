@@ -1,5 +1,9 @@
 # Limits
 
+[![CI](https://github.com/AmirTlinov/Limits/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AmirTlinov/Limits/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/AmirTlinov/Limits/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/AmirTlinov/Limits/actions/workflows/codeql.yml)
+[![MIT License](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
+
 Native macOS app for people who switch between several **Codex** and **Claude Code** accounts and want to understand both remaining limits and actual Codex usage.
 
 Limits keeps the important thing close: which account is most likely to run out first, whether it will last until reset, how many tokens and credits were used, the current API-price equivalent, and quick switching between saved accounts.
@@ -34,23 +38,32 @@ Limits keeps the important thing close: which account is most likely to run out 
 
 ## Install
 
-Download the latest public macOS build:
+Open the canonical [GitHub Releases page](https://github.com/AmirTlinov/Limits/releases/latest) and download the macOS arm64 zip plus its `.sha256` file. Verify the download before opening it:
 
-<https://amirtlinov.github.io/Limits/releases/latest/Limits-macOS-arm64.zip>
+```bash
+shasum -a 256 -c ./*.zip.sha256
+```
 
 Unzip `Limits-...-macOS-arm64.zip`, move `Limits.app` to `/Applications`, then open it. After first launch, add the **Limits** widget from macOS widget gallery if you want limits on the desktop or Notification Center.
 
-The app is Developer ID signed. Widget Gallery discovery requires the shipped app to be Apple-notarized; if macOS reports `source=Unnotarized Developer ID`, the app may launch but the widget extension can stay invisible.
+Published builds are Developer ID signed. The current stable-release workflow also requires Apple notarization and a stapled ticket; older preview releases predate that gate. If a release note says a build is unnotarized, macOS may require manual approval and the widget extension can stay invisible.
 
 ## Notes
 
 - Codex account totals come from the official `account/usage/read` app-server surface. Model-level detail is imported from local Codex JSONL as numeric metadata only.
-- Limits reads `session_meta`, `turn_context`, cumulative `token_count`, and reroute metadata. It does not store conversation text, prompts, responses, transcripts, or project contents.
+- Limits reads `session_meta`, `turn_context`, cumulative `token_count`, reroute metadata, repository or working-directory identity, and a task label derived from at most the first 96 characters of the first meaningful user-request line.
+- It stores the extracted usage and work metadata locally. It does not store full prompts, responses, transcripts, source files, or project contents. [`PRIVACY.md`](PRIVACY.md) lists every local and network data flow.
 - Credits use the versioned [Codex pricing](https://learn.chatgpt.com/docs/pricing) table. API equivalent uses current [OpenAI API pricing](https://developers.openai.com/api/docs/pricing); it is a comparison, not an API bill.
 - Claude Code supports account switching through Keychain credentials and reads live limits only from Claude Code statusline data.
 - The app does not invent Claude limits when Claude Code does not provide them.
 
 ## Build locally
+
+Limits requires an Apple-silicon Mac on macOS 26 or newer. Install Xcode 26.4.1 or a compatible newer Xcode and the deterministic project generator dependency:
+
+```bash
+gem install xcodeproj -v 1.27.0 --no-document --user-install
+```
 
 ```bash
 ./script/ci_gate.sh
@@ -66,6 +79,8 @@ xcodebuild test -project Limits.xcodeproj -scheme LimitsUnitTests -destination '
 `./script/ci_gate.sh` remains the complete delivery gate and intentionally includes UI tests.
 
 Limits targets macOS 26 on Apple silicon. `AccountsRepository` owns account identities and credential references. `CodexUsageRepository` owns usage history in SQLite. Provider coordinators own authenticated operations and refresh queues. The app target is the UI facade, while `LimitsShared` carries the localized widget contract. `Limits.xcodeproj` owns those frameworks, the app, widget extension, hostless unit tests, and isolated UI tests.
+
+The repository map in [`AGENTS.md`](AGENTS.md) points from each product question to its code owner and verification path. Contributions follow [`CONTRIBUTING.md`](CONTRIBUTING.md); security reports use the private path in [`SECURITY.md`](SECURITY.md).
 
 The release zip and checksum are written to `dist/` by the release command. The
 temporary app bundle stays under Spotlight-hidden `.build/release/package/`:
@@ -92,3 +107,9 @@ After installing the notarized app to `/Applications`, verify WidgetKit ingestio
 ```
 
 Sparkle reads its signed feed from <https://amirtlinov.github.io/Limits/appcast.xml>. Maintainer release steps and required GitHub secrets are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
+
+## License and trademarks
+
+Limits is available under the [MIT License](LICENSE). Embedded dependency notices are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and are also shipped inside the app bundle.
+
+Limits is an independent project and is not affiliated with, sponsored by, or endorsed by OpenAI or Anthropic. OpenAI, ChatGPT, Codex, Anthropic, and Claude are trademarks of their respective owners.

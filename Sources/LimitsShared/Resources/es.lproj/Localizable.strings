@@ -280,7 +280,7 @@
 "insights.work.unknown_task" = "Tarea sin título";
 "insights.work.other" = "Otros";
 "insights.empty.title" = "Preparando estadísticas";
-"insights.empty.message" = "Añade o importa una cuenta de Codex. El historial numérico se recopilará automáticamente.";
+"insights.empty.message" = "Añade o importa una cuenta de Codex. El historial de uso local se recopilará automáticamente.";
 "insights.price_change.message" = "La tarifa de %@ cambió de %@ a %@ (%@%%).";
 "insights.price_change.subject" = "%@ · %@";
 "insights.price_change.metric.creditsInput" = "créditos de entrada";
@@ -316,6 +316,8 @@
 "insights.settings.clear.confirm_message" = "Ahora será el nuevo punto cero. El uso local y del servidor anterior quedará fuera del análisis; se conservarán cuentas, credenciales, historial de autenticación, tarifas y posiciones de importación. La actividad nueva contará desde este momento.";
 "insights.settings.clearing" = "Borrando estadísticas de Codex…";
 "insights.settings.importing" = "Importando historial de Codex…";
+"insights.settings.privacy.detail" = "Limits guarda localmente metadatos de tokens y modelos, etiquetas de repositorio o ruta y una etiqueta de tarea tomada de la primera línea de la solicitud. No guarda solicitudes ni respuestas completas.";
+"insights.settings.privacy.link" = "Detalles de privacidad";
 "pricing.error.disallowed_source" = "Fuente de precios no permitida: %@.";
 "pricing.error.http_status" = "El servidor de precios devolvió HTTP %d.";
 "pricing.error.content_type" = "Tipo de contenido de precios no compatible: %@.";

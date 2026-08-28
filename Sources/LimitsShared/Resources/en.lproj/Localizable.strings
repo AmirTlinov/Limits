@@ -280,7 +280,7 @@
 "insights.work.unknown_task" = "Untitled task";
 "insights.work.other" = "Other";
 "insights.empty.title" = "Usage is being prepared";
-"insights.empty.message" = "Add or import a Codex account. Limits will collect numeric history automatically.";
+"insights.empty.message" = "Add or import a Codex account. Limits will collect local usage history automatically.";
 "insights.price_change.message" = "%@ rate changed from %@ to %@ (%@%%).";
 "insights.price_change.subject" = "%@ · %@";
 "insights.price_change.metric.creditsInput" = "input credits";
@@ -316,6 +316,8 @@
 "insights.settings.clear.confirm_message" = "Now becomes the new zero point. Earlier local and server usage stays outside analytics; accounts, credentials, auth history, rate cards and import positions remain. New activity is counted from this moment.";
 "insights.settings.clearing" = "Clearing Codex statistics…";
 "insights.settings.importing" = "Importing Codex history…";
+"insights.settings.privacy.detail" = "Limits stores token and model metadata, repository or path labels, and a task label from the first user-request line locally. Full prompts and responses are not stored.";
+"insights.settings.privacy.link" = "Privacy details";
 "pricing.error.disallowed_source" = "Pricing source is not allowed: %@.";
 "pricing.error.http_status" = "Pricing server returned HTTP %d.";
 "pricing.error.content_type" = "Pricing server returned unsupported content type: %@.";

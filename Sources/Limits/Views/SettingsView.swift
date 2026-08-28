@@ -78,6 +78,13 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text(L10n.tr("insights.settings.title"))
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.tr("insights.settings.privacy.detail"))
+                        if let privacyURL = URL(string: "https://github.com/AmirTlinov/Limits/blob/main/PRIVACY.md") {
+                            Link(L10n.tr("insights.settings.privacy.link"), destination: privacyURL)
+                        }
+                    }
                 }
 
                 Section {

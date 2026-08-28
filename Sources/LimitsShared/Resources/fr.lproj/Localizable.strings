@@ -280,7 +280,7 @@
 "insights.work.unknown_task" = "Tâche sans titre";
 "insights.work.other" = "Autres";
 "insights.empty.title" = "Préparation des statistiques";
-"insights.empty.message" = "Ajoutez ou importez un compte Codex. L’historique numérique sera collecté automatiquement.";
+"insights.empty.message" = "Ajoutez ou importez un compte Codex. L’historique d’utilisation local sera collecté automatiquement.";
 "insights.price_change.message" = "Le tarif %@ est passé de %@ à %@ (%@ %%).";
 "insights.price_change.subject" = "%@ · %@";
 "insights.price_change.metric.creditsInput" = "crédits d’entrée";
@@ -316,6 +316,8 @@
 "insights.settings.clear.confirm_message" = "Maintenant devient le nouveau point zéro. L’usage local et serveur antérieur reste hors des analyses ; comptes, identifiants, historique d’authentification, tarifs et positions d’importation sont conservés. La nouvelle activité compte dès maintenant.";
 "insights.settings.clearing" = "Effacement des statistiques Codex…";
 "insights.settings.importing" = "Import de l’historique Codex…";
+"insights.settings.privacy.detail" = "Limits conserve localement les métadonnées de jetons et de modèles, les libellés de dépôt ou de chemin et un libellé de tâche tiré de la première ligne de la demande. Les demandes et réponses complètes ne sont pas conservées.";
+"insights.settings.privacy.link" = "Détails de confidentialité";
 "pricing.error.disallowed_source" = "Source tarifaire non autorisée : %@.";
 "pricing.error.http_status" = "Le serveur tarifaire a renvoyé HTTP %d.";
 "pricing.error.content_type" = "Type de contenu tarifaire non pris en charge : %@.";

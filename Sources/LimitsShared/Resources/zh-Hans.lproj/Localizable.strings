@@ -280,7 +280,7 @@
 "insights.work.unknown_task" = "未命名任务";
 "insights.work.other" = "其他";
 "insights.empty.title" = "正在准备统计";
-"insights.empty.message" = "添加或导入 Codex 账户，数值历史会自动收集。";
+"insights.empty.message" = "添加或导入 Codex 账户，本地使用记录会自动收集。";
 "insights.price_change.message" = "%@ 费率从 %@ 变为 %@（%@%%）。";
 "insights.price_change.subject" = "%@ · %@";
 "insights.price_change.metric.creditsInput" = "输入 credits";
@@ -316,6 +316,8 @@
 "insights.settings.clear.confirm_message" = "当前时刻将成为新的零点。此前的本地和服务器用量不再进入分析；账户、凭据、认证历史、费率和导入位置都会保留。新活动从此刻开始计入。";
 "insights.settings.clearing" = "正在清除 Codex 统计…";
 "insights.settings.importing" = "正在导入 Codex 历史…";
+"insights.settings.privacy.detail" = "Limits 仅在本机保存令牌和模型元数据、仓库或路径标签，以及取自用户请求首行的任务标签。它不会保存完整的提示或回复。";
+"insights.settings.privacy.link" = "隐私详情";
 "pricing.error.disallowed_source" = "不允许的价格来源：%@。";
 "pricing.error.http_status" = "价格服务器返回 HTTP %d。";
 "pricing.error.content_type" = "价格内容类型不受支持：%@。";

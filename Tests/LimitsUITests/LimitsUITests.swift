@@ -4,6 +4,17 @@ import LimitsCore
 import XCTest
 
 final class LimitsUITests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        continueAfterFailure = false
+        XCUIApplication().terminate()
+    }
+
+    override func tearDown() {
+        XCUIApplication().terminate()
+        super.tearDown()
+    }
+
     @MainActor
     func testIsolatedLayoutCreatesAndReadsOnlyInsideTestRoot() async throws {
         let fileManager = FileManager.default
@@ -58,11 +69,7 @@ final class LimitsUITests: XCTestCase {
         app.activate()
 
         XCTAssertTrue(app.staticTexts["Demo Codex 1"].waitForExistence(timeout: 8))
-        let statusItem = app.menuBars.statusItems.firstMatch
-        XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
-        statusItem.click()
-        let tray = app.dialogs.firstMatch
-        XCTAssertTrue(tray.waitForExistence(timeout: 3))
+        let tray = openTray(in: app)
         XCTAssertTrue(tray.staticTexts["Demo Codex 1"].waitForExistence(timeout: 3))
         let accountScroll = tray.scrollViews.firstMatch
         XCTAssertTrue(accountScroll.waitForExistence(timeout: 3))
@@ -108,16 +115,14 @@ final class LimitsUITests: XCTestCase {
 
         NSPasteboard.general.clearContents()
         email.click()
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "demo1@example.com")
+        XCTAssertTrue(waitForPasteboard("demo1@example.com", timeout: 3))
 
         title.doubleClick()
         let nameField = app.textFields["account.identity.name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 3))
         replaceText(in: nameField, with: "2042")
         XCTAssertEqual(nameField.value as? String, "2042")
-        let detail = app.scrollViews["accounts.detail.scroll"]
-        XCTAssertTrue(detail.waitForExistence(timeout: 3))
-        detail.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.02)).click()
+        nameField.typeKey(.return, modifierFlags: [])
 
         let renamedTitle = app.staticTexts["account.identity.title"]
         XCTAssertTrue(renamedTitle.waitForExistence(timeout: 3))
@@ -224,14 +229,7 @@ final class LimitsUITests: XCTestCase {
         app.launch()
         app.activate()
 
-        let statusItem = app.menuBars.statusItems.firstMatch
-        XCTAssertTrue(statusItem.waitForExistence(timeout: 8))
-        statusItem.click()
-        if !app.dialogs.firstMatch.waitForExistence(timeout: 3) {
-            app.activate()
-            statusItem.click()
-        }
-        XCTAssertTrue(app.dialogs.firstMatch.waitForExistence(timeout: 3))
+        _ = openTray(in: app)
         let forecast = app.descendants(matching: .any)["codex.tray.forecast"]
         XCTAssertTrue(forecast.waitForExistence(timeout: 3))
         XCTAssertTrue(forecast.label.contains("Collecting pace") || ((forecast.value as? String)?.contains("Collecting pace") == true))
@@ -296,11 +294,7 @@ final class LimitsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Refresh values"].exists)
         XCTAssertFalse(app.buttons["Refresh current values"].exists)
 
-        let statusItem = app.menuBars.statusItems.firstMatch
-        XCTAssertTrue(statusItem.waitForExistence(timeout: 3))
-        statusItem.click()
-        let panel = app.dialogs.firstMatch
-        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        let panel = openTray(in: app)
         let trayIssue = panel.staticTexts["codex.tray.forecast"]
         XCTAssertTrue(trayIssue.waitForExistence(timeout: 3))
         XCTAssertEqual((trayIssue.value as? String) ?? trayIssue.label, "Sign-in expired")
@@ -393,6 +387,35 @@ final class LimitsUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
         return element.value as? String == expected || element.label == expected
+    }
+
+    @MainActor
+    private func waitForPasteboard(_ expected: String, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if NSPasteboard.general.string(forType: .string) == expected {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return NSPasteboard.general.string(forType: .string) == expected
+    }
+
+    @MainActor
+    private func openTray(in app: XCUIApplication) -> XCUIElement {
+        let panel = app.dialogs.firstMatch
+        for _ in 0..<3 {
+            app.activate()
+            let statusItem = app.menuBars.statusItems.firstMatch
+            XCTAssertTrue(statusItem.waitForExistence(timeout: 8))
+            statusItem.click()
+            if panel.waitForExistence(timeout: 3) {
+                return panel
+            }
+        }
+
+        XCTFail("The menu bar panel did not open after three fresh status-item clicks")
+        return panel
     }
 
     private func firstCodexAccount(in root: URL) throws -> [String: Any] {

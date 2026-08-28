@@ -294,6 +294,12 @@ deferred_sources.each do |target, group, source_root, paths|
   paths.each { |path| add_swift_source(target, group, source_root, path, stable_uuid: true) }
 end
 
+legal_group = project.main_group.new_group("Legal")
+license_reference = legal_group.new_file("LICENSE")
+notices_reference = legal_group.new_file("THIRD_PARTY_NOTICES.md")
+app.resources_build_phase.add_file_reference(license_reference)
+app.resources_build_phase.add_file_reference(notices_reference)
+
 project.root_object.attributes["TargetAttributes"] = targets.to_h do |target|
   [target.uuid, { "CreatedOnToolsVersion" => "26.0", "DevelopmentTeam" => "M94V58FCVP", "ProvisioningStyle" => "Automatic" }]
 end

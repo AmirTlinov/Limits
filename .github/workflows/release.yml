@@ -30,7 +30,7 @@ jobs:
       LIMITS_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
       SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
 
@@ -42,13 +42,24 @@ jobs:
         shell: bash
         run: |
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            TAG="$GITHUB_REF_NAME"
+            VERSION="${TAG#v}"
           else
             VERSION="${{ inputs.version }}"
+            TAG="v$VERSION"
           fi
           [[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}$ ]]
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          git show-ref --verify --quiet "refs/tags/$TAG" || {
+            echo "Release tag $TAG does not exist. Create and push the reviewed annotated tag first." >&2
+            exit 1
+          }
+          RELEASE_SHA="$(git rev-list -n 1 "$TAG")"
+          git checkout --detach "$RELEASE_SHA"
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "release_sha=$RELEASE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install deterministic project generator
         run: |
@@ -131,9 +142,9 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
           elif [[ -f "release-notes/v$VERSION.md" ]]; then
-            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "Limits $VERSION" --notes-file "release-notes/v$VERSION.md"
+            gh release create "$TAG" "${ASSETS[@]}" --target "${{ steps.version.outputs.release_sha }}" --title "Limits $VERSION" --notes-file "release-notes/v$VERSION.md"
           else
-            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "Limits $VERSION" --generate-notes
+            gh release create "$TAG" "${ASSETS[@]}" --target "${{ steps.version.outputs.release_sha }}" --title "Limits $VERSION" --generate-notes
           fi
 
       - name: Publish appcast to GitHub Pages
@@ -145,7 +156,9 @@ jobs:
           VERSION_DIR="$PAGES/releases/v$VERSION"
           LATEST_DIR="$PAGES/releases/latest"
           mkdir -p "$VERSION_DIR" "$LATEST_DIR"
-          cp site/index.html site/.nojekyll "$PAGES/"
+          cp site/index.html site/.nojekyll site/favicon.png "$PAGES/"
+          mkdir -p "$PAGES/images"
+          cp docs/images/limits-window.png docs/images/limits-window-dark.png docs/images/limits-tray.png "$PAGES/images/"
           cp dist/appcast.xml "$PAGES/appcast.xml"
           cp dist/appcast.xml "$VERSION_DIR/appcast.xml"
           cp "dist/Limits-v$VERSION-macOS-arm64.zip" "dist/Limits-v$VERSION-macOS-arm64.zip.sha256" "$VERSION_DIR/"
@@ -161,26 +174,10 @@ jobs:
             shasum -a 256 Limits-macOS-arm64.zip > Limits-macOS-arm64.zip.sha256
           )
 
-          python3 - "$PAGES/releases" <<'PY'
-          import pathlib
-          import shutil
-          import sys
-
-          root = pathlib.Path(sys.argv[1])
-          versions = []
-          for path in root.glob("v*"):
-              try:
-                  key = tuple(int(part) for part in path.name[1:].split("."))
-              except ValueError:
-                  continue
-              versions.append((key, path))
-          for _, path in sorted(versions)[:-10]:
-              shutil.rmtree(path)
-          PY
           cd "$PAGES"
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add --all index.html .nojekyll appcast.xml releases
+          git add --all index.html .nojekyll favicon.png images appcast.xml releases
           if ! git diff --cached --quiet; then
             git commit -m "release: publish Limits ${{ steps.version.outputs.version }} appcast"
             git push origin gh-pages

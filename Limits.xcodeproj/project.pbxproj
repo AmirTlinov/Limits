@@ -85,6 +85,8 @@
 		D000000000000000000000ED /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000EF /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D000000000000000000000F2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F1 /* Sparkle */; };
+		D000000000000000000000F6 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F4 /* LICENSE */; };
+		D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */; };
 		F0DDF589AFE67FFB4D3747D7 /* LimitsProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1ED6BF5B418EFA5143F8EC5 /* LimitsProgressBar.swift */; };
 		F1487C306C96C4D8DEA1095B /* LimitsStorageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */; };
 		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
@@ -323,6 +325,8 @@
 		D000000000000000000000C8 /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
 		D000000000000000000000C9 /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
 		D000000000000000000000CA /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+		D000000000000000000000F4 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
+		D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; includeInIndex = 1; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitBurnEstimator.swift; path = Models/LimitBurnEstimator.swift; sourceTree = "<group>"; };
 		F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsageRepositoryTests.swift; sourceTree = "<group>"; };
 		F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InterprocessFileLock.swift; path = Services/InterprocessFileLock.swift; sourceTree = "<group>"; };
@@ -444,6 +448,7 @@
 				D0000000000000000000000B /* Assets */,
 				D0000000000000000000000A /* Config */,
 				D00000000000000000000007 /* Frameworks */,
+				D000000000000000000000F3 /* Legal */,
 				D00000000000000000000003 /* Products */,
 				D00000000000000000000008 /* Sources */,
 				D00000000000000000000009 /* Tests */,
@@ -705,6 +710,15 @@
 			path = TrayIcons;
 			sourceTree = "<group>";
 		};
+		D000000000000000000000F3 /* Legal */ = {
+			isa = PBXGroup;
+			children = (
+				D000000000000000000000F4 /* LICENSE */,
+				D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */,
+			);
+			name = Legal;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -922,6 +936,8 @@
 				D000000000000000000000C6 /* AppIcon.icns in Resources */,
 				D000000000000000000000C2 /* claude.svg in Resources */,
 				D000000000000000000000C4 /* codex.svg in Resources */,
+				D000000000000000000000F6 /* LICENSE in Resources */,
+				D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

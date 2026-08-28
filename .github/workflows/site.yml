@@ -1,0 +1,41 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/images/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: limits-site
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Publish the site shell without changing release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PAGES="$RUNNER_TEMP/limits-pages"
+          git clone --branch gh-pages "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$PAGES"
+          install -m 0644 site/index.html site/.nojekyll site/favicon.png "$PAGES/"
+          mkdir -p "$PAGES/images"
+          install -m 0644 docs/images/limits-window.png docs/images/limits-window-dark.png docs/images/limits-tray.png "$PAGES/images/"
+          cd "$PAGES"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add --all index.html .nojekyll favicon.png images
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: publish project site"
+            git push origin gh-pages
+          fi

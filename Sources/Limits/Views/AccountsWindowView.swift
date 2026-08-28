@@ -1011,7 +1011,11 @@ private struct CurrentClaudeDetailPane: View {
                 note: overview.note,
                 metaLine: metaLine,
                 renameTitle: model.canMutateDomain ? referenceAccount.map { account in
-                    { title in Task { await model.renameAccount(account, to: title) } }
+                    { (title: String) -> Void in
+                        Task<Void, Never> {
+                            await model.renameAccount(account, to: title)
+                        }
+                    }
                 } : nil,
                 subtitleIsCopyable: identity.subtitle != nil,
                 showsActions: showsPrimaryAction,

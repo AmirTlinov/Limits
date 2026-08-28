@@ -3,21 +3,338 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Limits is a native macOS app for understanding and switching Codex and Claude Code account limits.">
+  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="canonical" href="https://amirtlinov.github.io/Limits/">
   <title>Limits for macOS</title>
   <style>
-    :root { color-scheme: light dark; font: 17px/1.55 -apple-system, BlinkMacSystemFont, sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: Canvas; color: CanvasText; }
-    main { width: min(640px, calc(100% - 48px)); }
-    h1 { margin: 0 0 8px; font-size: clamp(40px, 8vw, 72px); letter-spacing: -0.05em; }
-    p { color: color-mix(in srgb, CanvasText 72%, transparent); }
-    a { color: #2787f5; font-weight: 650; }
+    :root {
+      color-scheme: light dark;
+      --background: #f6f8fc;
+      --surface: rgba(255, 255, 255, 0.76);
+      --text: #101522;
+      --muted: #5b6578;
+      --line: rgba(35, 48, 73, 0.13);
+      --blue: #1675e8;
+      --coral: #ea6a55;
+      --shadow: 0 28px 80px rgba(30, 47, 77, 0.16);
+      font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 16% 2%, color-mix(in srgb, var(--blue) 14%, transparent), transparent 30rem),
+        radial-gradient(circle at 86% 12%, color-mix(in srgb, var(--coral) 13%, transparent), transparent 28rem),
+        var(--background);
+      color: var(--text);
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 76px;
+      gap: 24px;
+    }
+
+    .brand {
+      font-size: 19px;
+      font-weight: 760;
+      letter-spacing: -0.03em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 620;
+    }
+
+    .nav-links a { text-decoration: none; }
+    .nav-links a:hover { color: var(--text); }
+
+    main { padding: 70px 0 84px; }
+
+    .hero {
+      max-width: 830px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 760;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(54px, 10vw, 106px);
+      line-height: 0.92;
+      letter-spacing: -0.075em;
+    }
+
+    .lede {
+      max-width: 700px;
+      margin: 28px auto 0;
+      color: var(--muted);
+      font-size: clamp(19px, 3vw, 25px);
+      line-height: 1.4;
+      letter-spacing: -0.018em;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 19px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(35, 48, 73, 0.08);
+    }
+
+    .button.primary {
+      border-color: transparent;
+      background: var(--blue);
+      color: white;
+      box-shadow: 0 10px 30px color-mix(in srgb, var(--blue) 32%, transparent);
+    }
+
+    .button:hover { transform: translateY(-1px); }
+    .button:active { transform: translateY(0); }
+    a:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 4px; }
+
+    .requirements {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .product-shot {
+      display: block;
+      position: relative;
+      margin: 64px auto 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+    }
+
+    .product-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+    }
+
+    .story {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+      gap: 72px;
+      align-items: center;
+      margin-top: 110px;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: clamp(34px, 5vw, 55px);
+      line-height: 1.03;
+      letter-spacing: -0.055em;
+    }
+
+    .story-copy p {
+      max-width: 620px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .facts {
+      display: grid;
+      gap: 0;
+      margin: 30px 0 0;
+      padding: 0;
+      border-top: 1px solid var(--line);
+      list-style: none;
+    }
+
+    .facts li {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 20px;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .facts strong { font-size: 14px; }
+    .facts span { color: var(--muted); font-size: 14px; }
+
+    .tray-shot {
+      width: min(100%, 350px);
+      justify-self: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .tray-shot img { display: block; width: 100%; height: auto; border-radius: 15px; }
+
+    .trust {
+      margin-top: 110px;
+      padding: 48px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--surface);
+    }
+
+    .trust p {
+      max-width: 780px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .trust-links { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 24px; font-weight: 700; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 30px 0 42px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer p { margin: 0; max-width: 760px; }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #090d16;
+        --surface: rgba(20, 27, 42, 0.73);
+        --text: #f4f7fd;
+        --muted: #a8b1c2;
+        --line: rgba(218, 228, 247, 0.14);
+        --blue: #4b9cff;
+        --coral: #ff806a;
+        --shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 28px, 1120px); }
+      nav { min-height: 64px; }
+      .nav-links a:not(:last-child) { display: none; }
+      main { padding-top: 42px; }
+      .story { grid-template-columns: 1fr; gap: 42px; margin-top: 78px; }
+      .story-copy { order: 1; }
+      .tray-shot { order: 2; }
+      .trust { margin-top: 78px; padding: 30px 24px; }
+      .facts li { grid-template-columns: 96px 1fr; gap: 14px; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .button { transition: none; }
+      .button:hover { transform: none; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Limits</h1>
-    <p>A native macOS menu bar app for seeing and switching Codex CLI and Claude Code account limits.</p>
-    <p><a href="https://github.com/AmirTlinov/Limits/releases/latest">Download the latest release</a></p>
+  <header class="shell">
+    <nav aria-label="Primary navigation">
+      <a class="brand" href="./">Limits</a>
+      <div class="nav-links">
+        <a href="https://github.com/AmirTlinov/Limits#what-it-does">Features</a>
+        <a href="https://github.com/AmirTlinov/Limits/blob/main/PRIVACY.md">Privacy</a>
+        <a href="https://github.com/AmirTlinov/Limits">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">Native macOS account limits</p>
+      <h1 id="hero-title">Limits</h1>
+      <p class="lede">See which Codex or Claude Code account runs out first, understand the work behind the numbers, and switch accounts without losing the previous authorization.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/AmirTlinov/Limits/releases/latest">Published builds</a>
+        <a class="button" href="https://github.com/AmirTlinov/Limits">View source</a>
+      </div>
+      <p class="requirements">macOS 26 or newer · Apple silicon · MIT licensed</p>
+    </section>
+
+    <picture class="product-shot">
+      <source media="(prefers-color-scheme: dark)" srcset="images/limits-window-dark.png">
+      <img src="images/limits-window.png" alt="Limits window showing sanitized Codex usage, limit forecasts, model mix, projects, and tasks" width="980" height="672">
+    </picture>
+
+    <section class="story" aria-labelledby="one-view-title">
+      <div class="story-copy">
+        <p class="eyebrow">One current picture</p>
+        <h2 id="one-view-title">The account, the pace, and the reset belong together.</h2>
+        <p>Limits combines official account totals with local usage metadata. The window explains the trend; the menu bar keeps the next limit close; the widget receives only a small display snapshot.</p>
+        <ul class="facts">
+          <li><strong>Credentials</strong><span>Saved in macOS Keychain and replaced through validated rollback-safe transactions.</span></li>
+          <li><strong>History</strong><span>Stored locally in SQLite with 90-day per-turn detail and reproducible rate cards.</span></li>
+          <li><strong>Updates</strong><span>Developer ID signing, Apple notarization for stable releases, and an EdDSA-signed Sparkle feed.</span></li>
+        </ul>
+      </div>
+      <picture class="tray-shot">
+        <img src="images/limits-tray.png" alt="Limits menu bar panel with sanitized Codex and Claude account limits" width="326" height="475" loading="lazy">
+      </picture>
+    </section>
+
+    <section class="trust" aria-labelledby="local-title">
+      <p class="eyebrow">Local by design</p>
+      <h2 id="local-title">Your work labels stay on your Mac.</h2>
+      <p>Limits has no developer analytics, advertising SDK, cloud account, or crash-reporting service. The public privacy contract names the exact rollout fields it extracts, where each record lives, and the few network requests the app makes.</p>
+      <div class="trust-links">
+        <a href="https://github.com/AmirTlinov/Limits/blob/main/PRIVACY.md">Read the privacy contract</a>
+        <a href="https://github.com/AmirTlinov/Limits/blob/main/SECURITY.md">Report a vulnerability</a>
+      </div>
+    </section>
   </main>
+
+  <footer class="shell">
+    <p>Limits is an independent project and is not affiliated with, sponsored by, or endorsed by OpenAI or Anthropic.</p>
+    <p>© 2026 Amir Tlinov</p>
+  </footer>
 </body>
 </html>

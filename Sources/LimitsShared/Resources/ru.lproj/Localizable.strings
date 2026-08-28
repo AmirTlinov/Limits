@@ -280,7 +280,7 @@
 "insights.work.unknown_task" = "Задача без названия";
 "insights.work.other" = "Остальное";
 "insights.empty.title" = "Статистика готовится";
-"insights.empty.message" = "Добавьте или импортируйте аккаунт Codex. Числовая история соберётся автоматически.";
+"insights.empty.message" = "Добавьте или импортируйте аккаунт Codex. Локальная история использования соберётся автоматически.";
 "insights.price_change.message" = "Ставка %@ изменилась с %@ до %@ (%@%%).";
 "insights.price_change.subject" = "%@ · %@";
 "insights.price_change.metric.creditsInput" = "кредиты за вход";
@@ -316,6 +316,8 @@
 "insights.settings.clear.confirm_message" = "Текущий момент станет новой нулевой точкой. Прежняя локальная и серверная активность останется за границей аналитики; аккаунты, данные входа, история авторизации, тарифы и позиции импорта сохранятся. Новая активность будет считаться с этого момента.";
 "insights.settings.clearing" = "Очищаем статистику Codex…";
 "insights.settings.importing" = "Импортируем историю Codex…";
+"insights.settings.privacy.detail" = "Limits локально хранит метаданные токенов и моделей, название репозитория или пути и название задачи из первой строки запроса. Полные запросы и ответы не сохраняются.";
+"insights.settings.privacy.link" = "Подробнее о конфиденциальности";
 "pricing.error.disallowed_source" = "Источник тарифов не разрешён: %@.";
 "pricing.error.http_status" = "Сервер тарифов вернул HTTP %d.";
 "pricing.error.content_type" = "Сервер тарифов вернул неподдерживаемый тип: %@.";

@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose one observable improvement to Limits.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can a person not understand or do today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observable outcome
+      description: What should become visibly different after the change?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Example or evidence
+      description: Add a concrete workflow, sanitized screenshot, or data shape that makes the distinction clear.
