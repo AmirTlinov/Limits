@@ -4,13 +4,26 @@ import Foundation
 
 enum TrayStatusIconAsset {
     static func image(for provider: TrayStatusProvider) -> NSImage? {
-        guard
-            let url = resourceURL(for: provider),
-            let image = NSImage(contentsOf: url)
-        else {
-            return nil
+        guard let url = resourceURL(for: provider) else { return nil }
+        return templateImage(at: url)
+    }
+
+    /// The rail shows each provider's brand mark, where the menu bar deliberately keeps a
+    /// plainer glyph that stays legible at status-item size.
+    static func railImage(for provider: TrayStatusProvider) -> NSImage? {
+        let resourceName = switch provider {
+        case .codex: "openai"
+        case .claude: "claude"
         }
 
+        guard let url = resourceURL(named: resourceName, in: .main) else {
+            return image(for: provider)
+        }
+        return templateImage(at: url)
+    }
+
+    private static func templateImage(at url: URL) -> NSImage? {
+        guard let image = NSImage(contentsOf: url) else { return nil }
         let templateImage = image.copy() as? NSImage ?? image
         templateImage.isTemplate = true
         return templateImage

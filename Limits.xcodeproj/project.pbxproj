@@ -69,24 +69,25 @@
 		D000000000000000000000BE /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000B8 /* Localizable.strings */; };
 		D000000000000000000000C2 /* claude.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C1 /* claude.svg */; };
 		D000000000000000000000C4 /* codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C3 /* codex.svg */; };
-		D000000000000000000000C6 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C5 /* AppIcon.icns */; };
-		D000000000000000000000DF /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E0 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000C6 /* openai.svg in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C5 /* openai.svg */; };
+		D000000000000000000000C8 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000C7 /* AppIcon.icns */; };
 		D000000000000000000000E1 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E2 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004C /* libsqlite3.tbd */; };
+		D000000000000000000000E2 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
 		D000000000000000000000E3 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E4 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000E4 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000004C /* libsqlite3.tbd */; };
 		D000000000000000000000E5 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
 		D000000000000000000000E6 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
 		D000000000000000000000E7 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
-		D000000000000000000000E9 /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000EA /* LimitsCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000EC /* LimitsShared.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000ED /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000EF /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D000000000000000000000F2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F1 /* Sparkle */; };
-		D000000000000000000000F6 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F4 /* LICENSE */; };
-		D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */; };
+		D000000000000000000000E8 /* LimitsCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; };
+		D000000000000000000000E9 /* LimitsShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; };
+		D000000000000000000000EB /* LimitsShared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EC /* LimitsCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EE /* LimitsShared.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D0000000000000000000002B /* LimitsShared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000EF /* LimitsCore.framework in Embed Test Frameworks */ = {isa = PBXBuildFile; fileRef = D00000000000000000000021 /* LimitsCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000F1 /* LimitsWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D00000000000000000000035 /* LimitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D000000000000000000000F4 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D000000000000000000000F3 /* Sparkle */; };
+		D000000000000000000000F8 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F6 /* LICENSE */; };
+		D000000000000000000000F9 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md */; };
 		F0DDF589AFE67FFB4D3747D7 /* LimitsProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1ED6BF5B418EFA5143F8EC5 /* LimitsProgressBar.swift */; };
 		F1487C306C96C4D8DEA1095B /* LimitsStorageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F9AE48440414EA0462E420 /* LimitsStorageLayoutTests.swift */; };
 		F18D880DD9E5B2642C703317 /* CodexUsageRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */; };
@@ -145,33 +146,26 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		D000000000000000000000CB /* PBXContainerItemProxy */ = {
+		D000000000000000000000CD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000CD /* PBXContainerItemProxy */ = {
+		D000000000000000000000CF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D0000000000000000000001D;
 			remoteInfo = LimitsCore;
 		};
-		D000000000000000000000CF /* PBXContainerItemProxy */ = {
+		D000000000000000000000D1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000031;
 			remoteInfo = LimitsWidgetExtension;
-		};
-		D000000000000000000000D1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D00000000000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D00000000000000000000027;
-			remoteInfo = LimitsShared;
 		};
 		D000000000000000000000D3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -184,31 +178,38 @@
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
+			remoteGlobalIDString = D00000000000000000000027;
+			remoteInfo = LimitsShared;
+		};
+		D000000000000000000000D7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D00000000000000000000001 /* Project object */;
+			proxyType = 1;
 			remoteGlobalIDString = D0000000000000000000001D;
 			remoteInfo = LimitsCore;
 		};
-		D000000000000000000000D7 /* PBXContainerItemProxy */ = {
+		D000000000000000000000D9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000027;
 			remoteInfo = LimitsShared;
 		};
-		D000000000000000000000D9 /* PBXContainerItemProxy */ = {
+		D000000000000000000000DB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D00000000000000000000012;
 			remoteInfo = Limits;
 		};
-		D000000000000000000000DB /* PBXContainerItemProxy */ = {
+		D000000000000000000000DD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = D0000000000000000000001D;
 			remoteInfo = LimitsCore;
 		};
-		D000000000000000000000DD /* PBXContainerItemProxy */ = {
+		D000000000000000000000DF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D00000000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -218,37 +219,37 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		D000000000000000000000E8 /* Embed Frameworks */ = {
+		D000000000000000000000EA /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				D000000000000000000000EA /* LimitsCore.framework in Embed Frameworks */,
-				D000000000000000000000E9 /* LimitsShared.framework in Embed Frameworks */,
+				D000000000000000000000EC /* LimitsCore.framework in Embed Frameworks */,
+				D000000000000000000000EB /* LimitsShared.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D000000000000000000000EB /* Embed Test Frameworks */ = {
+		D000000000000000000000ED /* Embed Test Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				D000000000000000000000ED /* LimitsCore.framework in Embed Test Frameworks */,
-				D000000000000000000000EC /* LimitsShared.framework in Embed Test Frameworks */,
+				D000000000000000000000EF /* LimitsCore.framework in Embed Test Frameworks */,
+				D000000000000000000000EE /* LimitsShared.framework in Embed Test Frameworks */,
 			);
 			name = "Embed Test Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D000000000000000000000EE /* Embed App Extensions */ = {
+		D000000000000000000000F0 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				D000000000000000000000EF /* LimitsWidgetExtension.appex in Embed App Extensions */,
+				D000000000000000000000F1 /* LimitsWidgetExtension.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -324,13 +325,14 @@
 		D000000000000000000000BD /* zh-Hans */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		D000000000000000000000C1 /* claude.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = claude.svg; sourceTree = "<group>"; };
 		D000000000000000000000C3 /* codex.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = codex.svg; sourceTree = "<group>"; };
-		D000000000000000000000C5 /* AppIcon.icns */ = {isa = PBXFileReference; includeInIndex = 1; path = AppIcon.icns; sourceTree = "<group>"; };
-		D000000000000000000000C7 /* Limits-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Limits-Info.plist"; sourceTree = "<group>"; };
-		D000000000000000000000C8 /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
-		D000000000000000000000C9 /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
-		D000000000000000000000CA /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
-		D000000000000000000000F4 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
-		D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; includeInIndex = 1; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
+		D000000000000000000000C5 /* openai.svg */ = {isa = PBXFileReference; includeInIndex = 1; path = openai.svg; sourceTree = "<group>"; };
+		D000000000000000000000C7 /* AppIcon.icns */ = {isa = PBXFileReference; includeInIndex = 1; path = AppIcon.icns; sourceTree = "<group>"; };
+		D000000000000000000000C9 /* Limits-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Limits-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000CA /* LimitsWidgetExtension-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "LimitsWidgetExtension-Info.plist"; sourceTree = "<group>"; };
+		D000000000000000000000CB /* Limits.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Limits.entitlements; sourceTree = "<group>"; };
+		D000000000000000000000CC /* LimitsWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = LimitsWidgetExtension.entitlements; sourceTree = "<group>"; };
+		D000000000000000000000F6 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
+		D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; includeInIndex = 1; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		F012FB396CF849CB61F937F2 /* LimitBurnEstimator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LimitBurnEstimator.swift; path = Models/LimitBurnEstimator.swift; sourceTree = "<group>"; };
 		F037DACB7D2274C9AE5DE549 /* CodexUsageRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CodexUsageRepositoryTests.swift; sourceTree = "<group>"; };
 		F15347A08A6E445801E1BCA9 /* InterprocessFileLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InterprocessFileLock.swift; path = Services/InterprocessFileLock.swift; sourceTree = "<group>"; };
@@ -394,9 +396,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0000000000000000000001C /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E0 /* LimitsCore.framework in Frameworks */,
-				D000000000000000000000DF /* LimitsShared.framework in Frameworks */,
-				D000000000000000000000F2 /* Sparkle in Frameworks */,
+				D000000000000000000000E2 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E1 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000F4 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,8 +407,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000026 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E2 /* libsqlite3.tbd in Frameworks */,
-				D000000000000000000000E1 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E4 /* libsqlite3.tbd in Frameworks */,
+				D000000000000000000000E3 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,7 +425,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000039 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E3 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E5 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -432,8 +434,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D00000000000000000000042 /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E4 /* LimitsCore.framework in Frameworks */,
-				D000000000000000000000E5 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E6 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E7 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -442,8 +444,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0000000000000000000004B /* Cocoa.framework in Frameworks */,
-				D000000000000000000000E6 /* LimitsCore.framework in Frameworks */,
-				D000000000000000000000E7 /* LimitsShared.framework in Frameworks */,
+				D000000000000000000000E8 /* LimitsCore.framework in Frameworks */,
+				D000000000000000000000E9 /* LimitsShared.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,7 +458,7 @@
 				D0000000000000000000000B /* Assets */,
 				D0000000000000000000000A /* Config */,
 				D00000000000000000000007 /* Frameworks */,
-				D000000000000000000000F3 /* Legal */,
+				D000000000000000000000F5 /* Legal */,
 				D00000000000000000000003 /* Products */,
 				D00000000000000000000008 /* Sources */,
 				D00000000000000000000009 /* Tests */,
@@ -510,10 +512,10 @@
 		D0000000000000000000000A /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000C9 /* Limits.entitlements */,
-				D000000000000000000000C7 /* Limits-Info.plist */,
-				D000000000000000000000CA /* LimitsWidgetExtension.entitlements */,
-				D000000000000000000000C8 /* LimitsWidgetExtension-Info.plist */,
+				D000000000000000000000CB /* Limits.entitlements */,
+				D000000000000000000000C9 /* Limits-Info.plist */,
+				D000000000000000000000CC /* LimitsWidgetExtension.entitlements */,
+				D000000000000000000000CA /* LimitsWidgetExtension-Info.plist */,
 			);
 			name = Config;
 			path = Config;
@@ -522,7 +524,7 @@
 		D0000000000000000000000B /* Assets */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000C5 /* AppIcon.icns */,
+				D000000000000000000000C7 /* AppIcon.icns */,
 			);
 			name = Assets;
 			path = Assets;
@@ -717,16 +719,17 @@
 			children = (
 				D000000000000000000000C1 /* claude.svg */,
 				D000000000000000000000C3 /* codex.svg */,
+				D000000000000000000000C5 /* openai.svg */,
 			);
 			name = TrayIcons;
 			path = TrayIcons;
 			sourceTree = "<group>";
 		};
-		D000000000000000000000F3 /* Legal */ = {
+		D000000000000000000000F5 /* Legal */ = {
 			isa = PBXGroup;
 			children = (
-				D000000000000000000000F4 /* LICENSE */,
-				D000000000000000000000F5 /* THIRD_PARTY_NOTICES.md */,
+				D000000000000000000000F6 /* LICENSE */,
+				D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md */,
 			);
 			name = Legal;
 			sourceTree = "<group>";
@@ -758,19 +761,19 @@
 				D00000000000000000000017 /* Sources */,
 				D00000000000000000000018 /* Frameworks */,
 				D00000000000000000000019 /* Resources */,
-				D000000000000000000000E8 /* Embed Frameworks */,
-				D000000000000000000000EE /* Embed App Extensions */,
+				D000000000000000000000EA /* Embed Frameworks */,
+				D000000000000000000000F0 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000CE /* PBXTargetDependency */,
-				D000000000000000000000CC /* PBXTargetDependency */,
 				D000000000000000000000D0 /* PBXTargetDependency */,
+				D000000000000000000000CE /* PBXTargetDependency */,
+				D000000000000000000000D2 /* PBXTargetDependency */,
 			);
 			name = Limits;
 			packageProductDependencies = (
-				D000000000000000000000F1 /* Sparkle */,
+				D000000000000000000000F3 /* Sparkle */,
 			);
 			productName = Limits;
 			productReference = D00000000000000000000016 /* Limits.app */;
@@ -788,7 +791,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D2 /* PBXTargetDependency */,
+				D000000000000000000000D4 /* PBXTargetDependency */,
 			);
 			name = LimitsCore;
 			productName = LimitsCore;
@@ -824,7 +827,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D4 /* PBXTargetDependency */,
+				D000000000000000000000D6 /* PBXTargetDependency */,
 			);
 			name = LimitsWidgetExtension;
 			productName = LimitsWidgetExtension;
@@ -842,8 +845,8 @@
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000D6 /* PBXTargetDependency */,
 				D000000000000000000000D8 /* PBXTargetDependency */,
+				D000000000000000000000DA /* PBXTargetDependency */,
 			);
 			name = LimitsTests;
 			productName = LimitsTests;
@@ -857,15 +860,15 @@
 				D00000000000000000000048 /* Sources */,
 				D00000000000000000000049 /* Frameworks */,
 				D0000000000000000000004A /* Resources */,
-				D000000000000000000000EB /* Embed Test Frameworks */,
-				D000000000000000000000F8 /* Require isolated UI session */,
+				D000000000000000000000ED /* Embed Test Frameworks */,
+				D000000000000000000000FA /* Require isolated UI session */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				D000000000000000000000DA /* PBXTargetDependency */,
 				D000000000000000000000DC /* PBXTargetDependency */,
 				D000000000000000000000DE /* PBXTargetDependency */,
+				D000000000000000000000E0 /* PBXTargetDependency */,
 			);
 			name = LimitsUITests;
 			productName = LimitsUITests;
@@ -924,7 +927,7 @@
 			mainGroup = D00000000000000000000002;
 			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
-				D000000000000000000000F0 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00000000000000000000003 /* Products */;
@@ -946,11 +949,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D000000000000000000000C6 /* AppIcon.icns in Resources */,
+				D000000000000000000000C8 /* AppIcon.icns in Resources */,
 				D000000000000000000000C2 /* claude.svg in Resources */,
 				D000000000000000000000C4 /* codex.svg in Resources */,
-				D000000000000000000000F6 /* LICENSE in Resources */,
-				D000000000000000000000F7 /* THIRD_PARTY_NOTICES.md in Resources */,
+				D000000000000000000000F8 /* LICENSE in Resources */,
+				D000000000000000000000C6 /* openai.svg in Resources */,
+				D000000000000000000000F9 /* THIRD_PARTY_NOTICES.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -993,7 +997,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		D000000000000000000000F8 /* Require isolated UI session */ = {
+		D000000000000000000000FA /* Require isolated UI session */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -1168,28 +1172,22 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		D000000000000000000000CC /* PBXTargetDependency */ = {
+		D000000000000000000000CE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000CB /* PBXContainerItemProxy */;
-		};
-		D000000000000000000000CE /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = LimitsCore;
-			target = D0000000000000000000001D /* LimitsCore */;
 			targetProxy = D000000000000000000000CD /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000D0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = LimitsWidgetExtension;
-			target = D00000000000000000000031 /* LimitsWidgetExtension */;
+			name = LimitsCore;
+			target = D0000000000000000000001D /* LimitsCore */;
 			targetProxy = D000000000000000000000CF /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000D2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = LimitsShared;
-			target = D00000000000000000000027 /* LimitsShared */;
+			name = LimitsWidgetExtension;
+			target = D00000000000000000000031 /* LimitsWidgetExtension */;
 			targetProxy = D000000000000000000000D1 /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000D4 /* PBXTargetDependency */ = {
@@ -1200,33 +1198,39 @@
 		};
 		D000000000000000000000D6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = LimitsCore;
-			target = D0000000000000000000001D /* LimitsCore */;
+			name = LimitsShared;
+			target = D00000000000000000000027 /* LimitsShared */;
 			targetProxy = D000000000000000000000D5 /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000D8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = LimitsShared;
-			target = D00000000000000000000027 /* LimitsShared */;
+			name = LimitsCore;
+			target = D0000000000000000000001D /* LimitsCore */;
 			targetProxy = D000000000000000000000D7 /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000DA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = Limits;
-			target = D00000000000000000000012 /* Limits */;
+			name = LimitsShared;
+			target = D00000000000000000000027 /* LimitsShared */;
 			targetProxy = D000000000000000000000D9 /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000DC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = LimitsCore;
-			target = D0000000000000000000001D /* LimitsCore */;
+			name = Limits;
+			target = D00000000000000000000012 /* Limits */;
 			targetProxy = D000000000000000000000DB /* PBXContainerItemProxy */;
 		};
 		D000000000000000000000DE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			name = LimitsCore;
+			target = D0000000000000000000001D /* LimitsCore */;
+			targetProxy = D000000000000000000000DD /* PBXContainerItemProxy */;
+		};
+		D000000000000000000000E0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
 			name = LimitsShared;
 			target = D00000000000000000000027 /* LimitsShared */;
-			targetProxy = D000000000000000000000DD /* PBXContainerItemProxy */;
+			targetProxy = D000000000000000000000DF /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1738,7 +1742,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		D000000000000000000000F0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+		D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
@@ -1749,9 +1753,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		D000000000000000000000F1 /* Sparkle */ = {
+		D000000000000000000000F3 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D000000000000000000000F0 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			package = D000000000000000000000F2 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */

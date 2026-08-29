@@ -3,50 +3,99 @@ import SwiftUI
 import LimitsCore
 import LimitsShared
 
-/// Fixed geometry for the floating rail. The window controller sizes the panel from the
-/// same numbers, so the rail keeps a stable screen position while the bubble opens and closes.
+/// Geometry transcribed from the reference mockup. Every length below is the measurement
+/// taken off that image in its own pixels, scaled once — so the rail keeps the mockup's
+/// proportions exactly and the whole surface resizes by changing `scale` alone.
+/// The window controller sizes the panel from the same numbers, which keeps the rail's
+/// screen position stable while the bubble opens and closes.
 enum UsageRailMetrics {
-    static let ringDiameter: CGFloat = 52
-    static let ringLineWidth: CGFloat = 4
-    static let labelSpacing: CGFloat = 5
-    static let cellSpacing: CGFloat = 18
-    static let railWidth: CGFloat = 92
-    static let cornerRadius: CGFloat = 30
-    static let notchRadius: CGFloat = 22
-    static let contentVerticalPadding: CGFloat = 18
-    static let bubbleWidth: CGFloat = 262
-    static let bubbleGap: CGFloat = 10
+    /// The mockup draws the ring 90px across; this renders it at 52pt.
+    static let scale: CGFloat = 52.0 / 90.0
 
-    /// The notches sit outside the pill body, so the rings have to clear them as well as the
-    /// padding — otherwise the first and last ring spill past the black background.
-    static let railVerticalPadding: CGFloat = notchRadius + contentVerticalPadding
+    private static func mockup(_ pixels: CGFloat) -> CGFloat {
+        (pixels * scale).rounded()
+    }
+
+    // Rail
+    static let railWidth = mockup(143)          // 83
+    static let ringDiameter = mockup(90)        // 52
+    static let ringStroke = mockup(12)          // 7
+    static let ringGlyph = mockup(41)           // 24
+    /// Concave notch and pill corner meet directly: there is no flat top edge on the rail.
+    static let notchRadius = mockup(86)         // 50
+    static let cornerRadius = mockup(56)        // 32
+    static let railVerticalPadding = mockup(125) // 72
+    static let labelSpacing = mockup(21)        // 12
+    static let cellSpacing = mockup(62)         // 36
+
+    // Bubble
+    static let bubbleBodyWidth = mockup(460)    // 266
+    static let bubbleCornerRadius = mockup(36)  // 21
+    static let bubbleTailLength = mockup(51)    // 29
+    static let bubbleTailHalfHeight = mockup(45) // 26
+    static let bubbleGap = mockup(28)           // 16
+    static let bubbleLeadingPadding = mockup(19) // 11
+    static let bubbleTrailingPadding = mockup(28) // 16
+    static let bubbleTopPadding = mockup(24)    // 14
+    static let bubbleBottomPadding = mockup(24) // 14
+    static let bubbleHeaderGlyph = mockup(35)   // 20
+    static let bubbleHeaderGlyphGap = mockup(13) // 8
+    static let bubbleHeaderSpacing = mockup(17) // 10
+    static let bubbleRowSpacing = mockup(17)    // 10
+    static let bubbleTitleToBar = mockup(11)    // 6
+    static let bubbleBarToUsed = mockup(16)     // 9
+    static let bubbleBarHeight = mockup(8)      // 5
+
+    /// Font sizes come from the mockup's measured ink heights divided by SF's cap ratio.
+    static let percentFontSize = mockup(33)     // 19
+    static let bubbleHeaderFontSize = mockup(26) // 15
+    static let bubbleTitleFontSize = mockup(19) // 11
+    static let bubbleUsedFontSize = mockup(18)  // 10
+    static let bubbleResetFontSize = mockup(17) // 10
+
+    static var bubbleFrameWidth: CGFloat { bubbleBodyWidth + bubbleTailLength }
 
     /// Width the panel needs while a bubble is open.
-    static let expandedWidth: CGFloat = railWidth + bubbleGap + bubbleWidth
+    static var expandedWidth: CGFloat { railWidth + bubbleGap + bubbleFrameWidth }
 
     /// Distance from a ring's centre to the centre of its bubble, which sits left of the rail.
-    static let bubbleOffset: CGFloat = -(railWidth / 2 + bubbleGap + bubbleWidth / 2)
+    static var bubbleOffset: CGFloat { -(railWidth / 2 + bubbleGap + bubbleFrameWidth / 2) }
+}
+
+/// Sampled straight out of the mockup rather than derived from opacities. The mockup is a
+/// Display P3 capture, so the samples are declared in P3 too — read as sRGB they would come
+/// back noticeably desaturated on a wide-gamut screen.
+enum UsageRailPalette {
+    private static func sample(_ red: Double, _ green: Double, _ blue: Double) -> Color {
+        Color(.displayP3, red: red / 255, green: green / 255, blue: blue / 255)
+    }
+
+    static let surface = Color.black
+    static let track = sample(48, 48, 48)
+    static let barTrack = sample(45, 45, 45)
+    static let secondaryText = sample(129, 129, 129)
+
+    static let green = sample(117, 250, 145)
+    static let yellow = sample(244, 252, 64)
+    static let orange = sample(234, 84, 30)
+    /// The mockup has no sample above 90%; this continues the ramp past its orange.
+    static let red = sample(250, 60, 45)
 }
 
 extension UsageRailSeverity {
     var railColor: Color {
         switch self {
-        case .unknown:
-            return Color.white.opacity(0.28)
-        case .low:
-            return Color(red: 0.26, green: 0.85, blue: 0.40)
-        case .medium:
-            return Color(red: 0.87, green: 0.89, blue: 0.20)
-        case .high:
-            return Color(red: 0.98, green: 0.36, blue: 0.14)
-        case .critical:
-            return Color(red: 1.00, green: 0.23, blue: 0.19)
+        case .unknown: UsageRailPalette.track
+        case .low: UsageRailPalette.green
+        case .medium: UsageRailPalette.yellow
+        case .high: UsageRailPalette.orange
+        case .critical: UsageRailPalette.red
         }
     }
 }
 
 extension LimitsWidgetProviderID {
-    /// Nil for a provider the tray icon set does not cover, so the glyph can fall back to text.
+    /// Nil for a provider the icon set does not cover, so the glyph can fall back to text.
     var trayProvider: TrayStatusProvider? {
         switch self {
         case .codex: .codex
@@ -56,15 +105,16 @@ extension LimitsWidgetProviderID {
     }
 }
 
-/// Right-edge silhouette: a pill flush against the screen edge whose top and bottom blend
-/// back out to that edge through inverted (concave) corners.
+/// Right-edge silhouette: a pill flush against the screen edge whose top and bottom sweep
+/// back out to that edge. The concave notch runs straight into the pill's rounded corner —
+/// in the mockup the two arcs meet with no flat top edge between them.
 struct UsageRailShape: Shape {
     var cornerRadius: CGFloat = UsageRailMetrics.cornerRadius
     var notchRadius: CGFloat = UsageRailMetrics.notchRadius
 
     func path(in rect: CGRect) -> Path {
         let notch = min(notchRadius, rect.height / 2, rect.width)
-        let corner = min(cornerRadius, rect.width, (rect.height - 2 * notch) / 2)
+        let corner = min(cornerRadius, rect.width - notch, max((rect.height - 2 * notch) / 2, 0))
         let bodyTop = rect.minY + notch
         let bodyBottom = rect.maxY - notch
 
@@ -96,26 +146,37 @@ struct UsageRailShape: Shape {
     }
 }
 
-/// Rounded card with a tail pointing right, at the vertical centre of the card.
+/// Rounded card with a broad, curved tail on its right edge pointing at the ring. The tail
+/// flares out slowly and then rushes to the point, matching the mockup's profile.
 struct UsageRailBubbleShape: Shape {
-    var cornerRadius: CGFloat = 16
-    var tailWidth: CGFloat = 11
-    var tailHeight: CGFloat = 22
+    var cornerRadius: CGFloat = UsageRailMetrics.bubbleCornerRadius
+    var tailLength: CGFloat = UsageRailMetrics.bubbleTailLength
+    var tailHalfHeight: CGFloat = UsageRailMetrics.bubbleTailHalfHeight
 
     func path(in rect: CGRect) -> Path {
-        let body = CGRect(
-            x: rect.minX,
-            y: rect.minY,
-            width: max(rect.width - tailWidth, 0),
-            height: rect.height
-        )
+        let bodyWidth = max(rect.width - tailLength, 0)
+        let body = CGRect(x: rect.minX, y: rect.minY, width: bodyWidth, height: rect.height)
         var path = Path(roundedRect: body, cornerRadius: cornerRadius, style: .continuous)
 
-        var tail = Path()
+        let half = min(tailHalfHeight, max(rect.height / 2 - cornerRadius, 0))
+        guard half > 0, tailLength > 0 else { return path }
+
+        let edge = body.maxX
         let midY = rect.midY
-        tail.move(to: CGPoint(x: body.maxX - cornerRadius, y: midY - tailHeight / 2))
-        tail.addLine(to: CGPoint(x: rect.maxX, y: midY))
-        tail.addLine(to: CGPoint(x: body.maxX - cornerRadius, y: midY + tailHeight / 2))
+        let tip = CGPoint(x: rect.maxX, y: midY)
+
+        var tail = Path()
+        tail.move(to: CGPoint(x: edge, y: midY - half))
+        tail.addCurve(
+            to: tip,
+            control1: CGPoint(x: edge + tailLength * 0.08, y: midY - half * 0.62),
+            control2: CGPoint(x: edge + tailLength * 0.55, y: midY - half * 0.12)
+        )
+        tail.addCurve(
+            to: CGPoint(x: edge, y: midY + half),
+            control1: CGPoint(x: edge + tailLength * 0.55, y: midY + half * 0.12),
+            control2: CGPoint(x: edge + tailLength * 0.08, y: midY + half * 0.62)
+        )
         tail.closeSubpath()
         path.addPath(tail)
         return path
@@ -188,7 +249,7 @@ private struct UsageRailColumn: View {
         }
         .padding(.vertical, UsageRailMetrics.railVerticalPadding)
         .frame(width: UsageRailMetrics.railWidth)
-        .background(UsageRailShape().fill(Color.black.opacity(0.92)))
+        .background(UsageRailShape().fill(UsageRailPalette.surface))
     }
 }
 
@@ -205,20 +266,23 @@ private struct UsageRailCell: View {
                 .overlay(alignment: .center) {
                     if isHovered {
                         UsageRailBubble(item: item)
-                            .frame(width: UsageRailMetrics.bubbleWidth)
+                            .frame(width: UsageRailMetrics.bubbleFrameWidth)
                             .offset(x: UsageRailMetrics.bubbleOffset)
                             .transition(.opacity)
                             .allowsHitTesting(false)
                     }
                 }
 
+            // No `minimumScaleFactor` here: it shrank the percentage well below the mockup's
+            // size, and the widest string this ever shows ("100%") fits the rail already.
             Text(item.metricText)
-                .font(.system(size: 17, weight: .medium))
+                .font(.system(size: UsageRailMetrics.percentFontSize, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(.white)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .fixedSize()
         }
+        .frame(width: UsageRailMetrics.railWidth)
         .contentShape(Rectangle())
         .background(RailPointerTracker(hoverChanged: hoverChanged, clicked: clicked))
         .accessibilityElement(children: .ignore)
@@ -233,22 +297,20 @@ private struct UsageRailRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.white.opacity(0.10))
+                .inset(by: UsageRailMetrics.ringStroke / 2)
+                .stroke(UsageRailPalette.track, lineWidth: UsageRailMetrics.ringStroke)
 
             Circle()
-                .strokeBorder(Color.white.opacity(0.13), lineWidth: UsageRailMetrics.ringLineWidth)
-
-            Circle()
-                .inset(by: UsageRailMetrics.ringLineWidth / 2)
+                .inset(by: UsageRailMetrics.ringStroke / 2)
                 .trim(from: 0, to: item.progressValue)
                 .stroke(
                     item.severity.railColor,
-                    style: StrokeStyle(lineWidth: UsageRailMetrics.ringLineWidth, lineCap: .round)
+                    style: StrokeStyle(lineWidth: UsageRailMetrics.ringStroke, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
 
             UsageRailGlyph(provider: item.id)
-                .frame(width: 22, height: 22)
+                .frame(width: UsageRailMetrics.ringGlyph, height: UsageRailMetrics.ringGlyph)
                 .foregroundStyle(.white)
         }
     }
@@ -259,14 +321,14 @@ struct UsageRailGlyph: View {
 
     var body: some View {
         if let trayProvider = provider.trayProvider,
-           let image = TrayStatusIconAsset.image(for: trayProvider) {
+           let image = TrayStatusIconAsset.railImage(for: trayProvider) {
             Image(nsImage: image)
                 .resizable()
                 .renderingMode(.template)
                 .scaledToFit()
         } else {
             Text(String(provider.appearance.shortTitle.prefix(1)))
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: UsageRailMetrics.ringGlyph * 0.7, weight: .bold))
         }
     }
 }
@@ -275,22 +337,26 @@ private struct UsageRailBubble: View {
     let item: UsageRailItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 7) {
+        VStack(alignment: .leading, spacing: UsageRailMetrics.bubbleRowSpacing) {
+            HStack(spacing: UsageRailMetrics.bubbleHeaderGlyphGap) {
                 UsageRailGlyph(provider: item.id)
-                    .frame(width: 16, height: 16)
+                    .frame(
+                        width: UsageRailMetrics.bubbleHeaderGlyph,
+                        height: UsageRailMetrics.bubbleHeaderGlyph
+                    )
                     .foregroundStyle(.white)
 
                 Text(item.headerText)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: UsageRailMetrics.bubbleHeaderFontSize))
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
+            .padding(.bottom, UsageRailMetrics.bubbleHeaderSpacing - UsageRailMetrics.bubbleRowSpacing)
 
             if item.rows.isEmpty {
                 Text(item.note ?? L10n.tr("rail.no_data"))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .font(.system(size: UsageRailMetrics.bubbleTitleFontSize))
+                    .foregroundStyle(UsageRailPalette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ForEach(item.rows) { row in
@@ -298,12 +364,11 @@ private struct UsageRailBubble: View {
                 }
             }
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 14 + UsageRailBubbleShape().tailWidth)
-        .padding(.vertical, 12)
-        .background(UsageRailBubbleShape().fill(Color.black.opacity(0.92)))
-        .compositingGroup()
-        .shadow(color: .black.opacity(0.32), radius: 12, y: 4)
+        .padding(.leading, UsageRailMetrics.bubbleLeadingPadding)
+        .padding(.trailing, UsageRailMetrics.bubbleTrailingPadding + UsageRailMetrics.bubbleTailLength)
+        .padding(.top, UsageRailMetrics.bubbleTopPadding)
+        .padding(.bottom, UsageRailMetrics.bubbleBottomPadding)
+        .background(UsageRailBubbleShape().fill(UsageRailPalette.surface))
     }
 }
 
@@ -311,10 +376,10 @@ private struct UsageRailBubbleRow: View {
     let row: UsageRailLimitRow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(row.title)
-                    .font(.system(size: 12))
+                    .font(.system(size: UsageRailMetrics.bubbleTitleFontSize))
                     .foregroundStyle(.white)
                     .lineLimit(1)
 
@@ -322,28 +387,35 @@ private struct UsageRailBubbleRow: View {
 
                 if let resetText = row.resetText {
                     Text(resetText)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.60))
+                        .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
+                        .foregroundStyle(UsageRailPalette.secondaryText)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(0.8)
                 }
             }
+            .padding(.bottom, UsageRailMetrics.bubbleTitleToBar)
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.16))
+                        .fill(UsageRailPalette.barTrack)
 
                     Capsule()
                         .fill(row.severity.railColor)
-                        .frame(width: max(proxy.size.width * row.progressValue, row.progressValue > 0 ? 4 : 0))
+                        .frame(
+                            width: max(
+                                proxy.size.width * row.progressValue,
+                                row.progressValue > 0 ? UsageRailMetrics.bubbleBarHeight : 0
+                            )
+                        )
                 }
             }
-            .frame(height: 5)
+            .frame(height: UsageRailMetrics.bubbleBarHeight)
+            .padding(.bottom, UsageRailMetrics.bubbleBarToUsed)
 
             Text(row.usedText)
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.85))
+                .font(.system(size: UsageRailMetrics.bubbleUsedFontSize))
+                .foregroundStyle(.white)
                 .monospacedDigit()
         }
     }
