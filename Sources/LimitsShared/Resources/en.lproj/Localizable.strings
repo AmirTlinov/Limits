@@ -50,6 +50,14 @@
 "settings.tray_legend.description" = "The first number is the nearest remaining limit; the second is accounts with fresh data.";
 "settings.tray_legend.codex.title" = "Codex";
 "settings.tray_legend.claude.title" = "Claude";
+"settings.rail.section" = "Usage rail";
+"settings.rail.title" = "Show the floating usage rail";
+"settings.rail.description" = "Pins usage rings to the right edge of the screen, above other apps. Point at a ring to see its limits.";
+"rail.usage_title" = "%@ Usage";
+"rail.percent_used" = "%d%% Used";
+"rail.no_data" = "No data yet";
+"rail.signed_out" = "Not signed in";
+"rail.unavailable" = "Limits unavailable";
 "busy.connecting_claude_live" = "Connecting Claude live limits…";
 "busy.deleting" = "Deleting %@…";
 "busy.disconnecting_claude_bridge" = "Disconnecting Claude bridge…";

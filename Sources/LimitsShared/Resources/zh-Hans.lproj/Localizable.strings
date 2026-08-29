@@ -50,6 +50,14 @@
 "settings.tray_legend.description" = "第一个数字是最近的剩余额度；第二个数字是数据仍然新鲜的账户数。";
 "settings.tray_legend.codex.title" = "Codex";
 "settings.tray_legend.claude.title" = "Claude";
+"settings.rail.section" = "用量悬浮条";
+"settings.rail.title" = "显示用量悬浮条";
+"settings.rail.description" = "把用量圆环固定在屏幕右侧边缘，浮于其他应用之上。将指针移到圆环上即可查看该额度详情。";
+"rail.usage_title" = "%@ 用量";
+"rail.percent_used" = "已用 %d%%";
+"rail.no_data" = "暂无数据";
+"rail.signed_out" = "未登录";
+"rail.unavailable" = "暂时无法获取额度";
 "busy.connecting_claude_live" = "正在连接 Claude 实时限额…";
 "busy.deleting" = "正在删除 %@…";
 "busy.disconnecting_claude_bridge" = "正在断开 Claude 桥接…";

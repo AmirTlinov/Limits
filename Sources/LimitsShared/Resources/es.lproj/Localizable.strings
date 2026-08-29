@@ -50,6 +50,14 @@
 "settings.tray_legend.description" = "El primer número es el límite restante más próximo; el segundo, las cuentas con datos recientes.";
 "settings.tray_legend.codex.title" = "Codex";
 "settings.tray_legend.claude.title" = "Claude";
+"settings.rail.section" = "Barra de uso";
+"settings.rail.title" = "Mostrar la barra de uso flotante";
+"settings.rail.description" = "Fija los anillos de uso en el borde derecho de la pantalla, por encima de otras apps. Apunta a un anillo para ver sus límites.";
+"rail.usage_title" = "Uso de %@";
+"rail.percent_used" = "%d%% usado";
+"rail.no_data" = "Aún no hay datos";
+"rail.signed_out" = "Sin sesión iniciada";
+"rail.unavailable" = "Límites no disponibles";
 "busy.connecting_claude_live" = "Conectando límites en vivo de Claude…";
 "busy.deleting" = "Eliminando %@…";
 "busy.disconnecting_claude_bridge" = "Desconectando puente de Claude…";

@@ -82,6 +82,7 @@ struct LimitsApp: App {
                 .preferredColorScheme(testColorScheme)
         } label: {
             NativeMenuBarLabel(model: model)
+                .task { UsageRailWindowController.shared.attach(model: model) }
         }
         .menuBarExtraStyle(.window)
 

@@ -50,6 +50,14 @@
 "settings.tray_legend.description" = "Первое число — ближайший оставшийся лимит; второе — аккаунты со свежими данными.";
 "settings.tray_legend.codex.title" = "Codex";
 "settings.tray_legend.claude.title" = "Claude";
+"settings.rail.section" = "Панель расхода";
+"settings.rail.title" = "Показывать плавающую панель расхода";
+"settings.rail.description" = "Закрепляет кольца расхода у правого края экрана поверх других приложений. Наведите указатель на кольцо, чтобы увидеть его лимиты.";
+"rail.usage_title" = "Расход %@";
+"rail.percent_used" = "Использовано %d%%";
+"rail.no_data" = "Пока нет данных";
+"rail.signed_out" = "Вход не выполнен";
+"rail.unavailable" = "Лимиты недоступны";
 "busy.connecting_claude_live" = "Подключаю живые лимиты Claude…";
 "busy.deleting" = "Удаляю %@…";
 "busy.disconnecting_claude_bridge" = "Отключаю мост Claude…";

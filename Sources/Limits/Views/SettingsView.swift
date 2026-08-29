@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var selectedLanguage: String
     @StateObject private var launchAtLogin = LaunchAtLoginController()
     @State private var confirmsStatisticsClear = false
+    @AppStorage(UsageRailPresentation.enabledStorageKey) private var railEnabled = true
 
     init(model: AppModel, languageDidChange: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
         self.model = model
@@ -57,6 +58,14 @@ struct SettingsView: View {
                     Button(L10n.tr("settings.updates.check"), action: checkForUpdates)
                 } header: {
                     Text(L10n.tr("settings.general.title"))
+                }
+
+                Section {
+                    Toggle(L10n.tr("settings.rail.title"), isOn: railBinding)
+                } header: {
+                    Text(L10n.tr("settings.rail.section"))
+                } footer: {
+                    Text(L10n.tr("settings.rail.description"))
                 }
 
                 Section {
@@ -144,6 +153,16 @@ struct SettingsView: View {
                 selectedLanguage = newValue
                 L10n.setLanguageOverride(newValue.isEmpty ? nil : newValue)
                 languageDidChange()
+            }
+        )
+    }
+
+    private var railBinding: Binding<Bool> {
+        Binding(
+            get: { railEnabled },
+            set: { newValue in
+                railEnabled = newValue
+                UsageRailWindowController.shared.setEnabled(newValue)
             }
         )
     }
