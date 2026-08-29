@@ -40,7 +40,6 @@ enum UsageRailMetrics {
     static let bubbleBottomPadding = mockup(24) // 14
     static let bubbleHeaderGlyph = mockup(35)   // 20
     static let bubbleHeaderGlyphGap = mockup(13) // 8
-    static let bubbleHeaderSpacing = mockup(17) // 10
     static let bubbleRowSpacing = mockup(17)    // 10
     static let bubbleTitleToBar = mockup(11)    // 6
     static let bubbleBarToUsed = mockup(16)     // 9
@@ -353,7 +352,6 @@ private struct UsageRailBubble: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
-            .padding(.bottom, UsageRailMetrics.bubbleHeaderSpacing - UsageRailMetrics.bubbleRowSpacing)
 
             if item.groups.isEmpty {
                 Text(item.note ?? L10n.tr("rail.no_data"))
@@ -363,11 +361,20 @@ private struct UsageRailBubble: View {
             } else {
                 ForEach(item.groups) { group in
                     if item.showsAccountTitles {
-                        Text(group.title)
-                            .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
-                            .foregroundStyle(UsageRailPalette.secondaryText)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(group.title)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            // Each account carries its own age, so one being current cannot
+                            // make another look current.
+                            if let updatedText = group.updatedText {
+                                Spacer(minLength: 6)
+                                Text(updatedText).lineLimit(1)
+                            }
+                        }
+                        .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
+                        .foregroundStyle(UsageRailPalette.secondaryText)
                     }
 
                     ForEach(group.rows) { row in
@@ -376,7 +383,8 @@ private struct UsageRailBubble: View {
                 }
             }
 
-            if let updatedText = item.updatedText {
+            // With one account there is no title line to hang the age on.
+            if !item.showsAccountTitles, let updatedText = item.updatedText {
                 Text(updatedText)
                     .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
                     .foregroundStyle(UsageRailPalette.secondaryText)

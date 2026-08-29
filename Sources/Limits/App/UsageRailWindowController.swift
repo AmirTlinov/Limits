@@ -18,6 +18,7 @@ final class UsageRailWindowController {
     private var hovered: LimitsWidgetProviderID?
     private var contentHeight = UsageRailWindowController.initialContentHeight
     private var observers: [NSObjectProtocol] = []
+    private var lastAppliedEnabledState: Bool?
 
     private init() {}
 
@@ -44,8 +45,17 @@ final class UsageRailWindowController {
         applyEnabledState()
     }
 
+    /// UserDefaults posts one notification for every write anywhere in the app, so re-ordering
+    /// the panel on each one would raise it whenever an unrelated preference changed.
+    private func applyEnabledStateIfChanged() {
+        let enabled = isEnabled
+        guard enabled != lastAppliedEnabledState else { return }
+        applyEnabledState()
+    }
+
     func applyEnabledState() {
         guard model != nil else { return }
+        lastAppliedEnabledState = isEnabled
         if isEnabled {
             showPanel()
         } else {
@@ -70,7 +80,7 @@ final class UsageRailWindowController {
                 object: UserDefaults.standard,
                 queue: .main
             ) { _ in
-                Task { @MainActor in UsageRailWindowController.shared.applyEnabledState() }
+                Task { @MainActor in UsageRailWindowController.shared.applyEnabledStateIfChanged() }
             }
         )
     }

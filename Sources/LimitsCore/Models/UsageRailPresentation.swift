@@ -40,11 +40,23 @@ public struct UsageRailAccountGroup: Identifiable, Equatable, Hashable, Sendable
     public let id: String
     public let title: String
     public let rows: [UsageRailLimitRow]
+    /// Freshness is per account: Codex re-probes the account in use far more often than the
+    /// rest, so one account's reading can be current while another's is hours old.
+    public let isStale: Bool
+    public let updatedText: String?
 
-    public init(id: String, title: String, rows: [UsageRailLimitRow]) {
+    public init(
+        id: String,
+        title: String,
+        rows: [UsageRailLimitRow],
+        isStale: Bool = false,
+        updatedText: String? = nil
+    ) {
         self.id = id
         self.title = title
         self.rows = rows
+        self.isStale = isStale
+        self.updatedText = updatedText
     }
 
     public var headline: UsageRailLimitRow? {
@@ -115,7 +127,7 @@ public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
             return "\(headerText). \(note ?? L10n.tr("rail.no_data"))"
         }
         let reset = headline.resetText.map { ". \($0)" } ?? ""
-        let stale = isStale ? ". \(updatedText ?? "")" : ""
+        let stale = updatedText.map { ". \($0)" } ?? ""
         return "\(headerText). \(headline.title) \(headline.usedText)\(reset)\(stale)"
     }
 }
@@ -125,11 +137,21 @@ public struct UsageRailAccountInput: Equatable, Sendable {
     public let id: String
     public let title: String
     public let sections: [RateLimitDisplaySection]
+    public let observedAt: Date?
+    public let isStale: Bool
 
-    public init(id: String, title: String, sections: [RateLimitDisplaySection]) {
+    public init(
+        id: String,
+        title: String,
+        sections: [RateLimitDisplaySection],
+        observedAt: Date? = nil,
+        isStale: Bool = false
+    ) {
         self.id = id
         self.title = title
         self.sections = sections
+        self.observedAt = observedAt
+        self.isStale = isStale
     }
 }
 
@@ -138,23 +160,17 @@ public struct UsageRailProviderInput: Equatable, Sendable {
     public let accounts: [UsageRailAccountInput]
     public let status: LimitsWidgetProviderStatus
     public let note: String?
-    public let observedAt: Date?
-    public let isStale: Bool
 
     public init(
         id: LimitsWidgetProviderID,
         accounts: [UsageRailAccountInput],
         status: LimitsWidgetProviderStatus,
-        note: String? = nil,
-        observedAt: Date? = nil,
-        isStale: Bool = false
+        note: String? = nil
     ) {
         self.id = id
         self.accounts = accounts
         self.status = status
         self.note = note
-        self.observedAt = observedAt
-        self.isStale = isStale
     }
 }
 
@@ -185,16 +201,25 @@ public enum UsageRailPresentation {
         let groups = input.accounts.compactMap { account -> UsageRailAccountGroup? in
             let rows = rows(for: input.id, sections: account.sections)
             guard !rows.isEmpty else { return nil }
-            return UsageRailAccountGroup(id: account.id, title: account.title, rows: rows)
+            return UsageRailAccountGroup(
+                id: account.id,
+                title: account.title,
+                rows: rows,
+                isStale: account.isStale,
+                updatedText: account.isStale
+                    ? updatedText(observedAt: account.observedAt, now: now)
+                    : nil
+            )
         }
 
-        let isStale = input.isStale && !groups.isEmpty
+        // The ring shows the leading account, so it reports that account's freshness.
+        let leading = groups.first
         return UsageRailItem(
             id: input.id,
             title: input.id.appearance.shortTitle,
             groups: groups,
-            isStale: isStale,
-            updatedText: isStale ? updatedText(observedAt: input.observedAt, now: now) : nil,
+            isStale: leading?.isStale ?? false,
+            updatedText: leading?.updatedText,
             note: groups.isEmpty ? (input.note ?? statusNote(for: input.status)) : nil
         )
     }

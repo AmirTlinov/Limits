@@ -184,13 +184,15 @@ private extension UsageRailItem {
         let input = UsageRailProviderInput(
             id: .codex,
             accounts: [
-                UsageRailAccountInput(id: "a", title: "acct", sections: [
-                    codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])
-                ])
+                UsageRailAccountInput(
+                    id: "a",
+                    title: "acct",
+                    sections: [codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])],
+                    observedAt: observedAt,
+                    isStale: true
+                )
             ],
-            status: .available,
-            observedAt: observedAt,
-            isStale: true
+            status: .available
         )
 
         let item = UsageRailPresentation.item(from: input, now: now)
@@ -210,10 +212,9 @@ private extension UsageRailItem {
             UsageRailPresentation.item(
                 from: UsageRailProviderInput(
                     id: .claude,
-                    accounts: [UsageRailAccountInput(id: "a", title: "acct", sections: [])],
+                    accounts: [UsageRailAccountInput(id: "a", title: "acct", sections: [], isStale: true)],
                     status: status,
-                    note: note,
-                    isStale: true
+                    note: note
                 ),
                 now: now
             )
@@ -269,12 +270,14 @@ private extension UsageRailItem {
             UsageRailPresentation.item(
                 from: UsageRailProviderInput(
                     id: .codex,
-                    accounts: [UsageRailAccountInput(id: "a", title: "acct", sections: [
-                        codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])
-                    ])],
-                    status: .available,
-                    observedAt: observedAt,
-                    isStale: true
+                    accounts: [UsageRailAccountInput(
+                        id: "a",
+                        title: "acct",
+                        sections: [codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])],
+                        observedAt: observedAt,
+                        isStale: true
+                    )],
+                    status: .available
                 ),
                 now: now
             )
@@ -365,4 +368,50 @@ private extension UsageRailItem {
         now: now
     )
     #expect(expired.isEmpty)
+}
+
+@Test func eachCodexAccountReportsItsOwnAge() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    try L10n.withLanguage("en") {
+        let item = UsageRailPresentation.item(
+            from: UsageRailProviderInput(
+                id: .codex,
+                accounts: [
+                    UsageRailAccountInput(
+                        id: "current",
+                        title: "current@example.com",
+                        sections: [codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 97)])],
+                        observedAt: now.addingTimeInterval(-30),
+                        isStale: false
+                    ),
+                    UsageRailAccountInput(
+                        id: "other",
+                        title: "other@example.com",
+                        sections: [codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 57)])],
+                        observedAt: now.addingTimeInterval(-2 * 60 * 60),
+                        isStale: true
+                    ),
+                ],
+                status: .available
+            ),
+            now: now
+        )
+
+        let current = try #require(item.groups.first)
+        #expect(current.isStale == false)
+        #expect(current.updatedText == nil)
+
+        // The account that has not been re-probed says so, instead of borrowing the
+        // active account's freshness.
+        let other = try #require(item.groups.last)
+        #expect(other.isStale)
+        let age = try #require(other.updatedText)
+        #expect(age.contains("2h"))
+
+        // The ring tracks the leading account, so it is not dimmed by the stale sibling.
+        #expect(item.isStale == false)
+        #expect(item.updatedText == nil)
+        #expect(item.usedPercent == 97)
+    }
 }

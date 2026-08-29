@@ -911,10 +911,13 @@ final class AppModel: ObservableObject {
         }
 
         var inputs = ordered.map { account in
-            UsageRailAccountInput(
+            let observedAt = codexLimitsObservedAt(for: account)
+            return UsageRailAccountInput(
                 id: account.id.uuidString,
                 title: account.label,
-                sections: railSections(for: account, now: now)
+                sections: railSections(for: account, now: now),
+                observedAt: observedAt,
+                isStale: !LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now)
             )
         }
 
@@ -927,23 +930,34 @@ final class AppModel: ObservableObject {
                 UsageRailAccountInput(
                     id: "codex.current",
                     title: overview.title,
-                    sections: currentSections
+                    sections: currentSections,
+                    observedAt: currentCLILimitsObservedAt(),
+                    isStale: !LimitsFreshnessPolicy.isFresh(
+                        observedAt: currentCLILimitsObservedAt(),
+                        at: now
+                    )
                 ),
                 at: 0
             )
         }
 
-        let observedAt = currentCLILimitsObservedAt()
         return UsageRailProviderInput(
             id: .codex,
             accounts: inputs,
             status: widgetCodexStatus(
                 limits: WidgetPresentationPolicy.limitSnapshots(from: currentSections, now: now)
             ),
-            note: overview.note ?? currentCLIProbeError,
-            observedAt: observedAt,
-            isStale: !LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now)
+            note: overview.note ?? currentCLIProbeError
         )
+    }
+
+    /// The account in use reports through the live probe; the rest carry the timestamp of the
+    /// last snapshot persisted for them.
+    private func codexLimitsObservedAt(for account: StoredAccount) -> Date? {
+        if isCurrentCLIAccount(account), let live = currentCLILimitsObservedAt() {
+            return live
+        }
+        return storedLimits(for: account)?.limitsObservedAt
     }
 
     /// Like `rateLimitSections(for:)` but keeps the last known numbers for accounts whose
@@ -973,15 +987,15 @@ final class AppModel: ObservableObject {
                 UsageRailAccountInput(
                     id: "claude.current",
                     title: overview.title,
-                    sections: sections
+                    sections: sections,
+                    observedAt: observedAt,
+                    isStale: fresh.isEmpty && !sections.isEmpty
                 )
             ],
             status: widgetClaudeStatus(
                 limits: WidgetPresentationPolicy.limitSnapshots(from: fresh, now: now)
             ),
-            note: overview.note ?? currentClaudeBridgeError ?? currentClaudeError,
-            observedAt: observedAt,
-            isStale: fresh.isEmpty && !sections.isEmpty
+            note: overview.note ?? currentClaudeBridgeError ?? currentClaudeError
         )
     }
 
