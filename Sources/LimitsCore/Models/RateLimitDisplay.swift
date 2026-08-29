@@ -7,19 +7,31 @@ public struct RateLimitDisplayRow: Identifiable, Hashable, Sendable {
     public let usedPercent: Int
     public let resetText: String?
     public let resetDate: Date?
+    /// Length of the limit window, so surfaces can pick a window without matching localized titles.
+    public let windowMinutes: Int64?
 
     public init(
         id: String,
         title: String,
         usedPercent: Int,
         resetText: String?,
-        resetDate: Date? = nil
+        resetDate: Date? = nil,
+        windowMinutes: Int64? = nil
     ) {
         self.id = id
         self.title = title
         self.usedPercent = usedPercent
         self.resetText = resetText
         self.resetDate = resetDate
+        self.windowMinutes = windowMinutes
+    }
+
+    public var isSessionWindow: Bool {
+        windowMinutes == 300
+    }
+
+    public var isWeeklyWindow: Bool {
+        windowMinutes == 10_080
     }
 
     public var remainingPercent: Int {
@@ -199,7 +211,8 @@ public enum RateLimitDisplayBuilder {
             title: rowTitle(minutes: window.windowDurationMins, fallback: L10n.tr("limit.generic")),
             usedPercent: window.usedPercent,
             resetText: resetDate.map { RateLimitResetFormatter.expandedText(for: $0) },
-            resetDate: resetDate
+            resetDate: resetDate,
+            windowMinutes: window.windowDurationMins
         )
     }
 

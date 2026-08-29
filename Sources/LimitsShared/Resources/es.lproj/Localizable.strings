@@ -140,6 +140,10 @@
 "limit.percent_remaining" = "Queda %d%%";
 "limit.used_five_hours" = "%d%% usado en 5 horas";
 "limit.weekly" = "Límite semanal";
+"limit.claude.session" = "Sesión actual";
+"limit.claude.all_models" = "Todos los modelos";
+"limit.claude.top_model" = "Fable";
+"rail.updated_ago" = "Actualizado hace %@";
 "limit.window" = "Ventana";
 "limits.empty.account.subtitle" = "Limits comprueba esta cuenta automáticamente. Los datos actuales aparecerán aquí cuando estén disponibles.";
 "limits.empty.subtitle" = "Limits comprueba automáticamente la autorización y los límites. Los datos actuales aparecerán aquí cuando estén disponibles.";

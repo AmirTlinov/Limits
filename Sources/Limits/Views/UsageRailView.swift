@@ -193,7 +193,7 @@ struct UsageRailRootView: View {
 
     private var items: [UsageRailItem] {
         UsageRailPresentation.items(
-            from: model.makeWidgetSnapshot(now: model.presentationNow),
+            from: model.usageRailInputs(now: model.presentationNow),
             now: model.presentationNow
         )
     }
@@ -278,7 +278,7 @@ private struct UsageRailCell: View {
             Text(item.metricText)
                 .font(.system(size: UsageRailMetrics.percentFontSize, weight: .medium))
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(item.isStale ? Color.white.opacity(0.55) : .white)
                 .lineLimit(1)
                 .fixedSize()
         }
@@ -308,6 +308,8 @@ private struct UsageRailRing: View {
                     style: StrokeStyle(lineWidth: UsageRailMetrics.ringStroke, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                // Last known numbers stay visible but read as dimmer than a current reading.
+                .opacity(item.isStale ? 0.55 : 1)
 
             UsageRailGlyph(provider: item.id)
                 .frame(width: UsageRailMetrics.ringGlyph, height: UsageRailMetrics.ringGlyph)
@@ -353,15 +355,32 @@ private struct UsageRailBubble: View {
             }
             .padding(.bottom, UsageRailMetrics.bubbleHeaderSpacing - UsageRailMetrics.bubbleRowSpacing)
 
-            if item.rows.isEmpty {
+            if item.groups.isEmpty {
                 Text(item.note ?? L10n.tr("rail.no_data"))
                     .font(.system(size: UsageRailMetrics.bubbleTitleFontSize))
                     .foregroundStyle(UsageRailPalette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(item.rows) { row in
-                    UsageRailBubbleRow(row: row)
+                ForEach(item.groups) { group in
+                    if item.showsAccountTitles {
+                        Text(group.title)
+                            .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
+                            .foregroundStyle(UsageRailPalette.secondaryText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    ForEach(group.rows) { row in
+                        UsageRailBubbleRow(row: row)
+                    }
                 }
+            }
+
+            if let updatedText = item.updatedText {
+                Text(updatedText)
+                    .font(.system(size: UsageRailMetrics.bubbleResetFontSize))
+                    .foregroundStyle(UsageRailPalette.secondaryText)
+                    .lineLimit(1)
             }
         }
         .padding(.leading, UsageRailMetrics.bubbleLeadingPadding)

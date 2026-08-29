@@ -140,6 +140,10 @@
 "limit.percent_remaining" = "剩余 %d%%";
 "limit.used_five_hours" = "5小时内已用 %d%%";
 "limit.weekly" = "每周限额";
+"limit.claude.session" = "当前会话";
+"limit.claude.all_models" = "所有模型";
+"limit.claude.top_model" = "Fable";
+"rail.updated_ago" = "%@前更新";
 "limit.window" = "窗口";
 "limits.empty.account.subtitle" = "Limits 会自动检查此账户。当前数据可用后会显示在这里。";
 "limits.empty.subtitle" = "Limits 会自动检查授权和限额。当前数据可用后会显示在这里。";

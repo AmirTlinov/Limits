@@ -35,28 +35,52 @@ public struct UsageRailLimitRow: Identifiable, Equatable, Hashable, Sendable {
     }
 }
 
+/// One signed-in account. Codex can hold several; Claude tracks a single live session.
+public struct UsageRailAccountGroup: Identifiable, Equatable, Hashable, Sendable {
+    public let id: String
+    public let title: String
+    public let rows: [UsageRailLimitRow]
+
+    public init(id: String, title: String, rows: [UsageRailLimitRow]) {
+        self.id = id
+        self.title = title
+        self.rows = rows
+    }
+
+    public var headline: UsageRailLimitRow? {
+        rows.first
+    }
+}
+
 public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
     public let id: LimitsWidgetProviderID
     public let title: String
-    public let accountTitle: String
-    public let usedPercent: Int?
-    public let rows: [UsageRailLimitRow]
+    public let groups: [UsageRailAccountGroup]
+    /// True when the numbers are the last known ones rather than a current reading.
+    public let isStale: Bool
+    public let updatedText: String?
     public let note: String?
 
     public init(
         id: LimitsWidgetProviderID,
         title: String,
-        accountTitle: String,
-        usedPercent: Int?,
-        rows: [UsageRailLimitRow],
+        groups: [UsageRailAccountGroup],
+        isStale: Bool,
+        updatedText: String?,
         note: String?
     ) {
         self.id = id
         self.title = title
-        self.accountTitle = accountTitle
-        self.usedPercent = usedPercent
-        self.rows = rows
+        self.groups = groups
+        self.isStale = isStale
+        self.updatedText = updatedText
         self.note = note
+    }
+
+    /// The ring reports the first account's leading row: for Codex the weekly allowance that
+    /// binds first, for Claude the current session.
+    public var usedPercent: Int? {
+        groups.first?.headline?.usedPercent
     }
 
     public var hasData: Bool {
@@ -81,12 +105,56 @@ public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
         L10n.tr("rail.usage_title", title)
     }
 
+    /// Account names only earn their line when there is more than one to tell apart.
+    public var showsAccountTitles: Bool {
+        groups.count > 1
+    }
+
     public var accessibilityLabel: String {
-        guard let headline = rows.first else {
+        guard let headline = groups.first?.headline else {
             return "\(headerText). \(note ?? L10n.tr("rail.no_data"))"
         }
         let reset = headline.resetText.map { ". \($0)" } ?? ""
-        return "\(headerText). \(headline.title) \(headline.usedText)\(reset)"
+        let stale = isStale ? ". \(updatedText ?? "")" : ""
+        return "\(headerText). \(headline.title) \(headline.usedText)\(reset)\(stale)"
+    }
+}
+
+/// What a surface hands in for one account before the rail decides which rows to show.
+public struct UsageRailAccountInput: Equatable, Sendable {
+    public let id: String
+    public let title: String
+    public let sections: [RateLimitDisplaySection]
+
+    public init(id: String, title: String, sections: [RateLimitDisplaySection]) {
+        self.id = id
+        self.title = title
+        self.sections = sections
+    }
+}
+
+public struct UsageRailProviderInput: Equatable, Sendable {
+    public let id: LimitsWidgetProviderID
+    public let accounts: [UsageRailAccountInput]
+    public let status: LimitsWidgetProviderStatus
+    public let note: String?
+    public let observedAt: Date?
+    public let isStale: Bool
+
+    public init(
+        id: LimitsWidgetProviderID,
+        accounts: [UsageRailAccountInput],
+        status: LimitsWidgetProviderStatus,
+        note: String? = nil,
+        observedAt: Date? = nil,
+        isStale: Bool = false
+    ) {
+        self.id = id
+        self.accounts = accounts
+        self.status = status
+        self.note = note
+        self.observedAt = observedAt
+        self.isStale = isStale
     }
 }
 
@@ -109,37 +177,80 @@ public enum UsageRailPresentation {
         }
     }
 
-    public static func items(from snapshot: LimitsWidgetSnapshot, now: Date) -> [UsageRailItem] {
-        snapshot.providers.map { item(from: $0, now: now) }
+    public static func items(from inputs: [UsageRailProviderInput], now: Date) -> [UsageRailItem] {
+        inputs.map { item(from: $0, now: now) }
     }
 
-    public static func item(from provider: LimitsWidgetProviderSnapshot, now: Date) -> UsageRailItem {
-        let rows = rows(from: provider, now: now)
+    public static func item(from input: UsageRailProviderInput, now: Date) -> UsageRailItem {
+        let groups = input.accounts.compactMap { account -> UsageRailAccountGroup? in
+            let rows = rows(for: input.id, sections: account.sections)
+            guard !rows.isEmpty else { return nil }
+            return UsageRailAccountGroup(id: account.id, title: account.title, rows: rows)
+        }
+
+        let isStale = input.isStale && !groups.isEmpty
         return UsageRailItem(
-            id: provider.id,
-            title: provider.id.appearance.shortTitle,
-            accountTitle: provider.title,
-            usedPercent: headlineRow(in: rows)?.usedPercent,
-            rows: rows,
-            note: rows.isEmpty ? (provider.note ?? statusNote(for: provider.status)) : nil
+            id: input.id,
+            title: input.id.appearance.shortTitle,
+            groups: groups,
+            isStale: isStale,
+            updatedText: isStale ? updatedText(observedAt: input.observedAt, now: now) : nil,
+            note: groups.isEmpty ? (input.note ?? statusNote(for: input.status)) : nil
         )
     }
 
-    /// The ring mirrors the tray: the session window when it is known, otherwise the first fresh limit.
-    public static func headlineRow(in rows: [UsageRailLimitRow]) -> UsageRailLimitRow? {
-        rows.first { $0.title == L10n.tr("limit.five_hour") } ?? rows.first
+    /// Codex publishes several overlapping allowances; only the weekly one is worth a line, and
+    /// when more than one weekly exists the binding constraint is the one furthest consumed.
+    /// Claude gets its three windows in the order its own settings screen lists them.
+    static func rows(
+        for provider: LimitsWidgetProviderID,
+        sections: [RateLimitDisplaySection]
+    ) -> [UsageRailLimitRow] {
+        let allRows = sections.flatMap(\.rows)
+
+        switch provider {
+        case .codex:
+            guard let weekly = allRows.filter(\.isWeeklyWindow).max(by: { $0.usedPercent < $1.usedPercent }) else {
+                return []
+            }
+            return [row(from: weekly)]
+        case .claude:
+            let order = [
+                ClaudeLivePresentation.sessionRowID,
+                ClaudeLivePresentation.allModelsRowID,
+                ClaudeLivePresentation.topModelRowID,
+            ]
+            let ranked = allRows.sorted { lhs, rhs in
+                let left = order.firstIndex(of: lhs.id) ?? order.count
+                let right = order.firstIndex(of: rhs.id) ?? order.count
+                return left < right
+            }
+            return ranked.map(row(from:))
+        @unknown default:
+            return allRows.map(row(from:))
+        }
     }
 
-    private static func rows(from provider: LimitsWidgetProviderSnapshot, now: Date) -> [UsageRailLimitRow] {
-        provider.limitsForCompactSurface(at: now).compactMap { limit in
-            guard let remainingPercent = limit.remainingPercent else { return nil }
-            return UsageRailLimitRow(
-                id: limit.id,
-                title: limit.title,
-                usedPercent: min(max(100 - remainingPercent, 0), 100),
-                resetText: limit.resetDate.map { RateLimitResetFormatter.expandedText(for: $0, now: now) }
-            )
+    private static func row(from source: RateLimitDisplayRow) -> UsageRailLimitRow {
+        UsageRailLimitRow(
+            id: source.id,
+            title: source.title,
+            usedPercent: min(max(source.usedPercent, 0), 100),
+            resetText: source.resetText
+        )
+    }
+
+    private static func updatedText(observedAt: Date?, now: Date) -> String? {
+        guard let observedAt, observedAt <= now else { return nil }
+        let elapsed = now.timeIntervalSince(observedAt)
+        guard elapsed >= 60 else { return nil }
+        guard let duration = L10n.countdown(
+            until: Int64(now.addingTimeInterval(elapsed).timeIntervalSince1970),
+            now: now
+        ) else {
+            return nil
         }
+        return L10n.tr("rail.updated_ago", duration)
     }
 
     private static func statusNote(for status: LimitsWidgetProviderStatus) -> String {

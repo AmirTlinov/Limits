@@ -891,6 +891,100 @@ final class AppModel: ObservableObject {
         )
     }
 
+    /// The rail needs more than the widget snapshot carries: every Codex account rather than
+    /// just the active one, and Claude's last known numbers when its bridge snapshot has aged out.
+    func usageRailInputs(now: Date = .now) -> [UsageRailProviderInput] {
+        let byID: [ProviderKind: UsageRailProviderInput] = [
+            .codex: codexRailInput(now: now),
+            .claude: claudeRailInput(now: now),
+        ]
+        return providerCatalog.providers.compactMap { byID[$0] }
+    }
+
+    private func codexRailInput(now: Date) -> UsageRailProviderInput {
+        let currentAccount = currentCLIReferenceAccount()
+        let ordered = accounts.sorted { lhs, rhs in
+            if isCurrentCLIAccount(lhs) != isCurrentCLIAccount(rhs) {
+                return isCurrentCLIAccount(lhs)
+            }
+            return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+        }
+
+        var inputs = ordered.map { account in
+            UsageRailAccountInput(
+                id: account.id.uuidString,
+                title: account.label,
+                sections: railSections(for: account, now: now)
+            )
+        }
+
+        let overview = currentCLIOverview()
+        let currentSections = currentCLIDisplayRateLimitSections(now: now)
+
+        // An externally authorized session has no stored record, so surface it on its own.
+        if currentAccount == nil {
+            inputs.insert(
+                UsageRailAccountInput(
+                    id: "codex.current",
+                    title: overview.title,
+                    sections: currentSections
+                ),
+                at: 0
+            )
+        }
+
+        let observedAt = currentCLILimitsObservedAt()
+        return UsageRailProviderInput(
+            id: .codex,
+            accounts: inputs,
+            status: widgetCodexStatus(
+                limits: WidgetPresentationPolicy.limitSnapshots(from: currentSections, now: now)
+            ),
+            note: overview.note ?? currentCLIProbeError,
+            observedAt: observedAt,
+            isStale: !LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now)
+        )
+    }
+
+    /// Like `rateLimitSections(for:)` but keeps the last known numbers for accounts whose
+    /// snapshot has aged out, so every signed-in account still gets a line on the rail.
+    private func railSections(for account: StoredAccount, now: Date) -> [RateLimitDisplaySection] {
+        let fresh = rateLimitSections(for: account, now: now)
+        guard fresh.isEmpty else { return fresh }
+        let snapshot = storedLimits(for: account)
+        return CodexAccountsPresentationPolicy.lastKnownRateLimitSections(
+            primary: snapshot?.primary,
+            byLimitId: snapshot?.byLimitID,
+            now: now
+        )
+    }
+
+    private func claudeRailInput(now: Date) -> UsageRailProviderInput {
+        let overview = currentClaudeOverview()
+        let fresh = currentClaudeLiveRateLimitSections(now: now)
+        let sections = fresh.isEmpty
+            ? ClaudeLivePresentation.lastKnownRateLimitSections(evidence: currentClaudeLiveEvidence)
+            : fresh
+        let observedAt = currentClaudeLiveEvidence?.snapshotAt
+
+        return UsageRailProviderInput(
+            id: .claude,
+            accounts: [
+                UsageRailAccountInput(
+                    id: "claude.current",
+                    title: overview.title,
+                    sections: sections
+                )
+            ],
+            status: widgetClaudeStatus(
+                limits: WidgetPresentationPolicy.limitSnapshots(from: fresh, now: now)
+            ),
+            note: overview.note ?? currentClaudeBridgeError ?? currentClaudeError,
+            observedAt: observedAt,
+            isStale: fresh.isEmpty && !sections.isEmpty
+        )
+    }
+
     func makeWidgetSnapshot(now: Date = .now) -> LimitsWidgetSnapshot {
         let codexOverview = currentCLIOverview()
         let codexLimits = WidgetPresentationPolicy.limitSnapshots(from: currentCLIDisplayRateLimitSections(now: now), now: now)

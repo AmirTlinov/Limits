@@ -19,15 +19,20 @@ public struct ClaudeStatuslineBridgeSnapshot: Decodable, Hashable, Sendable {
 
     public let fiveHour: Window?
     public let sevenDay: Window?
+    /// Claude Code still names the top-model weekly window `seven_day_opus`; its own settings
+    /// screen labels that same allowance after the current top model.
+    public let sevenDayTopModel: Window?
 
     private enum CodingKeys: String, CodingKey {
         case fiveHour = "five_hour"
         case sevenDay = "seven_day"
+        case sevenDayTopModel = "seven_day_opus"
     }
 
-    public init(fiveHour: Window?, sevenDay: Window?) {
+    public init(fiveHour: Window?, sevenDay: Window?, sevenDayTopModel: Window? = nil) {
         self.fiveHour = fiveHour
         self.sevenDay = sevenDay
+        self.sevenDayTopModel = sevenDayTopModel
     }
 }
 
@@ -149,6 +154,10 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
         }
     }
 
+    /// Bumped whenever the emitted script changes, so an already-installed bridge is upgraded
+    /// instead of silently continuing to write the older snapshot shape.
+    static let scriptVersionMarker = "limits-statusline-bridge v2"
+
     public var scriptURL: URL {
         appSupportDirectory.appending(path: "claude-statusline-bridge.sh")
     }
@@ -177,6 +186,22 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
             hasSnapshot: hasSnapshot,
             preservingOriginalStatusLine: preservingOriginal
         )
+    }
+
+    /// Rewrites the installed script when it predates the current snapshot shape. The bridge is
+    /// wired into Claude's settings once, so without this an existing install would keep running
+    /// the old script and never report the newer windows.
+    @discardableResult
+    public func upgradeBridgeScriptIfNeeded() throws -> Bool {
+        guard try bridgeStatus().installed, !bridgeScriptIsCurrent() else { return false }
+        try ensureDirectories()
+        try writeBridgeScript()
+        return true
+    }
+
+    func bridgeScriptIsCurrent() -> Bool {
+        guard let script = try? String(contentsOf: scriptURL, encoding: .utf8) else { return false }
+        return script.contains(Self.scriptVersionMarker)
     }
 
     public func installBridge() throws {
@@ -307,6 +332,7 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
     private func writeBridgeScript() throws {
         let content = """
         #!/bin/zsh
+        # \(Self.scriptVersionMarker)
         set -euo pipefail
         umask 077
 
@@ -315,9 +341,10 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
 
         five_path="${SNAPSHOT_PATH}.five.$$"
         seven_path="${SNAPSHOT_PATH}.seven.$$"
+        top_path="${SNAPSHOT_PATH}.top.$$"
         plist_path="${SNAPSHOT_PATH}.plist.$$"
         tmp_path="${SNAPSHOT_PATH}.tmp.$$"
-        trap 'rm -f -- "$five_path" "$seven_path" "$plist_path" "$tmp_path"' EXIT
+        trap 'rm -f -- "$five_path" "$seven_path" "$top_path" "$plist_path" "$tmp_path"' EXIT
 
         input_json="$(cat)"
 
@@ -328,6 +355,9 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
         fi
         if printf '%s' "$input_json" | /usr/bin/plutil -extract rate_limits.seven_day json -o "$seven_path" - 2>/dev/null; then
           /usr/bin/plutil -insert seven_day -json "$(cat "$seven_path")" "$plist_path"
+        fi
+        if printf '%s' "$input_json" | /usr/bin/plutil -extract rate_limits.seven_day_opus json -o "$top_path" - 2>/dev/null; then
+          /usr/bin/plutil -insert seven_day_opus -json "$(cat "$top_path")" "$plist_path"
         fi
         /usr/bin/plutil -convert json -o "$tmp_path" "$plist_path"
         mv "$tmp_path" "$SNAPSHOT_PATH"

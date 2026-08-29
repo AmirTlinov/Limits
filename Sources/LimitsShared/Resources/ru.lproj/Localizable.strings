@@ -140,6 +140,10 @@
 "limit.percent_remaining" = "%d%% осталось";
 "limit.used_five_hours" = "За 5 часов использовано %d%%";
 "limit.weekly" = "Недельный лимит";
+"limit.claude.session" = "Текущая сессия";
+"limit.claude.all_models" = "Все модели";
+"limit.claude.top_model" = "Fable";
+"rail.updated_ago" = "Обновлено %@ назад";
 "limit.window" = "Окно";
 "limits.empty.account.subtitle" = "Limits проверяет этот аккаунт автоматически. Актуальные данные появятся здесь после проверки.";
 "limits.empty.subtitle" = "Limits проверяет авторизацию и лимиты автоматически. Актуальные данные появятся здесь после проверки.";

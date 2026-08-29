@@ -71,6 +71,17 @@ public enum CodexAccountsPresentationPolicy {
         now: Date = .now
     ) -> [RateLimitDisplaySection] {
         guard LimitsFreshnessPolicy.isFresh(observedAt: observedAt, at: now) else { return [] }
+        return lastKnownRateLimitSections(primary: primary, byLimitId: byLimitId, now: now)
+    }
+
+    /// Accounts other than the active one are only re-probed occasionally, so their snapshots
+    /// spend most of their life outside the freshness window. Surfaces that list every account
+    /// use this and label the reading stale rather than showing the account as empty.
+    public static func lastKnownRateLimitSections(
+        primary: RateLimitSnapshotModel?,
+        byLimitId: [String: RateLimitSnapshotModel]?,
+        now: Date = .now
+    ) -> [RateLimitDisplaySection] {
         let hasExactSnapshots = byLimitId?.isEmpty == false
         return RateLimitDisplayBuilder.makeSections(
             primary: hasExactSnapshots ? nil : primary,

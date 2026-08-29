@@ -3,24 +3,32 @@ import Testing
 @testable import LimitsCore
 import LimitsShared
 
-private func makeProvider(
-    id: LimitsWidgetProviderID = .claude,
-    title: String = "claude@example.com",
-    status: LimitsWidgetProviderStatus = .available,
-    limits: [LimitsWidgetLimitSnapshot],
-    observedAt: Date?,
-    freshUntil: Date?,
-    note: String? = nil
-) -> LimitsWidgetProviderSnapshot {
-    LimitsWidgetProviderSnapshot(
+private func codexSection(
+    id: String,
+    rows: [RateLimitDisplayRow]
+) -> RateLimitDisplaySection {
+    RateLimitDisplaySection(id: id, title: "Codex", rows: rows)
+}
+
+private func weeklyRow(id: String, usedPercent: Int, resetText: String? = "Resets Wednesday") -> RateLimitDisplayRow {
+    RateLimitDisplayRow(
         id: id,
-        title: title,
-        subtitle: nil,
-        status: status,
-        limits: limits,
-        observedAt: observedAt,
-        freshUntil: freshUntil,
-        note: note
+        title: "Weekly limit",
+        usedPercent: usedPercent,
+        resetText: resetText,
+        resetDate: nil,
+        windowMinutes: 10_080
+    )
+}
+
+private func sessionRow(id: String, usedPercent: Int) -> RateLimitDisplayRow {
+    RateLimitDisplayRow(
+        id: id,
+        title: "5h limit",
+        usedPercent: usedPercent,
+        resetText: "Resets soon",
+        resetDate: nil,
+        windowMinutes: 300
     )
 }
 
@@ -36,151 +44,194 @@ private func makeProvider(
     #expect(UsageRailPresentation.severity(usedPercent: 100) == .critical)
 }
 
-@Test func railItemConvertsRemainingIntoUsedAndPicksSessionHeadline() throws {
+@Test func codexRailKeepsOnlyTheWeeklyAllowanceThatBindsFirst() throws {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let sessionReset = now.addingTimeInterval(51 * 60)
-    let weeklyReset = now.addingTimeInterval(3 * 86_400)
+    let input = UsageRailProviderInput(
+        id: .codex,
+        accounts: [
+            UsageRailAccountInput(
+                id: "account-a",
+                title: "first@example.com",
+                sections: [
+                    codexSection(id: "limit:codex", rows: [
+                        weeklyRow(id: "codex.primary", usedPercent: 97),
+                    ]),
+                    codexSection(id: "limit:codex_bengalfox", rows: [
+                        sessionRow(id: "codex_bengalfox.primary", usedPercent: 0),
+                        weeklyRow(id: "codex_bengalfox.secondary", usedPercent: 4),
+                    ]),
+                ]
+            ),
+            UsageRailAccountInput(
+                id: "account-b",
+                title: "second@example.com",
+                sections: [codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 12)])]
+            ),
+        ],
+        status: .available
+    )
+
+    let item = UsageRailPresentation.item(from: input, now: now)
+
+    #expect(item.groups.count == 2)
+    #expect(item.showsAccountTitles)
+
+    let first = try #require(item.groups.first)
+    #expect(first.title == "first@example.com")
+    // The session window is dropped and only the most-consumed weekly survives.
+    #expect(first.rows.count == 1)
+    #expect(first.rows.first?.usedPercent == 97)
+
+    let second = try #require(item.groups.last)
+    #expect(second.rows.map(\.usedPercent) == [12])
+
+    // The ring reports the first (current) account.
+    #expect(item.usedPercent == 97)
+    #expect(item.severity == .critical)
+    #expect(item.metricText == "97%")
+    #expect(item.isStale == false)
+}
+
+@Test func codexRailDropsAccountsWithoutAWeeklyAllowance() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let input = UsageRailProviderInput(
+        id: .codex,
+        accounts: [
+            UsageRailAccountInput(id: "a", title: "only-session", sections: [
+                codexSection(id: "limit:codex", rows: [sessionRow(id: "codex.primary", usedPercent: 30)])
+            ]),
+            UsageRailAccountInput(id: "b", title: "has-weekly", sections: [
+                codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 55)])
+            ]),
+        ],
+        status: .available
+    )
+
+    let item = UsageRailPresentation.item(from: input, now: now)
+    #expect(item.groups.map(\.title) == ["has-weekly"])
+    #expect(item.showsAccountTitles == false)
+    #expect(item.usedPercent == 55)
+}
+
+@Test func claudeRailListsSessionThenAllModelsThenTopModel() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     try L10n.withLanguage("en") {
-        let provider = makeProvider(
-            limits: [
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:claude.weekly",
-                    title: L10n.tr("limit.weekly"),
-                    remainingPercent: 93,
-                    resetDate: weeklyReset
-                ),
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:claude.session",
-                    title: L10n.tr("limit.five_hour"),
-                    remainingPercent: 27,
-                    resetDate: sessionReset
-                ),
-            ],
-            observedAt: now.addingTimeInterval(-60),
-            freshUntil: now.addingTimeInterval(600)
+        let evidence = ClaudeLiveEvidence(
+            identity: try #require(ClaudeAccountIdentity(email: "claude@example.com", organizationId: nil)),
+            identityChangedAt: now,
+            snapshot: ClaudeStatuslineBridgeSnapshot(
+                fiveHour: .init(usedPercentage: 13, resetsAt: Int64(now.timeIntervalSince1970) + 6_480),
+                sevenDay: .init(usedPercentage: 20, resetsAt: Int64(now.timeIntervalSince1970) + 300_000),
+                sevenDayTopModel: .init(usedPercentage: 33, resetsAt: Int64(now.timeIntervalSince1970) + 300_000)
+            ),
+            snapshotAt: now
         )
 
-        let item = UsageRailPresentation.item(from: provider, now: now)
+        let sections = ClaudeLivePresentation.lastKnownRateLimitSections(evidence: evidence)
+        let item = UsageRailPresentation.item(
+            from: UsageRailProviderInput(
+                id: .claude,
+                accounts: [UsageRailAccountInput(id: "claude", title: "claude@example.com", sections: sections)],
+                status: .available
+            ),
+            now: now
+        )
 
-        // The ring reports the session window even though the weekly row is listed first.
-        #expect(item.usedPercent == 73)
-        #expect(item.severity == .high)
-        #expect(item.metricText == "73%")
-        #expect(item.title == "Claude")
-        #expect(item.accountTitle == "claude@example.com")
-        #expect(item.headerText == "Claude Usage")
-        #expect(item.note == nil)
-
-        #expect(item.rows.count == 2)
-        let weekly = try #require(item.rows.first)
-        #expect(weekly.usedPercent == 7)
-        #expect(weekly.severity == .low)
-        #expect(weekly.usedText == "7% Used")
-
-        let session = try #require(item.rows.last)
-        #expect(session.usedPercent == 73)
-        #expect(session.resetText == RateLimitResetFormatter.expandedText(for: sessionReset, now: now))
+        let group = try #require(item.groups.first)
+        #expect(group.rows.map(\.title) == ["Current session", "All models", "Fable"])
+        #expect(group.rows.map(\.usedPercent) == [13, 20, 33])
+        // The ring tracks the session, as the reference design does.
+        #expect(item.usedPercent == 13)
+        #expect(item.showsAccountTitles == false)
+        #expect(item.rowsAreFableAware)
     }
 }
 
-@Test func railItemDropsExpiredAndUnknownLimits() throws {
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-
-    try L10n.withLanguage("en") {
-        let provider = makeProvider(
-            limits: [
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:codex.expired",
-                    title: L10n.tr("limit.five_hour"),
-                    remainingPercent: 40,
-                    resetDate: now.addingTimeInterval(-60)
-                ),
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:codex.unknown",
-                    title: L10n.tr("limit.weekly"),
-                    remainingPercent: nil,
-                    resetDate: now.addingTimeInterval(3_600)
-                ),
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:codex.live",
-                    title: L10n.tr("limit.daily"),
-                    remainingPercent: 80,
-                    resetDate: now.addingTimeInterval(7_200)
-                ),
-            ],
-            observedAt: now.addingTimeInterval(-60),
-            freshUntil: now.addingTimeInterval(600)
-        )
-
-        let item = UsageRailPresentation.item(from: provider, now: now)
-        let row = try #require(item.rows.first)
-        #expect(item.rows.count == 1)
-        #expect(row.id == "limit:codex.live")
-        // No session window survived, so the ring falls back to the first fresh limit.
-        #expect(item.usedPercent == 20)
+private extension UsageRailItem {
+    /// Guards the mapping from Claude's `seven_day_opus` key onto its top-model row.
+    var rowsAreFableAware: Bool {
+        groups.first?.rows.contains { $0.id == ClaudeLivePresentation.topModelRowID } ?? false
     }
 }
 
-@Test func railItemReportsStatusNoteWhenNothingIsFresh() throws {
+@Test func claudeRailOmitsWindowsTheBridgeDidNotReport() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    try L10n.withLanguage("en") {
+        let evidence = ClaudeLiveEvidence(
+            identity: try #require(ClaudeAccountIdentity(email: "claude@example.com", organizationId: nil)),
+            identityChangedAt: now,
+            snapshot: ClaudeStatuslineBridgeSnapshot(
+                fiveHour: .init(usedPercentage: 3, resetsAt: nil),
+                sevenDay: .init(usedPercentage: 18, resetsAt: nil),
+                sevenDayTopModel: nil
+            ),
+            snapshotAt: now
+        )
+
+        let sections = ClaudeLivePresentation.lastKnownRateLimitSections(evidence: evidence)
+        let group = try #require(sections.first)
+        #expect(group.rows.map(\.title) == ["Current session", "All models"])
+    }
+}
+
+@Test func staleReadingsStayVisibleAndAreLabelled() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let observedAt = now.addingTimeInterval(-90 * 60)
+
+    try L10n.withLanguage("en") {
+        let input = UsageRailProviderInput(
+            id: .codex,
+            accounts: [
+                UsageRailAccountInput(id: "a", title: "acct", sections: [
+                    codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])
+                ])
+            ],
+            status: .available,
+            observedAt: observedAt,
+            isStale: true
+        )
+
+        let item = UsageRailPresentation.item(from: input, now: now)
+        #expect(item.usedPercent == 42)
+        #expect(item.isStale)
+        let updated = try #require(item.updatedText)
+        #expect(updated.contains("1h"))
+        #expect(updated.hasPrefix("Updated"))
+    }
+}
+
+@Test func railFallsBackToAStatusNoteWhenNoAccountHasRows() throws {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     L10n.withLanguage("en") {
-        let staleProvider = makeProvider(
-            limits: [
-                LimitsWidgetLimitSnapshot(
-                    id: "limit:claude.session",
-                    title: L10n.tr("limit.five_hour"),
-                    remainingPercent: 50,
-                    resetDate: now.addingTimeInterval(3_600)
-                )
-            ],
-            observedAt: now.addingTimeInterval(-3_600),
-            freshUntil: now.addingTimeInterval(-600)
-        )
+        func item(status: LimitsWidgetProviderStatus, note: String? = nil) -> UsageRailItem {
+            UsageRailPresentation.item(
+                from: UsageRailProviderInput(
+                    id: .claude,
+                    accounts: [UsageRailAccountInput(id: "a", title: "acct", sections: [])],
+                    status: status,
+                    note: note,
+                    isStale: true
+                ),
+                now: now
+            )
+        }
 
-        let stale = UsageRailPresentation.item(from: staleProvider, now: now)
-        #expect(stale.rows.isEmpty)
-        #expect(stale.usedPercent == nil)
-        #expect(stale.hasData == false)
-        #expect(stale.metricText == "—")
-        #expect(stale.progressValue == 0)
-        #expect(stale.severity == .unknown)
-        #expect(stale.note == L10n.tr("rail.no_data"))
+        let empty = item(status: .noData)
+        #expect(empty.groups.isEmpty)
+        #expect(empty.usedPercent == nil)
+        #expect(empty.metricText == "—")
+        // Staleness only means something once there is a reading to call stale.
+        #expect(empty.isStale == false)
+        #expect(empty.updatedText == nil)
+        #expect(empty.note == L10n.tr("rail.no_data"))
 
-        let signedOut = UsageRailPresentation.item(
-            from: makeProvider(status: .unavailable, limits: [], observedAt: nil, freshUntil: nil),
-            now: now
-        )
-        #expect(signedOut.note == L10n.tr("rail.signed_out"))
-
-        let failing = UsageRailPresentation.item(
-            from: makeProvider(status: .error, limits: [], observedAt: nil, freshUntil: nil),
-            now: now
-        )
-        #expect(failing.note == L10n.tr("rail.unavailable"))
-
-        // An explicit provider note wins over the generic status text.
-        let annotated = UsageRailPresentation.item(
-            from: makeProvider(status: .error, limits: [], observedAt: nil, freshUntil: nil, note: "Sign-in expired"),
-            now: now
-        )
-        #expect(annotated.note == "Sign-in expired")
+        #expect(item(status: .unavailable).note == L10n.tr("rail.signed_out"))
+        #expect(item(status: .error).note == L10n.tr("rail.unavailable"))
+        #expect(item(status: .error, note: "Sign-in expired").note == "Sign-in expired")
     }
-}
-
-@Test func railItemsFollowSnapshotProviderOrder() {
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let snapshot = LimitsWidgetSnapshot(
-        generatedAt: now,
-        providers: [
-            makeProvider(id: .codex, title: "codex@example.com", limits: [], observedAt: nil, freshUntil: nil),
-            makeProvider(id: .claude, limits: [], observedAt: nil, freshUntil: nil),
-        ]
-    )
-
-    let items = UsageRailPresentation.items(from: snapshot, now: now)
-    #expect(items.map(\.id) == [.codex, .claude])
 }
 
 @Test func railVisibilityDefaultsToOnAndHonoursAnExplicitChoice() throws {
@@ -195,4 +246,17 @@ private func makeProvider(
 
     defaults.set(true, forKey: UsageRailPresentation.enabledStorageKey)
     #expect(UsageRailPresentation.isEnabled(in: defaults))
+}
+
+@Test func statuslineBridgeDecodesTheTopModelWindow() throws {
+    let json = """
+    {"five_hour":{"resets_at":1787971800,"used_percentage":13},
+     "seven_day":{"resets_at":1788393600,"used_percentage":20},
+     "seven_day_opus":{"resets_at":1788393600,"used_percentage":33}}
+    """
+    let snapshot = try JSONDecoder().decode(ClaudeStatuslineBridgeSnapshot.self, from: Data(json.utf8))
+    #expect(snapshot.fiveHour?.usedPercentage == 13)
+    #expect(snapshot.sevenDay?.usedPercentage == 20)
+    #expect(snapshot.sevenDayTopModel?.usedPercentage == 33)
+    #expect(snapshot.sevenDayTopModel?.resetsAt == 1788393600)
 }

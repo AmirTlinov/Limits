@@ -140,6 +140,10 @@
 "limit.percent_remaining" = "%d%% remaining";
 "limit.used_five_hours" = "%d%% used in 5 hours";
 "limit.weekly" = "Weekly limit";
+"limit.claude.session" = "Current session";
+"limit.claude.all_models" = "All models";
+"limit.claude.top_model" = "Fable";
+"rail.updated_ago" = "Updated %@ ago";
 "limit.window" = "Window";
 "limits.empty.account.subtitle" = "Limits checks this account automatically. Current data will appear here when available.";
 "limits.empty.subtitle" = "Limits checks authorization and limits automatically. Current data will appear here when available.";

@@ -122,6 +122,9 @@ public actor ClaudeSessionCoordinator {
         } catch {
             repositoryError = error.localizedDescription
         }
+        // An install done by an older build keeps writing the older snapshot shape until its
+        // script is replaced, so bring it up to date as part of the normal probe.
+        try? bridge.upgradeBridgeScriptIfNeeded()
         let bridgeStatus = (try? bridge.bridgeStatus()) ?? emptyBridgeStatus
         let evidence = try await boundEvidence(
             statusBefore: statusBefore,
