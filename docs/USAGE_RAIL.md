@@ -37,8 +37,9 @@ has to react while any other app is in front.
 
 Codex publishes several overlapping allowances. Only the weekly one earns a line, and where
 an account has more than one weekly, the rail shows the one furthest consumed, since that is
-what binds first. Accounts are listed current-first, and account names only appear when there
-is more than one to tell apart.
+what binds first. Accounts are listed current-first, and account names appear whenever the
+provider holds more than one — including when only one of them has a weekly allowance to show,
+so the survivor cannot be mistaken for the account in use.
 
 Rows carry `windowMinutes`, so a surface picks a window by duration rather than by matching a
 localized title.
@@ -58,8 +59,8 @@ Claude Code exposes no usage API to the app. Limits installs a status line bridg
 `~/.claude/settings.json`; Claude Code runs it and pipes a JSON payload in, and the script
 keeps the rate limit windows and nothing else. The emitted script carries a version marker
 (`limits-statusline-bridge v4`), and `upgradeBridgeScriptIfNeeded()` rewrites it during the
-normal probe — `installBridge()` returns early once the bridge is configured, so without that
-an existing install would keep running an older script forever.
+normal probe. The script is written only when the user connects the bridge, so without that
+upgrade path a shipped change would never reach anyone who had already connected it.
 
 The payload's `rate_limits` object carries exactly two windows:
 
