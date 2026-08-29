@@ -19,8 +19,10 @@ public struct ClaudeStatuslineBridgeSnapshot: Decodable, Hashable, Sendable {
 
     public let fiveHour: Window?
     public let sevenDay: Window?
-    /// Claude Code still names the top-model weekly window `seven_day_opus`; its own settings
-    /// screen labels that same allowance after the current top model.
+    /// The weekly top-model allowance that Claude's settings screen labels after the current
+    /// top model. Claude Code does not put it in the statusLine payload today — that payload
+    /// carries only `five_hour` and `seven_day` — so this stays nil and its row is omitted.
+    /// The plumbing is here so the row appears on its own if the key is ever added.
     public let sevenDayTopModel: Window?
 
     private enum CodingKeys: String, CodingKey {
