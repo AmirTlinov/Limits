@@ -269,3 +269,38 @@ import LimitsShared
         ) == nil
     )
 }
+
+@Test func displayBuilderCarriesWindowDurationIntoRows() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.timeIntervalSince1970) + 3_600,
+            usedPercent: 15,
+            windowDurationMins: 300
+        ),
+        rateLimitReachedType: nil,
+        secondary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.timeIntervalSince1970) + 86_400,
+            usedPercent: 62,
+            windowDurationMins: 10_080
+        )
+    )
+
+    let rows = RateLimitDisplayBuilder.makeSections(primary: snapshot, byLimitId: nil).flatMap(\.rows)
+    #expect(rows.count == 2)
+
+    // Surfaces select a window by duration rather than by matching a localized title.
+    let session = try #require(rows.first { $0.isSessionWindow })
+    #expect(session.windowMinutes == 300)
+    #expect(session.usedPercent == 15)
+    #expect(session.isWeeklyWindow == false)
+
+    let weekly = try #require(rows.first { $0.isWeeklyWindow })
+    #expect(weekly.windowMinutes == 10_080)
+    #expect(weekly.usedPercent == 62)
+    #expect(weekly.isSessionWindow == false)
+}

@@ -190,9 +190,9 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
         )
     }
 
-    /// Rewrites the installed script when it predates the current snapshot shape. The bridge is
-    /// wired into Claude's settings once, so without this an existing install would keep running
-    /// the old script and never report the newer windows.
+    /// Rewrites the installed script when it predates the current snapshot shape. The script is
+    /// only written when the user connects the bridge, so without this an existing install would
+    /// keep running the script it was given and never report a newer snapshot shape.
     @discardableResult
     public func upgradeBridgeScriptIfNeeded() throws -> Bool {
         guard try bridgeStatus().installed, !bridgeScriptIsCurrent() else { return false }

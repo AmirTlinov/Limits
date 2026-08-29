@@ -224,3 +224,35 @@ private func bridgePermissions(at url: URL) -> Int {
     let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
     return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
 }
+
+@Test func claudeBridgeUpgradesAScriptWrittenByAnOlderBuild() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-claude-upgrade-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let service = ClaudeStatuslineBridgeService(
+        homeDirectory: root.appending(path: "home"),
+        appSupportDirectory: root.appending(path: "support")
+    )
+    try service.installBridge()
+    #expect(service.bridgeScriptIsCurrent())
+    #expect(try service.upgradeBridgeScriptIfNeeded() == false)
+
+    // Stand in for an install made before the current snapshot shape shipped.
+    let stale = "#!/bin/zsh\n# limits-statusline-bridge v1\nexit 0\n"
+    try stale.write(to: service.scriptURL, atomically: true, encoding: .utf8)
+    #expect(service.bridgeScriptIsCurrent() == false)
+
+    // installBridge() only runs when the user connects the bridge, so a shipped script
+    // change reaches an existing install through the upgrade path alone.
+    #expect(try service.upgradeBridgeScriptIfNeeded())
+    #expect(service.bridgeScriptIsCurrent())
+    let script = try String(contentsOf: service.scriptURL, encoding: .utf8)
+    #expect(script.contains("seven_day_opus"))
+    #expect(bridgePermissions(at: service.scriptURL) == 0o700)
+
+    // Nothing to do when the bridge was never installed.
+    let bare = ClaudeStatuslineBridgeService(
+        homeDirectory: root.appending(path: "home2"),
+        appSupportDirectory: root.appending(path: "support2")
+    )
+    #expect(try bare.upgradeBridgeScriptIfNeeded() == false)
+}

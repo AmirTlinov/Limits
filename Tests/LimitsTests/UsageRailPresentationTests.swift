@@ -260,3 +260,109 @@ private extension UsageRailItem {
     #expect(snapshot.sevenDayTopModel?.usedPercentage == 33)
     #expect(snapshot.sevenDayTopModel?.resetsAt == 1788393600)
 }
+
+@Test func recentReadingsCarryNoUpdatedLabel() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    L10n.withLanguage("en") {
+        func item(observedAt: Date?) -> UsageRailItem {
+            UsageRailPresentation.item(
+                from: UsageRailProviderInput(
+                    id: .codex,
+                    accounts: [UsageRailAccountInput(id: "a", title: "acct", sections: [
+                        codexSection(id: "limit:codex", rows: [weeklyRow(id: "codex.primary", usedPercent: 42)])
+                    ])],
+                    status: .available,
+                    observedAt: observedAt,
+                    isStale: true
+                ),
+                now: now
+            )
+        }
+
+        // Under a minute old rounds to nothing worth printing.
+        #expect(item(observedAt: now.addingTimeInterval(-30)).updatedText == nil)
+        // A clock that ran backwards must not produce a negative age.
+        #expect(item(observedAt: now.addingTimeInterval(600)).updatedText == nil)
+        #expect(item(observedAt: nil).updatedText == nil)
+        // Still flagged stale either way, so the ring stays dimmed.
+        #expect(item(observedAt: nil).isStale)
+    }
+}
+
+@Test func claudeRailDropsWindowsWithAnUnusablePercentage() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    try L10n.withLanguage("en") {
+        let evidence = ClaudeLiveEvidence(
+            identity: try #require(ClaudeAccountIdentity(email: "claude@example.com", organizationId: nil)),
+            identityChangedAt: now,
+            snapshot: ClaudeStatuslineBridgeSnapshot(
+                fiveHour: .init(usedPercentage: .nan, resetsAt: nil),
+                sevenDay: .init(usedPercentage: nil, resetsAt: nil),
+                sevenDayTopModel: .init(usedPercentage: 33, resetsAt: nil)
+            ),
+            snapshotAt: now
+        )
+
+        let sections = ClaudeLivePresentation.lastKnownRateLimitSections(evidence: evidence)
+        let group = try #require(sections.first)
+        #expect(group.rows.map(\.title) == ["Fable"])
+    }
+}
+
+@Test func codexAccountsExposeTheirLastKnownSectionsPastTheFreshnessWindow() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let observedAt = now.addingTimeInterval(-2 * 60 * 60)
+    let snapshot = RateLimitSnapshotModel(
+        credits: nil,
+        limitId: "codex",
+        limitName: nil,
+        planType: "pro",
+        primary: RateLimitWindowSnapshot(
+            resetsAt: Int64(now.timeIntervalSince1970) + 86_400,
+            usedPercent: 57,
+            windowDurationMins: 10_080
+        ),
+        rateLimitReachedType: nil,
+        secondary: nil
+    )
+
+    // The freshness-gated reader goes quiet, which would leave a non-active account blank.
+    let fresh = CodexAccountsPresentationPolicy.storedRateLimitSections(
+        primary: snapshot,
+        byLimitId: nil,
+        observedAt: observedAt,
+        now: now
+    )
+    #expect(fresh.isEmpty)
+
+    let lastKnown = CodexAccountsPresentationPolicy.lastKnownRateLimitSections(
+        primary: snapshot,
+        byLimitId: nil,
+        now: now
+    )
+    let row = try #require(lastKnown.flatMap(\.rows).first)
+    #expect(row.usedPercent == 57)
+    #expect(row.isWeeklyWindow)
+
+    // Windows that already reset are still dropped, stale or not.
+    let expired = CodexAccountsPresentationPolicy.lastKnownRateLimitSections(
+        primary: RateLimitSnapshotModel(
+            credits: nil,
+            limitId: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: RateLimitWindowSnapshot(
+                resetsAt: Int64(now.timeIntervalSince1970) - 60,
+                usedPercent: 57,
+                windowDurationMins: 10_080
+            ),
+            rateLimitReachedType: nil,
+            secondary: nil
+        ),
+        byLimitId: nil,
+        now: now
+    )
+    #expect(expired.isEmpty)
+}
