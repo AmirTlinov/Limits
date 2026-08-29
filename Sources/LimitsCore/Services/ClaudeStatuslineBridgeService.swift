@@ -158,7 +158,7 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
 
     /// Bumped whenever the emitted script changes, so an already-installed bridge is upgraded
     /// instead of silently continuing to write the older snapshot shape.
-    static let scriptVersionMarker = "limits-statusline-bridge v2"
+    static let scriptVersionMarker = "limits-statusline-bridge v3"
 
     public var scriptURL: URL {
         appSupportDirectory.appending(path: "claude-statusline-bridge.sh")
@@ -361,8 +361,15 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
         if printf '%s' "$input_json" | /usr/bin/plutil -extract rate_limits.seven_day_opus json -o "$top_path" - 2>/dev/null; then
           /usr/bin/plutil -insert seven_day_opus -json "$(cat "$top_path")" "$plist_path"
         fi
-        /usr/bin/plutil -convert json -o "$tmp_path" "$plist_path"
-        mv "$tmp_path" "$SNAPSHOT_PATH"
+        # Claude Code fires the status line as soon as its UI appears, before any turn has
+        # produced rate limits, and that payload carries none. Publishing it would replace a
+        # good snapshot with an empty one on every session start, so only publish a reading
+        # that actually carries a window.
+        if /usr/bin/plutil -extract five_hour json -o /dev/null "$plist_path" 2>/dev/null \\
+          || /usr/bin/plutil -extract seven_day json -o /dev/null "$plist_path" 2>/dev/null; then
+          /usr/bin/plutil -convert json -o "$tmp_path" "$plist_path"
+          mv "$tmp_path" "$SNAPSHOT_PATH"
+        fi
 
         if [[ -f "$ORIGINAL_PATH" ]]; then
           original_json="$(/usr/bin/plutil -extract statusLineJSON raw -o - "$ORIGINAL_PATH" 2>/dev/null || true)"

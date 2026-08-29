@@ -184,6 +184,42 @@ import Testing
     #expect(!persistedNames.contains { $0.contains("input") })
 }
 
+@Test func claudeBridgeScriptKeepsTheLastReadingWhenAPayloadCarriesNoRateLimits() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "limits-claude-empty-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let service = ClaudeStatuslineBridgeService(
+        homeDirectory: root.appending(path: "home"),
+        appSupportDirectory: root.appending(path: "support")
+    )
+    try service.installBridge()
+
+    func run(_ payload: String) throws {
+        let process = Process()
+        let stdin = Pipe()
+        process.executableURL = service.scriptURL
+        process.standardInput = stdin
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        try process.run()
+        try stdin.fileHandleForWriting.write(contentsOf: Data(payload.utf8))
+        try stdin.fileHandleForWriting.close()
+        process.waitUntilExit()
+        #expect(process.terminationStatus == 0)
+    }
+
+    try run(#"{"rate_limits":{"five_hour":{"used_percentage":12,"resets_at":2000000}}}"#)
+    let stored = try Data(contentsOf: service.snapshotURL)
+
+    // Claude Code fires the status line on session start before any turn has produced limits.
+    try run(#"{"session_id":"fresh-session","rate_limits":null}"#)
+    try run(#"{"session_id":"fresh-session"}"#)
+
+    let after = try Data(contentsOf: service.snapshotURL)
+    #expect(after == stored)
+    let object = try #require(JSONSerialization.jsonObject(with: after) as? [String: Any])
+    #expect(Set(object.keys) == ["five_hour"])
+}
+
 private func bridgePermissions(at url: URL) -> Int {
     let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
     return (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? -1
