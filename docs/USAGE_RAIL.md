@@ -57,7 +57,7 @@ looking empty.
 Claude Code exposes no usage API to the app. Limits installs a status line bridge into
 `~/.claude/settings.json`; Claude Code runs it and pipes a JSON payload in, and the script
 keeps the rate limit windows and nothing else. The emitted script carries a version marker
-(`limits-statusline-bridge v3`), and `upgradeBridgeScriptIfNeeded()` rewrites it during the
+(`limits-statusline-bridge v4`), and `upgradeBridgeScriptIfNeeded()` rewrites it during the
 normal probe — `installBridge()` returns early once the bridge is configured, so without that
 an existing install would keep running an older script forever.
 
@@ -100,7 +100,24 @@ dimmed and dated, between sessions.
 
 That first empty payload used to be published, which replaced a good snapshot with an empty
 object on every session start and blanked the Claude numbers until the first reply came back.
-The script now only publishes a reading that carries at least one window.
+The script now publishes only a reading that carries a window with a percentage in it — a bare
+`{"five_hour":{}}` satisfies a key-existence check while carrying no number, so testing for the
+key alone was not enough.
+
+Freshness is judged where it is needed rather than where the data is produced. The probe keeps
+a reading that belongs to the account in use however old it is, and each surface decides: the
+tray and widget require a current one, the rail shows the aged one and dates it. Checking the
+age in the probe instead would hand every surface nil and defeat the fallback. For the same
+reason, first learning who is signed in is not treated as an account switch — doing so rejected
+every snapshot written before launch, which on a cold start is all of them.
+
+## Known limitation
+
+The detail bubble is an overlay, so its height does not enter the panel's layout, and the panel
+is sized from the rail column alone. A Codex user with roughly five or more accounts would get a
+bubble taller than the panel and see it clipped. Fixing it needs both the bubble's height
+reported to the window controller and its vertical position clamped, since the bubble centres on
+its ring and would otherwise run past the top of the screen.
 
 ## Deliberately not done: reading Claude's usage API
 
