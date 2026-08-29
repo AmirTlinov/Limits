@@ -158,7 +158,7 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
 
     /// Bumped whenever the emitted script changes, so an already-installed bridge is upgraded
     /// instead of silently continuing to write the older snapshot shape.
-    static let scriptVersionMarker = "limits-statusline-bridge v3"
+    static let scriptVersionMarker = "limits-statusline-bridge v4"
 
     public var scriptURL: URL {
         appSupportDirectory.appending(path: "claude-statusline-bridge.sh")
@@ -196,6 +196,8 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
     @discardableResult
     public func upgradeBridgeScriptIfNeeded() throws -> Bool {
         guard try bridgeStatus().installed, !bridgeScriptIsCurrent() else { return false }
+        // A failure here leaves an older script installed and still reported as healthy, so it
+        // must reach the caller rather than being discarded.
         try ensureDirectories()
         try writeBridgeScript()
         return true
@@ -363,10 +365,11 @@ public struct ClaudeStatuslineBridgeService: @unchecked Sendable {
         fi
         # Claude Code fires the status line as soon as its UI appears, before any turn has
         # produced rate limits, and that payload carries none. Publishing it would replace a
-        # good snapshot with an empty one on every session start, so only publish a reading
-        # that actually carries a window.
-        if /usr/bin/plutil -extract five_hour json -o /dev/null "$plist_path" 2>/dev/null \\
-          || /usr/bin/plutil -extract seven_day json -o /dev/null "$plist_path" 2>/dev/null; then
+        # good snapshot with an empty one on every session start. A window key on its own is
+        # not enough either: `{"five_hour":{}}` carries no percentage and would blank the
+        # reading just the same, so require a window that actually reports one.
+        if /usr/bin/plutil -extract five_hour.used_percentage raw -o /dev/null "$plist_path" 2>/dev/null \\
+          || /usr/bin/plutil -extract seven_day.used_percentage raw -o /dev/null "$plist_path" 2>/dev/null; then
           /usr/bin/plutil -convert json -o "$tmp_path" "$plist_path"
           mv "$tmp_path" "$SNAPSHOT_PATH"
         fi

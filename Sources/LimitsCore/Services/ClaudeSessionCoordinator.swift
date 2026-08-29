@@ -30,6 +30,9 @@ public struct ClaudeSessionProbeResult: Sendable {
     public let bridgeStatus: ClaudeStatuslineBridgeStatus
     public let repositorySnapshot: AccountsRepositorySnapshot
     public let repositoryError: String?
+    /// Set when the installed bridge script could not be replaced. The bridge still reports as
+    /// installed in that case, so the failure has to travel separately to be visible at all.
+    public var bridgeUpgradeError: String?
 }
 
 public struct ClaudeCredentialCapture: Sendable {
@@ -42,9 +45,9 @@ public actor ClaudeSessionCoordinator {
     private let statusReader: any ClaudeSessionStatusReading
     private let repository: AccountsRepository
     private let bridge: ClaudeStatuslineBridgeService
-    private let evidenceTTL: TimeInterval
     private var currentIdentity: ClaudeAccountIdentity?
     private var identityChangedAt = Date.distantPast
+    private var hasObservedIdentity = false
     private var operationInFlight = false
     private var operationWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -52,14 +55,12 @@ public actor ClaudeSessionCoordinator {
         globalStore: any GlobalClaudeCredentialStoring = GlobalClaudeCredentialService(),
         statusReader: any ClaudeSessionStatusReading = ClaudeAuthStatusService(),
         repository: AccountsRepository,
-        bridge: ClaudeStatuslineBridgeService = ClaudeStatuslineBridgeService(),
-        evidenceTTL: TimeInterval = LimitsFreshnessPolicy.defaultTTL
+        bridge: ClaudeStatuslineBridgeService = ClaudeStatuslineBridgeService()
     ) {
         self.globalStore = globalStore
         self.statusReader = statusReader
         self.repository = repository
         self.bridge = bridge
-        self.evidenceTTL = evidenceTTL
     }
 
     public func currentCredentialFingerprint() throws -> String? {
@@ -124,7 +125,12 @@ public actor ClaudeSessionCoordinator {
         }
         // An install done by an older build keeps writing the older snapshot shape until its
         // script is replaced, so bring it up to date as part of the normal probe.
-        try? bridge.upgradeBridgeScriptIfNeeded()
+        var bridgeUpgradeError: String?
+        do {
+            try bridge.upgradeBridgeScriptIfNeeded()
+        } catch {
+            bridgeUpgradeError = error.localizedDescription
+        }
         let bridgeStatus = (try? bridge.bridgeStatus()) ?? emptyBridgeStatus
         let evidence = try await boundEvidence(
             statusBefore: statusBefore,
@@ -160,7 +166,8 @@ public actor ClaudeSessionCoordinator {
             evidence: evidence,
             bridgeStatus: bridgeStatus,
             repositorySnapshot: repositorySnapshot,
-            repositoryError: repositoryError
+            repositoryError: repositoryError,
+            bridgeUpgradeError: bridgeUpgradeError
         )
     }
 
@@ -225,12 +232,12 @@ public actor ClaudeSessionCoordinator {
     ) async throws -> ClaudeLiveEvidence? {
         guard bridgeStatus.installed, bridgeStatus.hasSnapshot else { return nil }
         let payload = try bridge.readSnapshot()
-        guard
-            LimitsFreshnessPolicy.isFresh(observedAt: payload.updatedAt, at: now, ttl: evidenceTTL),
-            payload.updatedAt >= identityChangedAt
-        else {
-            return nil
-        }
+        // Freshness is a display decision, not a trust decision: the bridge only writes while a
+        // Claude Code session runs, so discarding an aged reading here left every surface with
+        // nothing to show between sessions. Consumers that require a current reading re-check
+        // the age themselves; what must hold here is that the snapshot belongs to the account
+        // in use.
+        guard payload.updatedAt >= identityChangedAt else { return nil }
         let statusAfter = try await statusReader.readStatus()
         guard
             statusAfter.loggedIn,
@@ -281,8 +288,15 @@ public actor ClaudeSessionCoordinator {
     }
 
     private func transitionIdentity(to identity: ClaudeAccountIdentity?, at date: Date) {
-        if currentIdentity != identity {
-            currentIdentity = identity
+        defer { hasObservedIdentity = true }
+        guard currentIdentity != identity else { return }
+        // Learning who is signed in is not an account switch. Advancing the boundary on that
+        // first observation would reject every snapshot written before launch — which on a cold
+        // start is all of them. A snapshot that genuinely belongs to someone else is cleared by
+        // the logout and identity-mismatch paths, which erase it outright.
+        let isFirstObservation = !hasObservedIdentity && currentIdentity == nil
+        currentIdentity = identity
+        if !isFirstObservation {
             identityChangedAt = date
         }
     }

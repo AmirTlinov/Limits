@@ -79,7 +79,8 @@ public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
         groups: [UsageRailAccountGroup],
         isStale: Bool,
         updatedText: String?,
-        note: String?
+        note: String?,
+        showsAccountTitles: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -87,6 +88,7 @@ public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
         self.isStale = isStale
         self.updatedText = updatedText
         self.note = note
+        self.showsAccountTitles = showsAccountTitles
     }
 
     /// The ring reports the first account's leading row: for Codex the weekly allowance that
@@ -117,10 +119,11 @@ public struct UsageRailItem: Identifiable, Equatable, Hashable, Sendable {
         L10n.tr("rail.usage_title", title)
     }
 
-    /// Account names only earn their line when there is more than one to tell apart.
-    public var showsAccountTitles: Bool {
-        groups.count > 1
-    }
+    /// Account names earn their line whenever the provider holds more than one account — not
+    /// merely when more than one survived. An account with no weekly allowance is dropped, and
+    /// without this the sole remaining account would report the ring's number anonymously, as
+    /// though it were the account in use.
+    public let showsAccountTitles: Bool
 
     public var accessibilityLabel: String {
         guard let headline = groups.first?.headline else {
@@ -220,7 +223,8 @@ public enum UsageRailPresentation {
             groups: groups,
             isStale: leading?.isStale ?? false,
             updatedText: leading?.updatedText,
-            note: groups.isEmpty ? (input.note ?? statusNote(for: input.status)) : nil
+            note: groups.isEmpty ? (input.note ?? statusNote(for: input.status)) : nil,
+            showsAccountTitles: input.accounts.count > 1 && !groups.isEmpty
         )
     }
 

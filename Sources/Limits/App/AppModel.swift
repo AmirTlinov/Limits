@@ -266,6 +266,9 @@ final class AppModel: ObservableObject {
         currentClaudeValidatedAt = result.validatedAt
         currentClaudeLiveEvidence = result.evidence
         currentClaudeLiveBridgeStatus = result.bridgeStatus
+        if let bridgeUpgradeError = result.bridgeUpgradeError {
+            currentClaudeBridgeError = bridgeUpgradeError
+        }
         currentClaudeError = result.repositoryError
         providerCatalog = ProviderCatalogSnapshot(savedClaudeCount: claudeAccounts.count, claudeSource: result.source)
     }
@@ -977,7 +980,7 @@ final class AppModel: ObservableObject {
         let overview = currentClaudeOverview()
         let fresh = currentClaudeLiveRateLimitSections(now: now)
         let sections = fresh.isEmpty
-            ? ClaudeLivePresentation.lastKnownRateLimitSections(evidence: currentClaudeLiveEvidence)
+            ? ClaudeLivePresentation.lastKnownRateLimitSections(evidence: currentClaudeLiveEvidence, now: now)
             : fresh
         let observedAt = currentClaudeLiveEvidence?.snapshotAt
 

@@ -430,3 +430,33 @@ private func coordinatorClaudeAccount(credential: Data) -> ClaudeStoredAccount {
         authFingerprint: CodexAuthBlob.fingerprint(for: credential), keychainAccount: "claude.\(id.uuidString)"
     )
 }
+
+@Test func claudeProbeKeepsAnAgedSnapshotSoSurfacesCanStillShowIt() async throws {
+    let fixture = try await ClaudeCoordinatorFixture()
+    defer { Task { await fixture.remove() } }
+
+    let account = coordinatorClaudeAccount(credential: Data("credential".utf8))
+    fixture.reader.set(statuses: [loggedInClaudeStatus(email: account.email, orgID: account.orgId!)])
+    try fixture.bridge.installBridge()
+
+    let snapshot = #"{"five_hour":{"used_percentage":41,"resets_at":4000000000}}"#
+    try Data(snapshot.utf8).write(to: fixture.bridge.snapshotURL, options: .atomic)
+
+    // The bridge only writes while a Claude Code session runs, so a reading this old is the
+    // normal state between sessions, not a fault.
+    let aged = Date().addingTimeInterval(-6 * 60 * 60)
+    try FileManager.default.setAttributes(
+        [.modificationDate: aged],
+        ofItemAtPath: fixture.bridge.snapshotURL.path
+    )
+
+    let result = try await fixture.coordinator.probe()
+    let evidence = try #require(result.evidence)
+    #expect(evidence.snapshot.fiveHour?.usedPercentage == 41)
+    #expect(evidence.snapshotAt < Date().addingTimeInterval(-60 * 60))
+    #expect(result.bridgeUpgradeError == nil)
+
+    // Surfaces that require a current reading still reject it on their own.
+    #expect(ClaudeLivePresentation.rateLimitSections(evidence: evidence).isEmpty)
+    #expect(!ClaudeLivePresentation.lastKnownRateLimitSections(evidence: evidence).isEmpty)
+}

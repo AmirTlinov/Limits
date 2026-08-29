@@ -109,8 +109,10 @@ private func sessionRow(id: String, usedPercent: Int) -> RateLimitDisplayRow {
 
     let item = UsageRailPresentation.item(from: input, now: now)
     #expect(item.groups.map(\.title) == ["has-weekly"])
-    #expect(item.showsAccountTitles == false)
     #expect(item.usedPercent == 55)
+    // The dropped account still counts: the survivor has to say which account it is, or the
+    // ring would report a number the user reads as belonging to the account in use.
+    #expect(item.showsAccountTitles)
 }
 
 @Test func claudeRailListsSessionThenAllModelsThenTopModel() throws {

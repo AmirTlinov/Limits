@@ -213,6 +213,10 @@ import Testing
     // Claude Code fires the status line on session start before any turn has produced limits.
     try run(#"{"session_id":"fresh-session","rate_limits":null}"#)
     try run(#"{"session_id":"fresh-session"}"#)
+    // A window key with no percentage in it is just as empty and must not replace the reading.
+    try run(#"{"rate_limits":{"five_hour":{}}}"#)
+    try run(#"{"rate_limits":{"five_hour":{},"seven_day":{}}}"#)
+    try run(#"{"rate_limits":{"five_hour":{"resets_at":2000000}}}"#)
 
     let after = try Data(contentsOf: service.snapshotURL)
     #expect(after == stored)
