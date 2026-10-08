@@ -82,5 +82,5 @@ if [[ "$MODE" == "isolated-ui" ]]; then
   ./script/verify_runtime.sh "$DERIVED_DATA/Build/Products/Debug/Limits.app"
 else
   echo "Local gate passed without taking over the interactive macOS session."
-  echo "GitHub Actions owns the isolated UI and lifecycle gate."
+  echo "UI and lifecycle checks require a separate local macOS login session."
 fi

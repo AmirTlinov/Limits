@@ -109,7 +109,7 @@ gem install xcodeproj -v 1.27.0 --no-document --user-install
 ./script/build_and_run.sh
 ```
 
-The local gate regenerates the Xcode project, builds the app, runs every hostless test, and verifies the bundle without launching UI automation. GitHub Actions owns UI and lifecycle tests in a dedicated macOS session, so the test suite does not take over the developer's keyboard, pointer, windows, or menu bar.
+The local gate regenerates the Xcode project, builds the app, runs every hostless test, and verifies the bundle without launching UI automation. Native builds, tests, screenshots, and releases run locally on macOS. UI and lifecycle tests require a separate local login session, preserving the developer's keyboard, pointer, windows, and menu bar. GitHub Actions publishes the static site on Linux.
 
 Focused model and persistence checks use the hostless `LimitsUnitTests` scheme. The full architecture, contribution contract, and maintainer release path live in [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and [`docs/RELEASING.md`](docs/RELEASING.md).
 

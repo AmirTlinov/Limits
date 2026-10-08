@@ -307,7 +307,7 @@ end
 ui_isolation_guard = ui_tests.new_shell_script_build_phase("Require isolated UI session")
 ui_isolation_guard.shell_script = <<~'SCRIPT'
   if [ "${LIMITS_ISOLATED_UI_SESSION:-}" != "1" ]; then
-    echo "error: Limits UI tests require a dedicated macOS session. Run ./script/ci_gate.sh locally and let GitHub Actions run UI automation." >&2
+    echo "error: Limits UI tests require a separate local macOS login session. Run ./script/ci_gate.sh in your normal session." >&2
     exit 1
   fi
 SCRIPT

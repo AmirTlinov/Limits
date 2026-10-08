@@ -1,62 +1,70 @@
 # Releasing Limits
 
-`Limits.xcodeproj` is the owner of the shipped app. A release is complete when the full gate passes, the Developer ID archive is notarized and stapled, and the zip, checksum, release appcast, and root Sparkle feed are public on GitHub Pages.
+`Limits.xcodeproj` owns the shipped app. Native checks, signing, notarization, and packaging run on the maintainer's local Mac. A release is complete when the notarized zip, checksum, release appcast, and root Sparkle feed are public and the upgrade from the previous signed build succeeds.
 
-## One-time GitHub configuration
+## Local setup
 
-The repository uses these Actions secrets:
+The packaging script requires a `Developer ID Application` identity for team `M94V58FCVP`. Store a working `LimitsNotary` Keychain profile with `./script/store_notary_credentials.sh`, or use the App Store Connect API environment documented by `./script/package_release.sh --help`.
 
-| Secret | Contents |
-| --- | --- |
-| `DEVELOPER_ID_P12_BASE64` | Base64-encoded Developer ID Application identity and private key in PKCS#12 format |
-| `DEVELOPER_ID_P12_PASSWORD` | Password used when exporting that PKCS#12 file |
-| `NOTARY_KEY_P8_BASE64` | Base64-encoded App Store Connect API private key |
-| `NOTARY_KEY_ID` | App Store Connect API key ID |
-| `NOTARY_ISSUER_ID` | App Store Connect API issuer ID |
-| `SPARKLE_PRIVATE_KEY` | Private EdDSA key exported by Sparkle `generate_keys` |
+Sparkle signing uses the local Keychain account `com.amir.Limits` by default. The matching public key is committed as `SUPublicEDKey` in `Config/Limits-Info.plist`. Private Apple and Sparkle keys stay outside git and release artifacts.
 
-The matching Sparkle public key is committed as `SUPublicEDKey` in `Config/Limits-Info.plist`. The private key stays in the macOS Keychain and GitHub Actions secret; it never belongs in git or release artifacts.
+GitHub Pages publishes `gh-pages` at <https://amirtlinov.github.io/Limits/>. The Linux `Publish site` workflow updates the site shell and preserves release artifacts. Version directories remain available because existing appcasts can refer to them; `releases/latest/` mirrors the newest build.
 
-GitHub Pages publishes the `gh-pages` branch at <https://amirtlinov.github.io/Limits/>. Immutable artifacts live under `releases/v<version>/`; `releases/latest/` mirrors the newest build. Published version directories remain available because existing appcasts can refer to them. The source repository, GitHub Releases, and Pages download channel are public.
-
-## Local proof before tagging
+## Prepare the reviewed commit
 
 ```bash
 VERSION=1.0.1
 
 ./script/ci_gate.sh
-
-./script/package_release.sh "$VERSION" --no-notarize
-./script/generate_appcast.sh "$VERSION" --existing-appcast site/appcast.xml
+./script/package_release.sh "$VERSION" --notarize
+curl --fail --silent --show-error --location \
+  https://amirtlinov.github.io/Limits/appcast.xml \
+  --output .build/current-appcast.xml
+./script/generate_appcast.sh "$VERSION" --existing-appcast .build/current-appcast.xml
 ```
 
-The local gate is non-interactive. The required GitHub Actions CI run adds the
-UI and lifecycle gate on its dedicated macOS runner before a release tag is
-accepted.
+The ordinary gate builds, runs hostless tests, and verifies the bundle without launching UI automation. UI, lifecycle, and screenshot checks require a separate local macOS login session; run `LIMITS_ISOLATED_UI_SESSION=1 ./script/ci_gate.sh --isolated-ui` only there.
 
-The packaging script requires the `Developer ID Application` identity for team `M94V58FCVP`. Add `--notarize` after storing a working `LimitsNotary` profile, or provide the App Store Connect API environment documented by `./script/package_release.sh --help`.
+## Publish the local artifacts
 
-## Publish
-
-Create and push an annotated tag from the reviewed release commit:
+Create the annotated tag and GitHub release from the same reviewed commit:
 
 ```bash
-VERSION=1.0.1
-
 git tag -a "v$VERSION" -m "Limits $VERSION"
 git push origin "v$VERSION"
+gh release create "v$VERSION" \
+  "dist/Limits-v$VERSION-macOS-arm64.zip" \
+  "dist/Limits-v$VERSION-macOS-arm64.zip.sha256" \
+  dist/appcast.xml --title "Limits $VERSION" --generate-notes
 ```
 
-The `Release` workflow checks out the exact tagged commit, repeats
-`ci_gate.sh --isolated-ui` in its dedicated macOS session, imports the Developer
-ID identity, archives the app, notarizes and staples it, signs the Sparkle
-appcast, updates the GitHub release, and publishes the public binary channel on
-GitHub Pages. The update court starts from the newest earlier GitHub Release
-that actually contains a signed macOS archive, so an abandoned tag cannot
-replace the upgrade source. A manual dispatch also requires an existing
-annotated tag and builds that tag rather than the current branch head.
+Publish the exact signed files to the existing Pages branch:
 
-The release is accepted only after all public receipts agree:
+```bash
+LIMITS_PAGES_DIR="$(mktemp -d)"
+gh repo clone AmirTlinov/Limits "$LIMITS_PAGES_DIR" -- --branch gh-pages --single-branch
+LIMITS_VERSION_DIR="$LIMITS_PAGES_DIR/releases/v$VERSION"
+LIMITS_LATEST_DIR="$LIMITS_PAGES_DIR/releases/latest"
+mkdir -p "$LIMITS_VERSION_DIR"
+cp dist/appcast.xml "$LIMITS_PAGES_DIR/appcast.xml"
+cp dist/appcast.xml "dist/Limits-v$VERSION-macOS-arm64.zip" \
+  "dist/Limits-v$VERSION-macOS-arm64.zip.sha256" "$LIMITS_VERSION_DIR/"
+if [[ -f "release-notes/v$VERSION.md" ]]; then
+  cp "release-notes/v$VERSION.md" "$LIMITS_VERSION_DIR/release-notes.md"
+fi
+rm -rf "$LIMITS_LATEST_DIR"
+mkdir -p "$LIMITS_LATEST_DIR"
+cp "$LIMITS_VERSION_DIR"/* "$LIMITS_LATEST_DIR/"
+cp "dist/Limits-v$VERSION-macOS-arm64.zip" "$LIMITS_LATEST_DIR/Limits-macOS-arm64.zip"
+(cd "$LIMITS_LATEST_DIR" && shasum -a 256 Limits-macOS-arm64.zip > Limits-macOS-arm64.zip.sha256)
+git -C "$LIMITS_PAGES_DIR" add appcast.xml releases
+git -C "$LIMITS_PAGES_DIR" commit -m "release: publish Limits $VERSION appcast"
+git -C "$LIMITS_PAGES_DIR" push origin gh-pages
+```
+
+After Pages updates, run `./script/verify_public_release.sh "$VERSION"`. Use `./script/select_previous_release.py "v$VERSION"` with the GitHub releases API to select the newest earlier release containing a signed archive. Download that archive and run `./script/verify_sparkle_update.sh "$VERSION" /path/to/previous.zip` in the separate local session.
+
+Acceptance requires these receipts:
 
 ```text
 Pages version URL   -> exact notarized zip and checksum
