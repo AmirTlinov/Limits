@@ -998,7 +998,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${LIMITS_ISOLATED_UI_SESSION:-}\" != \"1\" ]; then\n  echo \"error: Limits UI tests require a dedicated macOS session. Run ./script/ci_gate.sh locally and let GitHub Actions run UI automation.\" >&2\n  exit 1\nfi\n";
+			shellScript = "if [ \"${LIMITS_ISOLATED_UI_SESSION:-}\" != \"1\" ]; then\n  echo \"error: Limits UI tests require a separate local macOS login session. Run ./script/ci_gate.sh in your normal session.\" >&2\n  exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

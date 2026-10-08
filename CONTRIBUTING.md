@@ -4,7 +4,7 @@ Limits accepts focused bug fixes and improvements through pull requests. Start w
 
 ## Development setup
 
-You need an Apple-silicon Mac running macOS 26 or newer, Xcode 26.4.1 or a compatible newer Xcode, Ruby, Python 3, and the `xcodeproj` gem pinned by CI:
+You need an Apple-silicon Mac running macOS 26 or newer, Xcode 26.4.1 or a compatible newer Xcode, Ruby, Python 3, and the pinned `xcodeproj` gem:
 
 ```bash
 gem install xcodeproj -v 1.27.0 --no-document --user-install
@@ -13,7 +13,7 @@ gem install xcodeproj -v 1.27.0 --no-document --user-install
 
 If Ruby installs executables outside `PATH`, add `$(ruby -e 'print Gem.user_dir')/bin` for the current shell. Xcode resolves the exact Sparkle revision recorded in `Package.resolved`.
 
-The local gate regenerates the Xcode project, builds the app, runs hostless unit tests, and verifies the static bundle contract. It does not activate an app, control the pointer, or use the keyboard. GitHub Actions runs the remaining UI and lifecycle contracts in a dedicated macOS session. Use the focused `LimitsUnitTests` scheme while iterating on model or persistence code:
+The local gate regenerates the Xcode project, builds the app, runs hostless unit tests, and verifies the static bundle contract. It does not activate an app, control the pointer, or use the keyboard. Native checks run locally; GitHub Actions publishes only the static site on Linux. Use the focused `LimitsUnitTests` scheme while iterating on model or persistence code:
 
 ```bash
 xcodebuild test \
@@ -24,12 +24,14 @@ xcodebuild test \
 ```
 
 The `LimitsUITests` scheme is guarded against execution in an ordinary login
-session. Maintainers may run the complete gate only inside a disposable runner
-or separate macOS login session:
+session. Maintainers may run the complete gate only inside a separate local
+macOS login session:
 
 ```bash
 LIMITS_ISOLATED_UI_SESSION=1 ./script/ci_gate.sh --isolated-ui
 ```
+
+Documentation screenshots use `./script/capture_ui_screenshots.sh` in the same separate session.
 
 ## Change contract
 
